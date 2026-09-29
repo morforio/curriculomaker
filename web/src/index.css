@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+/* Página A4 sem cabeçalho/rodapé do navegador: as caixas de margem vazias impedem que
+   data, título e URL vazem para a camada de texto do PDF (importante para ATS). */
+@page {
+  size: A4;
+  margin: 15mm 18mm;
+  @top-left { content: ''; }
+  @top-center { content: ''; }
+  @top-right { content: ''; }
+  @bottom-left { content: ''; }
+  @bottom-center { content: ''; }
+  @bottom-right { content: ''; }
+}
+
+:root {
+  --cv-text: #333333;
+  --cv-accent: #1f4e79;
+  --cv-muted: #555555;
+  --cv-box: #f2f7fa;
+  --cv-box-border: #d3e1ec;
+}
+
+body {
+  margin: 0;
+  background: #f3f4f6;
+  color: #111827;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ---------- Currículo (template ATS) ---------- */
+.cv-page {
+  box-sizing: border-box;
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 15mm 18mm;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
+.cv {
+  font-family: Arial, 'Liberation Sans', Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.3;
+  color: var(--cv-text);
+  font-variant-ligatures: none;
+  hyphens: manual;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.cv p { margin: 0; }
+.cv a { color: var(--cv-accent); text-decoration: none; }
+.cv strong { font-weight: 700; }
+
+.cv-name {
+  margin: 0;
+  padding-bottom: 4pt;
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 1.8em;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--cv-accent);
+  border-bottom: 1.5pt solid var(--cv-accent);
+}
+.cv-headline {
+  margin-top: 3pt !important;
+  text-align: center;
+  font-size: 1.05em;
+  color: var(--cv-muted);
+}
+.cv-contact {
+  margin-top: 6pt;
+  padding: 5pt 8pt;
+  text-align: center;
+  font-size: 0.95em;
+  background: var(--cv-box);
+  border: 0.75pt solid var(--cv-box-border);
+}
+.cv-h2 {
+  margin: 10pt 0 4pt;
+  padding-bottom: 2pt;
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--cv-accent);
+  border-bottom: 0.75pt solid var(--cv-accent);
+  break-after: avoid;
+}
+.cv-entry { margin-bottom: 6pt; }
+.cv-title {
+  font-weight: 700;
+  color: var(--cv-accent);
+  break-after: avoid;
+}
+.cv-title em { font-weight: 400; font-style: italic; color: var(--cv-text); }
+.cv-meta { font-style: italic; color: var(--cv-muted); font-size: 0.95em; break-after: avoid; }
+.cv ul { margin: 1pt 0 0; padding-left: 13pt; list-style: disc; }
+.cv li { margin-bottom: 1.5pt; break-inside: avoid; }
+.cv-text-block { white-space: pre-line; }
+
+@media print {
+  body { background: #fff; }
+  .cv-page {
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}
