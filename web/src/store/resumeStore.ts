@@ -44,6 +44,7 @@ type State = {
   resume: Resume
   setHeader: (patch: Partial<Resume['header']>) => void
   addSection: (type: SectionType) => void
+  insertSection: (section: Section, index: number) => void
   removeSection: (id: string) => void
   moveSection: (from: number, to: number) => void
   updateSection: (id: string, patch: Partial<Pick<Section, 'title' | 'data'>>) => void
@@ -57,6 +58,12 @@ export const useResumeStore = create<State>()(
       resume: defaultResume(),
       setHeader: (patch) => set((s) => ({ resume: { ...s.resume, header: { ...s.resume.header, ...patch } } })),
       addSection: (type) => set((s) => ({ resume: { ...s.resume, sections: [...s.resume.sections, newSection(type)] } })),
+      insertSection: (section, index) =>
+        set((s) => {
+          const sections = [...s.resume.sections]
+          sections.splice(Math.max(0, Math.min(index, sections.length)), 0, section)
+          return { resume: { ...s.resume, sections } }
+        }),
       removeSection: (id) => set((s) => ({ resume: { ...s.resume, sections: s.resume.sections.filter((x) => x.id !== id) } })),
       moveSection: (from, to) =>
         set((s) => {

@@ -24,7 +24,7 @@ Supabase guarda autenticação e os currículos de cada usuário.
 | Idiomas (pt-BR/en) | react-i18next | Interface bilíngue; idioma do currículo é independente do idioma da interface |
 | Hospedagem do front | Cloudflare Pages (estático) | Grátis, CDN global; já ligado ao repositório e ao domínio |
 | Backend | Supabase (Auth, Postgres, Storage, Edge Functions) | Já decidido |
-| LLM | **gpt-oss-120b** por uma camada plugável dentro de Edge Functions | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front |
+| LLM | **gpt-oss-120b** por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front |
 | Leitura de PDF | `pdfjs-dist` no navegador, só extração de texto (sem LLM) | Grátis, não inventa conteúdo, não sobe o arquivo para servidor |
 | Exportar PDF | Impressão com CSS `@media print` na v1; `@react-pdf/renderer` se precisar de mais controle | Ver seção 8 (ATS) |
 
@@ -52,6 +52,14 @@ Regras:
 - O navegador **só** fala com o Supabase. Nunca com o provedor de LLM.
 - Edge Functions validam o JWT do usuário, aplicam limite de uso e só então chamam o LLM.
 - Provedor escolhido por variáveis de ambiente (`LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`) nos *secrets* da função. A chave de API fica só nos secrets (e num `.env` local que não vai para o Git).
+
+**Situação atual (etapa 3, análise de vaga).** Ainda não existe projeto Supabase nem login. Por isso a análise roda num **Worker da Cloudflare**, no mesmo projeto e domínio do site, e não numa Edge Function. O desenho do diagrama acima continua valendo para quando o Supabase entrar; o código do LLM (`web/worker/`) é portável.
+- `web/worker/index.ts`: roteia `/api/analyze` e entrega o site (arquivos estáticos, modo SPA) para o resto.
+- `web/worker/analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; só os idiomas pedidos voltam; uma nova tentativa se a resposta vier fora do formato).
+- `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (5 por hora, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc`.
+- Segurança: só aceita pedidos do próprio site (cabeçalho `Origin`); o texto da vaga é tratado como dado; o currículo enviado não leva nome, e-mail, telefone nem links.
+- Segredo `LLM_API_KEY` no painel da Cloudflare (não pode ser cadastrado enquanto o Worker só tiver arquivos estáticos). Opcionais: `LLM_BASE_URL` e `LLM_MODEL` (padrão `https://integrate.api.nvidia.com/v1` e `openai/gpt-oss-120b`).
+- Em desenvolvimento (`npm run dev`), o Vite atende `/api/analyze` com o mesmo código, lendo `LLM_API_KEY` do `.env` local, sem limite de uso.
 
 ## 4. Modelo de dados
 
@@ -335,7 +343,7 @@ curriculomaker/
 | 0 | Repositório, Vite + TS + Tailwind, lint, `.gitignore`, `.env.example` | App sobe em branco |
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
 | 2 | Supabase: projeto, migrations, Auth, salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
-| 3 | Adequação à vaga: `analyze-job`, provedor plugável, tela com diff + tabela + checkbox de idioma | Saída validada; nada inventado nos testes |
+| 3 | **Código feito.** Adequação à vaga: Worker `/api/analyze`, provedor plugável, tela com diff + tabela + checkbox de idioma. Falta cadastrar a chave e validar com o modelo real | Saída validada; nada inventado nos testes |
 | 4 | Wizard de perguntas | Base criado só respondendo perguntas |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
 | 6 | Variantes por vaga, histórico de análises, limites de uso, planos gratuito/pago | — |
@@ -355,5 +363,9 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Template: um único, ATS-friendly.
 - Importação de PDF: só reconhecimento de texto, sem LLM e sem reescrever; o que não for reconhecido o usuário adiciona à mão.
 
+- Backend da análise de vaga: Worker da Cloudflare, com limite por IP (5 por hora) e teto diário (200) por Durable Object. Migrar para o Supabase quando houver login.
+
 **Em aberto**
-1. Provedor do gpt-oss-120b em produção e termos de uso comercial do NVIDIA Build.
+1. Provedor do gpt-oss-120b em produção e termos de uso comercial do NVIDIA Build (a NVIDIA descreve o acesso como "trial service").
+2. Confirmar o id exato do modelo 120b na NVIDIA (a página vista pelo dono do projeto era a do gpt-oss-20b: `openai/gpt-oss-20b`). Se for diferente de `openai/gpt-oss-120b`, definir a variável `LLM_MODEL`.
+3. Cadastrar o segredo `LLM_API_KEY` no painel da Cloudflare (só é possível depois do primeiro deploy com o Worker) e validar a qualidade com cerca de 15 pares de currículo e vaga: JSON válido, fatos inventados, evidências corretas.

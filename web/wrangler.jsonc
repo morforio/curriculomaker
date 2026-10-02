@@ -1,8 +1,21 @@
 {
   "name": "currimaker",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-09-29",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "LIMITER", "class_name": "Limiter" }]
+  },
+  "exports": {
+    "Limiter": { "type": "durable-object", "storage": "sqlite" }
+  },
+  "vars": {
+    "RATE_PER_IP_HOUR": "5",
+    "DAILY_CAP": "200"
   }
 }

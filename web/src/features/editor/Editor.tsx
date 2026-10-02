@@ -12,6 +12,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SECTION_TYPES, type SectionType } from '../../lib/schemas/resume'
+import { JobMatchPanel } from '../job-match/JobMatchPanel'
 import { useResumeStore } from '../../store/resumeStore'
 import { TextField } from './fields'
 import { SectionCard } from './SectionCard'
@@ -82,6 +83,8 @@ export function Editor() {
           </button>
         </div>
       </section>
+
+      <JobMatchPanel />
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
