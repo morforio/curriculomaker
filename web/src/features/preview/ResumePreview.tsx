@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Resume, Section } from '../../lib/schemas/resume'
+import type { Resume, Row, Section } from '../../lib/schemas/resume'
 
 /**
  * Template ATS-friendly: uma coluna, HTML semântico, texto real, sem tabelas, ícones nem
@@ -57,18 +57,46 @@ function RichText({ text }: { text: string }) {
   return <>{out}</>
 }
 
-function Lines({ text }: { text: string }) {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-  if (lines.length === 0) return null
-  return (
-    <ul>
-      {lines.map((l, i) => (
-        <li key={i}>
-          <Inline text={l} />
-        </li>
-      ))}
-    </ul>
-  )
+/**
+ * Linhas "tópico + texto": com tópico viram marcador com o tópico em negrito;
+ * sem tópico viram texto livre (parágrafos e, se começarem com - ou •, marcadores).
+ */
+function RowsView({ rows }: { rows: Row[] }) {
+  const out: ReactNode[] = []
+  let topicRows: Row[] = []
+  const flush = () => {
+    if (topicRows.length === 0) return
+    const items = topicRows
+    out.push(
+      <ul key={`t${out.length}`}>
+        {items.map((r, i) => {
+          const topic = r.topic.trim().replace(/:\s*$/, '')
+          return (
+            <li key={i}>
+              <strong>{topic}</strong>
+              {r.text.trim() ? ': ' : ''}
+              <Inline text={r.text.trim()} />
+            </li>
+          )
+        })}
+      </ul>,
+    )
+    topicRows = []
+  }
+  for (const row of rows) {
+    if (row.topic.trim()) {
+      topicRows.push(row)
+    } else if (row.text.trim()) {
+      flush()
+      out.push(<RichText key={`r${out.length}`} text={row.text} />)
+    }
+  }
+  flush()
+  return <>{out}</>
+}
+
+function rowsEmpty(rows: Row[]): boolean {
+  return rows.every((r) => !r.topic.trim() && !r.text.trim())
 }
 
 function joinParts(parts: string[], sep = ' | ') {
@@ -99,9 +127,10 @@ function Title({ main, period }: { main: string; period?: string }) {
 function SectionBody({ section }: { section: Section }) {
   switch (section.type) {
     case 'summary':
-      return <RichText text={section.data.text} />
+    case 'skills':
+    case 'languages':
     case 'custom':
-      return <RichText text={section.data.markdown} />
+      return <RowsView rows={section.data.rows} />
     case 'experience':
       return (
         <>
@@ -109,7 +138,7 @@ function SectionBody({ section }: { section: Section }) {
             <div key={i} className="cv-entry">
               <Title main={joinParts([item.role, item.company], ', ')} period={item.period} />
               {item.location.trim() && <p className="cv-meta">{item.location}</p>}
-              <Lines text={item.description} />
+              <RowsView rows={item.rows} />
             </div>
           ))}
         </>
@@ -120,32 +149,10 @@ function SectionBody({ section }: { section: Section }) {
           {section.data.items.map((item, i) => (
             <div key={i} className="cv-entry">
               <Title main={joinParts([item.degree, item.institution], ', ')} period={item.period} />
-              <Lines text={item.description} />
+              <RowsView rows={item.rows} />
             </div>
           ))}
         </>
-      )
-    case 'skills':
-      return (
-        <ul>
-          {section.data.groups
-            .filter((g) => g.items.length > 0)
-            .map((g, i) => (
-              <li key={i}>
-                {g.label.trim() && <strong>{g.label.trim()}: </strong>}
-                {g.items.join(', ')}
-              </li>
-            ))}
-        </ul>
-      )
-    case 'languages':
-      return (
-        <p>
-          {section.data.items
-            .filter((l) => l.name.trim())
-            .map((l) => joinParts([l.name, l.level], ' - '))
-            .join('; ')}
-        </p>
       )
   }
 }
@@ -153,17 +160,14 @@ function SectionBody({ section }: { section: Section }) {
 function isEmpty(section: Section): boolean {
   switch (section.type) {
     case 'summary':
-      return !section.data.text.trim()
-    case 'custom':
-      return !section.data.markdown.trim()
-    case 'experience':
-      return section.data.items.every((i) => !joinParts([i.role, i.company, i.period, i.description]))
-    case 'education':
-      return section.data.items.every((i) => !joinParts([i.degree, i.institution, i.period, i.description]))
     case 'skills':
-      return section.data.groups.every((g) => g.items.length === 0)
     case 'languages':
-      return section.data.items.every((l) => !l.name.trim())
+    case 'custom':
+      return rowsEmpty(section.data.rows)
+    case 'experience':
+      return section.data.items.every((i) => !joinParts([i.role, i.company, i.period]) && rowsEmpty(i.rows))
+    case 'education':
+      return section.data.items.every((i) => !joinParts([i.degree, i.institution, i.period]) && rowsEmpty(i.rows))
   }
 }
 

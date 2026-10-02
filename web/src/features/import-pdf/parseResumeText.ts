@@ -1,3 +1,4 @@
+import { linesToRows, type RowLike } from '../../lib/rows.ts'
 import type { SectionType } from '../../lib/schemas/resume.ts'
 
 /**
@@ -11,7 +12,8 @@ export type ImportedBlock = {
   /** Título exatamente como aparece no PDF. */
   title: string
   type: SectionType
-  text: string
+  /** Linhas "tópico + texto" (tópico vazio = texto livre). */
+  rows: RowLike[]
 }
 
 export type ParsedResume = {
@@ -106,19 +108,35 @@ function headingType(line: string): SectionType | null {
 
 const BULLET = /^[•▪·●■◦▫‣\-–—]\s*/u
 
-/** Junta linhas quebradas no meio de uma frase (a linha seguinte começa com minúscula). */
-function joinWrappedLines(lines: string[]): string[] {
+/**
+ * Junta linhas quebradas no meio de uma frase. Uma linha é continuação da anterior quando:
+ * - a anterior ocupa quase a largura toda (tamanho próximo ao das linhas mais longas do documento)
+ *   e não termina em ponto final, ou
+ * - a linha começa com minúscula e a anterior não termina em pontuação de fim de frase.
+ * Linhas que começam com marcador nunca são continuação.
+ */
+function joinWrappedLines(lines: string[], fullWidth: number): string[] {
   const out: string[] = []
   for (const line of lines) {
     const prev = out[out.length - 1]
-    const startsLower = /^\p{Ll}/u.test(line)
-    if (prev !== undefined && startsLower && !BULLET.test(line) && !/[.!?:]$/.test(prev) && !headingType(prev)) {
-      out[out.length - 1] = `${prev} ${line}`
-    } else {
-      out.push(line)
+    if (prev !== undefined && !BULLET.test(line)) {
+      const prevIsFull = fullWidth > 0 && prev.length >= fullWidth * 0.8 && !/[.!?]$/.test(prev)
+      const startsLower = /^\p{Ll}/u.test(line) && !/[.!?:]$/.test(prev)
+      if (prevIsFull || startsLower) {
+        out[out.length - 1] = `${prev} ${line}`
+        continue
+      }
     }
+    out.push(line)
   }
   return out
+}
+
+/** Comprimento (em caracteres) das linhas mais longas do documento: referência de "linha cheia". */
+function fullLineWidth(lines: string[]): number {
+  if (lines.length === 0) return 0
+  const sorted = lines.map((l) => l.length).sort((a, b) => a - b)
+  return sorted[Math.floor((sorted.length - 1) * 0.9)]
 }
 
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/
@@ -168,24 +186,28 @@ export function parseResumeText(rawLines: string[]): ParsedResume {
   const headerLines = firstHeading === -1 ? lines : lines.slice(0, firstHeading)
   const { leftover, ...header } = parseHeader(headerLines)
 
+  const fullWidth = fullLineWidth(lines)
   const blocks: ImportedBlock[] = []
   if (firstHeading !== -1) {
     let current: { title: string; type: SectionType; lines: string[] } | null = null
     for (const line of lines.slice(firstHeading)) {
       const type = headingType(line)
       if (type) {
-        if (current) blocks.push(toBlock(current))
+        if (current) blocks.push(toBlock(current, fullWidth))
         current = { title: line.replace(/:\s*$/, ''), type, lines: [] }
       } else if (current) {
         current.lines.push(line)
       }
     }
-    if (current) blocks.push(toBlock(current))
+    if (current) blocks.push(toBlock(current, fullWidth))
   }
 
-  return { header, blocks: blocks.filter((b) => b.text.trim()), leftover: firstHeading === -1 ? lines : leftover }
+  return { header, blocks: blocks.filter((b) => b.rows.length > 0), leftover: firstHeading === -1 ? lines : leftover }
 }
 
-function toBlock(c: { title: string; type: SectionType; lines: string[] }): ImportedBlock {
-  return { title: c.title, type: c.type, text: joinWrappedLines(c.lines).join('\n') }
+function toBlock(c: { title: string; type: SectionType; lines: string[] }, fullWidth: number): ImportedBlock {
+  const lines = joinWrappedLines(c.lines, fullWidth)
+  // O resumo é um texto corrido: não separa em tópicos.
+  const rows = c.type === 'summary' ? (lines.length ? [{ topic: '', text: lines.join('\n') }] : []) : linesToRows(lines)
+  return { title: c.title, type: c.type, rows }
 }

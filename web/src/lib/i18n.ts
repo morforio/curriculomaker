@@ -19,6 +19,7 @@ const resources = {
         headerFound: 'Dados de contato reconhecidos',
         blocks: 'Blocos reconhecidos',
         lines: '{{count}} linhas',
+        rowsCount: '{{count}} tópicos/linhas',
         noSections:
           'Nenhum título de seção foi reconhecido (ex.: Experiência, Formação, Habilidades). Você pode importar só os dados de contato e adicionar o resto manualmente.',
         leftover: 'Texto do topo não reconhecido (não será importado)',
@@ -63,6 +64,13 @@ const resources = {
         level: 'Nível',
         periodPlaceholder: 'MM/AAAA – Presente',
         boldHint: 'Dica: use **texto** para negrito.',
+        topic: 'Tópico',
+        topicPlaceholder: 'Tópico (opcional)',
+        rowText: 'Texto',
+        addRow: 'Adicionar tópico',
+        removeRow: 'Remover tópico',
+        rowsHint:
+          'Deixe o tópico vazio para escrever um texto livre. Use **texto** para negrito e comece a linha com - ou • para criar marcadores.',
       },
       preview: { title: 'Pré-visualização', placeholderName: 'Seu nome' },
     },
@@ -81,6 +89,7 @@ const resources = {
         headerFound: 'Contact details recognized',
         blocks: 'Blocks recognized',
         lines: '{{count}} lines',
+        rowsCount: '{{count}} topics/lines',
         noSections:
           'No section heading was recognized (e.g. Experience, Education, Skills). You can import only the contact details and add the rest manually.',
         leftover: 'Unrecognized text at the top (will not be imported)',
@@ -125,6 +134,13 @@ const resources = {
         level: 'Level',
         periodPlaceholder: 'MM/YYYY – Present',
         boldHint: 'Tip: use **text** for bold.',
+        topic: 'Topic',
+        topicPlaceholder: 'Topic (optional)',
+        rowText: 'Text',
+        addRow: 'Add topic',
+        removeRow: 'Remove topic',
+        rowsHint:
+          'Leave the topic empty to write free text. Use **text** for bold and start a line with - or • to create bullets.',
       },
       preview: { title: 'Preview', placeholderName: 'Your name' },
     },

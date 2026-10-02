@@ -68,18 +68,25 @@ type Resume = {
   settings: { template: 'ats'; fontScale: number };
 };
 
+// Linha de conteúdo: tópico (opcional, em negrito) + texto. Sem tópico, vira texto livre.
+type Row = { topic: string; text: string };
+
 type Section =
-  | { id: string; type: 'summary';    title: string; data: { text: string } }
-  | { id: string; type: 'education';  title: string; data: { items: Education[] } }
-  | { id: string; type: 'experience'; title: string; data: { items: Experience[] } }
-  | { id: string; type: 'skills';     title: string; data: { groups: { label?: string; items: string[] }[] } }
-  | { id: string; type: 'languages';  title: string; data: { items: { name: string; level: string }[] } }
-  | { id: string; type: 'custom';     title: string; data: { markdown: string } };
+  | { id: string; type: 'summary';    title: string; data: { rows: Row[] } }
+  | { id: string; type: 'education';  title: string; data: { items: { institution: string; degree: string; period: string; rows: Row[] }[] } }
+  | { id: string; type: 'experience'; title: string; data: { items: { company: string; role: string; period: string; location: string; rows: Row[] }[] } }
+  | { id: string; type: 'skills';     title: string; data: { rows: Row[] } }
+  | { id: string; type: 'languages';  title: string; data: { rows: Row[] } }
+  | { id: string; type: 'custom';     title: string; data: { rows: Row[] } };
 ```
+
+Todo bloco tem o **título** e uma lista de linhas **tópico + texto** (editor com adicionar/remover linha, como os links dos dados pessoais). No currículo, linha com tópico vira marcador com o tópico em negrito (`**Programação:** JavaScript, TypeScript…`); linha sem tópico vira texto livre. Em Experiência e Formação, cada item mantém cargo/curso, empresa/instituição e período, e a descrição é a lista de linhas.
 
 Usar tipo por seção (em vez de um blob de HTML) permite renderizar, exportar e enviar ao LLM só o que interessa (ex.: só `summary` + `skills` + `experience`).
 
-Blocos vindos da importação de PDF (seção 5.2) são salvos como `custom` com o texto original sem alteração; o usuário pode reescrevê-los à mão no editor.
+Dados salvos no formato antigo (texto único por bloco, `version` 1 do armazenamento local) são convertidos automaticamente para o formato de linhas na primeira abertura (`web/src/lib/migrate.ts`).
+
+Blocos vindos da importação de PDF (seção 5.2) mantêm o tipo quando é Resumo, Habilidades ou Idiomas; Experiência, Formação e demais entram como `custom`. O texto é o original, sem alteração, já separado em linhas tópico + texto.
 
 ### 4.2 Tabelas (SQL, com RLS)
 
@@ -133,6 +140,8 @@ Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para li
 3. **Importar PDF** (sem LLM, sem reescrever nada):
    - `pdfjs-dist` extrai o texto no navegador.
    - O código procura títulos de seção conhecidos em português e inglês ("Experiência", "Formação", "Habilidades", "Experience", "Education"…) e corta o texto em blocos. O conteúdo é copiado exatamente como está.
+   - Dentro de cada bloco, a linha "Tópico: texto" (com ou sem marcador) vira uma linha tópico + texto. Regra: o tópico é o trecho antes do primeiro `:` quando tem até 8 palavras e 60 caracteres e o `:` é seguido de espaço. Linhas seguidas sem tópico viram uma única linha de texto livre. O Resumo não é separado em tópicos. Linhas quebradas no meio de uma frase são unidas.
+   - Evolução possível: reconhecer o tópico pelo negrito do PDF (para tópicos sem dois-pontos) e separar cargo, empresa e período em Experiência.
    - A tela mostra: *"Este foi o texto que foi possível reconhecer. Se houver qualquer outro texto, adicione manualmente no editor."* O usuário confirma e segue para o editor.
    - O documento gerado sai no formato ATS (seção 8).
    - PDF escaneado (sem texto): avisar e oferecer o wizard ou o modo manual; OCR fica fora do escopo.

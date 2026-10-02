@@ -1,22 +1,24 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import i18n from '../lib/i18n'
-import { resumeSchema, type Resume, type Section, type SectionType } from '../lib/schemas/resume'
+import { migrateResume } from '../lib/migrate'
+import { resumeSchema, type Resume, type Row, type Section, type SectionType } from '../lib/schemas/resume'
+
+export function emptyRow(): Row {
+  return { topic: '', text: '' }
+}
 
 function emptyData(type: SectionType): Section['data'] {
   switch (type) {
-    case 'summary':
-      return { text: '' }
     case 'education':
-      return { items: [{ institution: '', degree: '', period: '', description: '' }] }
+      return { items: [{ institution: '', degree: '', period: '', rows: [emptyRow()] }] }
     case 'experience':
-      return { items: [{ company: '', role: '', period: '', location: '', description: '' }] }
+      return { items: [{ company: '', role: '', period: '', location: '', rows: [emptyRow()] }] }
+    case 'summary':
     case 'skills':
-      return { groups: [{ label: '', items: [] }] }
     case 'languages':
-      return { items: [{ name: '', level: '' }] }
     case 'custom':
-      return { markdown: '' }
+      return { rows: [emptyRow()] }
   }
 }
 
@@ -76,7 +78,15 @@ export const useResumeStore = create<State>()(
     }),
     {
       name: 'currimaker:resume',
-      version: 1,
+      version: 2,
+      // v1 guardava um texto único por bloco; v2 guarda linhas "tópico + texto".
+      migrate: (persisted, version) => {
+        if (version < 2 && persisted && typeof persisted === 'object') {
+          const p = persisted as { resume?: unknown }
+          return { ...p, resume: migrateResume(p.resume) } as State
+        }
+        return persisted as State
+      },
       partialize: (s) => ({ resume: s.resume }),
       // Dados salvos que não passam no schema são descartados em vez de quebrar a tela.
       merge: (persisted, current) => {

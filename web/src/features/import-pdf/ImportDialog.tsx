@@ -18,11 +18,10 @@ function hasContent(resume: Resume): boolean {
 }
 
 function buildResume(parsed: ParsedResume, current: Resume): Resume {
+  // Resumo, habilidades e idiomas mantêm o tipo; Experiência, Formação e outros entram como bloco livre.
   const sections = parsed.blocks.map((b) => {
-    const base = { id: crypto.randomUUID(), title: b.title }
-    return (b.type === 'summary'
-      ? { ...base, type: 'summary', data: { text: b.text } }
-      : { ...base, type: 'custom', data: { markdown: b.text } }) as Section
+    const type = b.type === 'summary' || b.type === 'skills' || b.type === 'languages' ? b.type : 'custom'
+    return { id: crypto.randomUUID(), type, title: b.title, data: { rows: b.rows } } as Section
   })
   return {
     version: 1,
@@ -151,9 +150,16 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 {state.parsed.blocks.map((b, i) => (
                   <details key={i} className="rounded border border-gray-200">
                     <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-900">
-                      {b.title} <span className="font-normal text-gray-500">· {t('import.lines', { count: b.text.split('\n').length })}</span>
+                      {b.title} <span className="font-normal text-gray-500">· {t('import.rowsCount', { count: b.rows.length })}</span>
                     </summary>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap border-t border-gray-100 p-3 text-xs text-gray-700">{b.text}</pre>
+                    <ul className="max-h-60 space-y-1.5 overflow-auto border-t border-gray-100 p-3 text-xs text-gray-700">
+                      {b.rows.map((r, j) => (
+                        <li key={j} className="whitespace-pre-wrap">
+                          {r.topic && <strong className="text-gray-900">{r.topic}: </strong>}
+                          {r.text}
+                        </li>
+                      ))}
+                    </ul>
                   </details>
                 ))}
               </div>
