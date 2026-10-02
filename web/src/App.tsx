@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Editor } from './features/editor/Editor'
+import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
 import { setLang, type Lang } from './lib/i18n'
 import { useResumeStore } from './store/resumeStore'
@@ -8,6 +9,7 @@ import { useResumeStore } from './store/resumeStore'
 function App() {
   const { t, i18n } = useTranslation()
   const { resume, reset } = useResumeStore()
+  const [importing, setImporting] = useState(false)
 
   // O título do documento vira o nome sugerido do PDF e o metadado "Title".
   const fullName = resume.header.fullName.trim()
@@ -36,6 +38,13 @@ function App() {
             <button
               type="button"
               className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setImporting(true)}
+            >
+              {t('import.button')}
+            </button>
+            <button
+              type="button"
+              className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
               onClick={() => {
                 if (window.confirm(t('toolbar.confirmReset'))) reset()
               }}
@@ -52,6 +61,8 @@ function App() {
           </div>
         </header>
       </div>
+
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
 
       <main className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2 print:block print:p-0">
         <div className="print:hidden">

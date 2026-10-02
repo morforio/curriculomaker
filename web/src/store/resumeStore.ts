@@ -46,6 +46,7 @@ type State = {
   moveSection: (from: number, to: number) => void
   updateSection: (id: string, patch: Partial<Pick<Section, 'title' | 'data'>>) => void
   reset: () => void
+  importResume: (resume: Resume) => void
 }
 
 export const useResumeStore = create<State>()(
@@ -71,6 +72,7 @@ export const useResumeStore = create<State>()(
           },
         })),
       reset: () => set({ resume: defaultResume() }),
+      importResume: (resume) => set({ resume }),
     }),
     {
       name: 'currimaker:resume',

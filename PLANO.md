@@ -328,7 +328,7 @@ curriculomaker/
 | 2 | Supabase: projeto, migrations, Auth, salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
 | 3 | Adequação à vaga: `analyze-job`, provedor plugável, tela com diff + tabela + checkbox de idioma | Saída validada; nada inventado nos testes |
 | 4 | Wizard de perguntas | Base criado só respondendo perguntas |
-| 5 | Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
+| 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
 | 6 | Variantes por vaga, histórico de análises, limites de uso, planos gratuito/pago | — |
 | 7 | App com Capacitor. **Só inicia com ordem explícita do dono do projeto**, depois de o site estar pronto e testado | Reaproveita schemas e camada de dados |
 

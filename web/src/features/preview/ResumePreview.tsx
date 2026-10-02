@@ -18,6 +18,45 @@ function Inline({ text }: { text: string }) {
   )
 }
 
+const BULLET_RE = /^\s*(?:[•▪·●■◦▫‣]\s*|[-–—]\s+)/u
+
+/** Texto livre: linhas com marcador (•, -, –) viram lista; as demais viram parágrafos. */
+function RichText({ text }: { text: string }) {
+  const out: ReactNode[] = []
+  let bullets: string[] = []
+  const flush = () => {
+    if (bullets.length === 0) return
+    const items = bullets
+    out.push(
+      <ul key={`u${out.length}`}>
+        {items.map((b, i) => (
+          <li key={i}>
+            <Inline text={b} />
+          </li>
+        ))}
+      </ul>,
+    )
+    bullets = []
+  }
+  for (const line of text.split('\n')) {
+    const m = line.match(BULLET_RE)
+    if (m) {
+      bullets.push(line.slice(m[0].length))
+    } else {
+      flush()
+      if (line.trim()) {
+        out.push(
+          <p key={`p${out.length}`}>
+            <Inline text={line} />
+          </p>,
+        )
+      }
+    }
+  }
+  flush()
+  return <>{out}</>
+}
+
 function Lines({ text }: { text: string }) {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
   if (lines.length === 0) return null
@@ -60,17 +99,9 @@ function Title({ main, period }: { main: string; period?: string }) {
 function SectionBody({ section }: { section: Section }) {
   switch (section.type) {
     case 'summary':
-      return (
-        <p className="cv-text-block">
-          <Inline text={section.data.text} />
-        </p>
-      )
+      return <RichText text={section.data.text} />
     case 'custom':
-      return (
-        <p className="cv-text-block">
-          <Inline text={section.data.markdown} />
-        </p>
-      )
+      return <RichText text={section.data.markdown} />
     case 'experience':
       return (
         <>
