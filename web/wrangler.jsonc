@@ -15,7 +15,7 @@
     "Limiter": { "type": "durable-object", "storage": "sqlite" }
   },
   "vars": {
-    "LLM_MODEL": "deepseek-ai/deepseek-v4.1-flash",
+    "LLM_MODEL": "openai/gpt-oss-20b",
     "RATE_PER_IP_HOUR": "5",
     "DAILY_CAP": "200"
   },
