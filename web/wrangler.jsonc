@@ -15,6 +15,7 @@
     "Limiter": { "type": "durable-object", "storage": "sqlite" }
   },
   "vars": {
+    "LLM_MODEL": "deepseek-ai/deepseek-v4.1-flash",
     "RATE_PER_IP_HOUR": "5",
     "DAILY_CAP": "200"
   }

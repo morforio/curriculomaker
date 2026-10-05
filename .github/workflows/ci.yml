@@ -1,0 +1,33 @@
+name: CI
+
+# Roda a cada PR e a cada push na main. Se falhar, o PR não deve ser juntado.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # `npm run build` roda `tsc -b` (site, configuração e Worker) e o build do Vite.
+      - name: Build e checagem de tipos
+        run: npm run build
