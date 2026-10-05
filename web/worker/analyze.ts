@@ -6,17 +6,24 @@ import {
   type ApiErrorCode,
   type Lang,
 } from '../src/lib/schemas/analysis.ts'
+import { createVerifier, type JevEnv, type Verifier } from './jev.ts'
 import { createProvider, DEFAULT_MODEL, LLMError, type LLMProvider } from './llm.ts'
 import { buildUserPrompt, SYSTEM_PROMPT } from './prompt.ts'
+import { extractJson, normalize } from './text.ts'
+import { refineSummaries } from './verify.ts'
+
+export { extractJson }
 
 export type RateLimiter = { check(ipKey: string): Promise<'ok' | 'ip' | 'daily'> }
 
 export type AnalyzeDeps = {
-  env: { LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string }
+  env: { LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string } & JevEnv
   ip: string
   limiter: RateLimiter
   /** Só para testes. */
   provider?: LLMProvider
+  /** Só para testes. */
+  verifier?: Verifier
 }
 
 const MAX_BODY_CHARS = 80_000
@@ -38,24 +45,6 @@ async function hashIp(ip: string): Promise<string> {
     .slice(0, 8)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
-}
-
-/** Extrai o objeto JSON de uma resposta que pode vir com cercas de markdown ou texto em volta. */
-export function extractJson(text: string): unknown {
-  const cleaned = text.replace(/```(?:json)?/gi, '')
-  const start = cleaned.indexOf('{')
-  const end = cleaned.lastIndexOf('}')
-  if (start === -1 || end <= start) throw new Error('sem objeto JSON')
-  return JSON.parse(cleaned.slice(start, end + 1))
-}
-
-function normalize(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
 }
 
 /** A evidência precisa existir no currículo enviado (citação literal, tolerando pequenas variações). */
@@ -156,8 +145,10 @@ export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promis
       continue
     }
 
-    const { analysis, downgraded } = postProcess(checked.data, req)
-    return json(200, { analysis, meta: { model: deps.env.LLM_MODEL || DEFAULT_MODEL, downgraded } })
+    const { analysis: processed, downgraded } = postProcess(checked.data, req)
+    const verifier = deps.verifier ?? (deps.env.TYPESAFE_API_KEY ? createVerifier(deps.env) : undefined)
+    const { analysis, verification } = await refineSummaries({ analysis: processed, req, provider, verifier })
+    return json(200, { analysis, meta: { model: deps.env.LLM_MODEL || DEFAULT_MODEL, downgraded, verification } })
   }
 
   console.error(`Resposta do LLM rejeitada após 2 tentativas: ${lastProblem}`)

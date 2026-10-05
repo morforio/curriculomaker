@@ -24,7 +24,14 @@ function apiDev(env: Record<string, string>): Plugin {
           body: req.method === 'GET' || req.method === 'HEAD' ? undefined : body,
         })
         const response = await handleAnalyze(request, {
-          env: { LLM_API_KEY: env.LLM_API_KEY, LLM_BASE_URL: env.LLM_BASE_URL, LLM_MODEL: env.LLM_MODEL },
+          env: {
+            LLM_API_KEY: env.LLM_API_KEY,
+            LLM_BASE_URL: env.LLM_BASE_URL,
+            LLM_MODEL: env.LLM_MODEL,
+            TYPESAFE_API_KEY: env.TYPESAFE_API_KEY,
+            TYPESAFE_BASE_URL: env.TYPESAFE_BASE_URL,
+            TYPESAFE_MODEL: env.TYPESAFE_MODEL,
+          },
           ip: 'dev',
           limiter: { check: async () => 'ok' },
         })

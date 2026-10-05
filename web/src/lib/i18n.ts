@@ -20,7 +20,7 @@ const resources = {
         outputLang: 'Idioma da introdução sugerida',
         analyze: 'Analisar vaga',
         analyzing: 'Analisando… pode levar até 1 minuto.',
-        privacy: 'O texto da vaga e o do seu currículo (sem nome, e-mail, telefone e links) são enviados ao serviço de IA para a análise.',
+        privacy: 'O texto da vaga e o do seu currículo (sem nome, e-mail, telefone e links) são enviados ao serviço de IA para a análise e a um segundo serviço de IA, que confere se a introdução sugerida não inventa nada.',
         result: 'Resultado',
         job: 'Vaga',
         summaryTitle: 'Introdução sugerida',
@@ -45,6 +45,13 @@ const resources = {
         otherSkills: 'Outras habilidades',
         coverage: '{{have}} de {{total}} habilidades obrigatórias atendidas (contando as parciais)',
         keywords: 'Palavras-chave da vaga',
+        quality: {
+          verified: 'Conferida: não inventa nem muda o sentido do original e está ajustada à vaga.',
+          bestEffort: 'Melhor versão encontrada, mas ainda abaixo do limite de qualidade (0,80). Revise com atenção antes de aplicar.',
+          scores: '(fidelidade {{fidelity}} · adequação à vaga {{adequacy}}, de 0 a 1)',
+          redone: 'Refeita {{count}} vez(es).',
+          failed: 'Não foi possível conferir esta sugestão desta vez. Leia com atenção antes de aplicar.',
+        },
         downgraded:
           '{{count}} habilidade(s) que a IA marcou como "possui" foram rebaixadas para "não possui" porque o trecho citado não foi encontrado no currículo.',
         err: {
@@ -140,7 +147,7 @@ const resources = {
         outputLang: 'Language of the suggested summary',
         analyze: 'Analyze job',
         analyzing: 'Analyzing… this can take up to 1 minute.',
-        privacy: 'The job text and your resume text (without name, email, phone and links) are sent to the AI service for the analysis.',
+        privacy: 'The job text and your resume text (without name, email, phone and links) are sent to the AI service for the analysis and to a second AI service that checks the suggested summary does not invent anything.',
         result: 'Result',
         job: 'Job',
         summaryTitle: 'Suggested summary',
@@ -165,6 +172,13 @@ const resources = {
         otherSkills: 'Other skills',
         coverage: '{{have}} of {{total}} required skills covered (counting partial ones)',
         keywords: 'Job keywords',
+        quality: {
+          verified: 'Checked: it does not invent anything or change the meaning of the original, and it is tailored to the job.',
+          bestEffort: 'Best version found, but still below the quality threshold (0.80). Review it carefully before applying.',
+          scores: '(fidelity {{fidelity}} · job fit {{adequacy}}, on a 0 to 1 scale)',
+          redone: 'Rewritten {{count}} time(s).',
+          failed: 'This suggestion could not be checked this time. Read it carefully before applying.',
+        },
         downgraded:
           '{{count}} skill(s) the AI marked as "has" were downgraded to "missing" because the quoted excerpt was not found in your resume.',
         err: {

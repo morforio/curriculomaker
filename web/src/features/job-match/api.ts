@@ -1,4 +1,4 @@
-import { analysisSchema, type Analysis, type AnalyzeRequest, type ApiErrorCode } from '../../lib/schemas/analysis'
+import { analysisSchema, type Analysis, type AnalyzeRequest, type ApiErrorCode, type Verification } from '../../lib/schemas/analysis'
 
 export class ApiError extends Error {
   code: ApiErrorCode
@@ -18,7 +18,7 @@ const KNOWN: ApiErrorCode[] = [
   'bad_llm_output',
 ]
 
-export type AnalysisResult = { analysis: Analysis; meta: { model: string; downgraded: number } }
+export type AnalysisResult = { analysis: Analysis; meta: { model: string; downgraded: number; verification?: Verification } }
 
 export async function requestAnalysis(req: AnalyzeRequest, signal?: AbortSignal): Promise<AnalysisResult> {
   let res: Response
