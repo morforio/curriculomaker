@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { wordDiff, type DiffToken } from '../../lib/diff'
 import { resumeToText, summaryTextOf } from '../../lib/resumeText'
-import { LANGS, MAX_JOB_CHARS, MIN_JOB_CHARS, type Lang, type Skill } from '../../lib/schemas/analysis'
+import { LANGS, MAX_JOB_CHARS, MIN_JOB_CHARS, type Lang, type Skill, type Verification } from '../../lib/schemas/analysis'
 import type { Row, Section } from '../../lib/schemas/resume'
 import { newSection, useResumeStore } from '../../store/resumeStore'
 import { ApiError, requestAnalysis, type AnalysisResult } from './api'
@@ -27,6 +27,29 @@ function Diff({ tokens }: { tokens: DiffToken[] }) {
           {tk.text}{' '}
         </span>
       ))}
+    </p>
+  )
+}
+
+function QualityBadge({ verification, lang }: { verification: Verification | undefined; lang: Lang }) {
+  const { t, i18n } = useTranslation()
+  const fmt = (n: number) => n.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (!verification || verification.state === 'skipped') return null
+  const q = verification.versions[lang]
+  if (verification.state === 'failed' || !q) {
+    return <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.quality.failed')}</p>
+  }
+  const scores = t('analysis.quality.scores', { fidelity: fmt(q.fidelity), adequacy: fmt(q.adequacy) })
+  const redone = q.redos > 0 ? ` ${t('analysis.quality.redone', { count: q.redos })}` : ''
+  return q.status === 'verified' ? (
+    <p className="rounded border border-green-200 bg-green-50 p-2 text-xs text-green-900">
+      ✔ {t('analysis.quality.verified')} {scores}
+      {redone}
+    </p>
+  ) : (
+    <p role="alert" className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+      ⚠ {t('analysis.quality.bestEffort')} {scores}
+      {redone}
     </p>
   )
 }
@@ -232,6 +255,7 @@ export function JobMatchPanel() {
                       )}
                     </div>
                   </div>
+                  <QualityBadge verification={result.meta.verification} lang={lang} />
                   <div>
                     <p className="mb-0.5 text-xs font-medium text-gray-500">{t('analysis.original')}</p>
                     {result.originalSummary ? <Diff tokens={diff.original} /> : <p className="text-sm text-gray-400">{t('analysis.noOriginal')}</p>}
