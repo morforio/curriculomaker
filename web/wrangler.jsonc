@@ -18,5 +18,8 @@
     "LLM_MODEL": "deepseek-ai/deepseek-v4.1-flash",
     "RATE_PER_IP_HOUR": "5",
     "DAILY_CAP": "200"
-  }
+  },
+  // Exigido pelo `wrangler preview`, que a Cloudflare roda nos branches que não são a main.
+  // Vazio: o preview serve o site (assets herdados), mas sem o limitador nem a chave da IA.
+  "previews": {}
 }
