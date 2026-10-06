@@ -59,6 +59,8 @@ type State = {
   resume: Resume
   /** Currículo da outra aba, se ela já foi aberta. */
   saved: Partial<Record<Lang, Resume>>
+  /** Conta (id do usuário) a que estes dados pertencem; null = dados de antes do login. Evita mostrar o currículo de um usuário a outro no mesmo navegador. */
+  ownerId: string | null
   setHeader: (patch: Partial<Resume['header']>) => void
   setFontSize: (size: number) => void
   addSection: (type: SectionType) => void
@@ -70,6 +72,8 @@ type State = {
   importResume: (resume: Resume) => void
   /** Troca de aba. Com `translated`, a nova aba nasce com o currículo traduzido; sem ele, abre vazia (ou como estava). */
   switchLang: (next: Lang, translated?: Resume) => void
+  /** Substitui tudo pelos dados da conta (ou por um currículo vazio, se `data` vier sem nada). */
+  hydrate: (ownerId: string | null, data?: { lang: Lang; resume: Resume; saved: Partial<Record<Lang, Resume>> }) => void
 }
 
 const initialLang = browserLang()
@@ -80,6 +84,7 @@ export const useResumeStore = create<State>()(
       lang: initialLang,
       resume: defaultResume(initialLang),
       saved: {},
+      ownerId: null,
       setHeader: (patch) => set((s) => ({ resume: { ...s.resume, header: { ...s.resume.header, ...patch } } })),
       setFontSize: (size) => set((s) => ({ resume: { ...s.resume, settings: { ...s.resume.settings, fontSize: size } } })),
       addSection: (type) => set((s) => ({ resume: { ...s.resume, sections: [...s.resume.sections, newSection(type, s.lang)] } })),
@@ -115,6 +120,8 @@ export const useResumeStore = create<State>()(
           delete saved[next]
           return { lang: next, resume: target, saved }
         }),
+      hydrate: (ownerId, data) =>
+        set((s) => (data ? { ownerId, lang: data.lang, resume: data.resume, saved: data.saved } : { ownerId, resume: defaultResume(s.lang), saved: {} })),
     }),
     {
       name: 'currimaker:resume',
@@ -130,10 +137,10 @@ export const useResumeStore = create<State>()(
         }
         return persisted as State
       },
-      partialize: (s) => ({ lang: s.lang, resume: s.resume, saved: s.saved }),
+      partialize: (s) => ({ lang: s.lang, resume: s.resume, saved: s.saved, ownerId: s.ownerId }),
       // Dados salvos que não passam no schema são descartados em vez de quebrar a tela.
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as { lang?: unknown; resume?: unknown; saved?: Record<string, unknown> }
+        const p = (persisted ?? {}) as { lang?: unknown; resume?: unknown; saved?: Record<string, unknown>; ownerId?: unknown }
         const lang: Lang = p.lang === 'pt' || p.lang === 'en' ? p.lang : current.lang
         const parsed = resumeSchema.safeParse(p.resume)
         const saved: Partial<Record<Lang, Resume>> = {}
@@ -141,7 +148,8 @@ export const useResumeStore = create<State>()(
           const other = resumeSchema.safeParse(p.saved?.[l])
           if (other.success && l !== lang) saved[l] = other.data
         }
-        return { ...current, lang, resume: parsed.success ? parsed.data : defaultResume(lang), saved }
+        const ownerId = typeof p.ownerId === 'string' ? p.ownerId : null
+        return { ...current, lang, resume: parsed.success ? parsed.data : defaultResume(lang), saved, ownerId }
       },
     },
   ),

@@ -1,8 +1,11 @@
 import type { ApiErrorCode, Lang } from '../../lib/schemas/analysis'
 import { translateResponseSchema } from '../../lib/schemas/translate'
+import { authHeaders } from '../auth/token'
 import { ApiError } from '../job-match/api'
 
 const KNOWN: ApiErrorCode[] = [
+  'unauthorized',
+  'auth_unavailable',
   'invalid_request',
   'forbidden_origin',
   'rate_limited_ip',
@@ -19,7 +22,7 @@ export async function requestTranslation(from: Lang, to: Lang, texts: string[], 
   try {
     res = await fetch('/api/translate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ from, to, texts }),
       signal,
     })

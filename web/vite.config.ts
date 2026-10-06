@@ -14,6 +14,12 @@ function apiDev(env: Record<string, string>): Plugin {
   return {
     name: 'api-dev',
     configureServer(server) {
+      // Configuração pública do login (SUPABASE_URL e SUPABASE_ANON_KEY do .env). Vazia = sem login.
+      server.middlewares.use('/api/config', (_req, res) => {
+        const on = Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY)
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify(on ? { supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY } : {}))
+      })
       for (const [name, handle] of Object.entries(handlers)) {
         server.middlewares.use(`/api/${name}`, async (req, res) => {
           const chunks: Buffer[] = []

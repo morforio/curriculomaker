@@ -78,5 +78,7 @@ export type ApiErrorCode =
   | 'not_configured'
   | 'llm_unavailable'
   | 'llm_busy'
+  | 'unauthorized'
+  | 'auth_unavailable'
   | 'bad_llm_output'
   | 'network'
