@@ -128,11 +128,10 @@ test('sem verificador (chave ausente): conferência pulada', async () => {
   assert.equal(r.analysis.summary.suggested, GOOD)
 })
 
-test('introdução vazia: não pergunta se manteve o original', async () => {
+test('não penaliza mudar muito o texto: não pergunta se manteve o original', async () => {
   const { verifier, calls } = fakeVerifier()
   const { provider } = fakeProvider([])
-  const noSummary = { ...req, summaryText: '' }
-  await refineSummaries({ analysis: analysisWith(GOOD, []), req: noSummary, provider, verifier })
+  await refineSummaries({ analysis: analysisWith(GOOD), req, provider, verifier })
   const fidelityCall = calls.find((c) => c.ids.includes('no_invention'))
   assert.ok(fidelityCall)
   assert.ok(!fidelityCall.ids.includes('faithful_to_original'))
