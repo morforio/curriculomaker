@@ -13,7 +13,8 @@ import { extractJson, normalize } from './text.ts'
  * vale a de maior nota.
  */
 export const QUALITY_THRESHOLD = 0.8
-export const MAX_REDOS = 3
+// Em produção, 3 refações dobravam o tempo (75 a 93 s) sem subir a nota; 1 basta para o MVP.
+export const MAX_REDOS = 1
 
 type Change = Analysis['summary']['changes'][number]
 type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number; issues: Issue[] }
