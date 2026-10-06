@@ -19,6 +19,10 @@
     "RATE_PER_IP_HOUR": "5",
     "DAILY_CAP": "200"
   },
+  // Logs do Worker no painel da Cloudflare (ligados pelo painel; aqui para o deploy não desligá-los).
+  "observability": {
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true }
+  },
   // Exigido pelo `wrangler preview`, que a Cloudflare roda nos branches que não são a main.
   // Vazio: o preview serve o site (assets herdados), mas sem o limitador nem a chave da IA.
   "previews": {}
