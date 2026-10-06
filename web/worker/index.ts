@@ -1,5 +1,6 @@
 import { handleAnalyze } from './analyze.ts'
 import type { Limiter } from './limiter.ts'
+import { handleTranslate } from './translate.ts'
 
 export { Limiter } from './limiter.ts'
 
@@ -16,6 +17,8 @@ interface Env {
   TYPESAFE_MODEL?: string
   RATE_PER_IP_HOUR?: string
   DAILY_CAP?: string
+  TRANSLATE_PER_IP_HOUR?: string
+  TRANSLATE_DAILY_CAP?: string
 }
 
 const number = (v: string | undefined, fallback: number) => {
@@ -32,6 +35,18 @@ export default {
       const cap = number(env.DAILY_CAP, 200)
       const limiter = env.LIMITER.getByName('global')
       return handleAnalyze(request, {
+        env,
+        ip: request.headers.get('CF-Connecting-IP') ?? 'unknown',
+        limiter: { check: (ipKey) => limiter.check(ipKey, perIp, cap) },
+      })
+    }
+
+    if (url.pathname === '/api/translate') {
+      // Contadores próprios (outro objeto), para traduzir não gastar as análises de vaga.
+      const perIp = number(env.TRANSLATE_PER_IP_HOUR, 10)
+      const cap = number(env.TRANSLATE_DAILY_CAP, 200)
+      const limiter = env.LIMITER.getByName('translate')
+      return handleTranslate(request, {
         env,
         ip: request.headers.get('CF-Connecting-IP') ?? 'unknown',
         limiter: { check: (ipKey) => limiter.check(ipKey, perIp, cap) },

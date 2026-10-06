@@ -6,10 +6,10 @@ import { buildRedoPrompt, REDO_SYSTEM_PROMPT, type Issue } from './prompt.ts'
 import { extractJson, normalize } from './text.ts'
 
 /**
- * Conferência da introdução sugerida. O LLM escreve; o Jev dá duas notas (0 a 1) a cada versão de idioma:
+ * Conferência da introdução sugerida (um só texto, no idioma da aba ativa). O LLM escreve; o Jev dá duas notas (0 a 1):
  *  - fidelidade: sem invenção, sem fato errado e sem alteração incompatível com o original;
  *  - adequação: quanto o texto está ajustado à vaga, usando só o que o currículo sustenta.
- * Versão que não passa nas duas é refeita pelo LLM (no máximo MAX_REDOS vezes). Se nenhuma passar,
+ * Se o texto não passa nas duas, é refeito pelo LLM (no máximo MAX_REDOS vezes). Se nenhuma tentativa passar,
  * vale a de maior nota.
  */
 export const QUALITY_THRESHOLD = 0.8
@@ -186,7 +186,8 @@ export type RefineDeps = {
 }
 
 export async function refineSummaries({ analysis, req, provider, verifier }: RefineDeps): Promise<{ analysis: Analysis; verification: Verification }> {
-  if (!verifier) return { analysis, verification: { state: 'skipped', versions: {} } }
+  const original = analysis.summary.suggested
+  if (!verifier || !original) return { analysis, verification: { state: 'skipped' } }
 
   const ctx: Context = {
     req,
@@ -195,57 +196,31 @@ export async function refineSummaries({ analysis, req, provider, verifier }: Ref
     provider,
     referenceNorm: normalize(`${req.resumeText}\n${req.summaryText}`),
   }
-  const states: VersionState[] = req.languages
-    .filter((lang) => analysis.summary.suggested[lang])
-    .map((lang) => ({ lang, attempts: [], redos: 0 }))
+  const state: VersionState = { lang: req.language, attempts: [], redos: 0 }
 
   let failed = false
   try {
-    const first = await Promise.allSettled(
-      states.map(async (s) => {
-        s.attempts.push(await assess(analysis.summary.suggested[s.lang]!, analysis.summary.changes, ctx))
-      }),
-    )
-    failed = first.some((r) => r.status === 'rejected')
-
-    for (let round = 1; round <= MAX_REDOS && !failed; round++) {
-      const pending = states.filter((s) => !s.attempts.some(passes))
-      if (pending.length === 0) break
-      const results = await Promise.allSettled(
-        pending.map(async (s) => {
-          s.redos++
-          const next = await redo(s, ctx)
-          if (next) s.attempts.push(await assess(next.text, next.changes, ctx))
-        }),
-      )
-      failed = results.some((r) => r.status === 'rejected')
+    state.attempts.push(await assess(original, analysis.summary.changes, ctx))
+    for (let round = 1; round <= MAX_REDOS && !state.attempts.some(passes); round++) {
+      state.redos++
+      const next = await redo(state, ctx)
+      if (next) state.attempts.push(await assess(next.text, next.changes, ctx))
     }
   } catch (e) {
     console.error('Falha ao conferir a introdução com o Jev:', e instanceof Error ? e.message : e)
     failed = true
   }
-  if (failed) console.error('A conferência com o Jev foi interrompida; usando as versões já avaliadas.')
+  if (failed) console.error('A conferência com o Jev foi interrompida; usando a versão já avaliada.')
 
-  const chosen = states.filter((s) => s.attempts.length > 0).map((s) => ({ state: s, best: bestOf(s.attempts) }))
-  const suggested = { ...analysis.summary.suggested }
-  for (const { state, best } of chosen) suggested[state.lang] = best.text
+  if (state.attempts.length === 0) return { analysis, verification: { state: 'failed' } }
+  const best = bestOf(state.attempts)
+  const changes = best !== state.attempts[0] ? reconcileChanges(analysis.summary.changes, [best], req.summaryText) : analysis.summary.changes
 
-  const redoneChosen = chosen.some(({ state, best }) => best !== state.attempts[0])
-  const changes = redoneChosen ? reconcileChanges(analysis.summary.changes, chosen.map((c) => c.best), req.summaryText) : analysis.summary.changes
-
-  const versions: Partial<Record<Lang, VersionQuality>> = {}
-  if (!failed) {
-    for (const { state, best } of chosen) {
-      versions[state.lang] = {
-        status: passes(best) ? 'verified' : 'best_effort',
-        fidelity: best.fidelity,
-        adequacy: best.adequacy,
-        redos: state.redos,
-      }
-    }
-  }
+  const version: VersionQuality | undefined = failed
+    ? undefined
+    : { status: passes(best) ? 'verified' : 'best_effort', fidelity: best.fidelity, adequacy: best.adequacy, redos: state.redos }
   return {
-    analysis: { ...analysis, summary: { ...analysis.summary, suggested, changes } },
-    verification: { state: failed ? 'failed' : 'checked', versions },
+    analysis: { ...analysis, summary: { ...analysis.summary, suggested: best.text, changes } },
+    verification: { state: failed ? 'failed' : 'checked', version },
   }
 }

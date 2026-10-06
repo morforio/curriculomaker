@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import i18n from '../lib/i18n'
+import i18n, { type Lang } from '../lib/i18n'
 import { migrateResume } from '../lib/migrate'
 import { resumeSchema, type Resume, type Row, type Section, type SectionType } from '../lib/schemas/resume'
 
@@ -22,26 +22,43 @@ function emptyData(type: SectionType): Section['data'] {
   }
 }
 
-export function newSection(type: SectionType): Section {
+/** O título padrão do bloco vem no idioma pedido (por padrão, o da aba ativa). */
+export function newSection(type: SectionType, lang?: Lang): Section {
   return {
     id: crypto.randomUUID(),
     type,
-    title: i18n.t(`sectionType.${type}`),
+    title: i18n.t(`sectionType.${type}`, lang ? { lng: lang } : {}),
     data: emptyData(type),
   } as Section
 }
 
-function defaultResume(): Resume {
+function defaultResume(lang: Lang): Resume {
   return {
     version: 1,
     header: { fullName: '', headline: '', email: '', phone: '', location: '', links: [] },
-    sections: (['summary', 'experience', 'education', 'skills'] as SectionType[]).map(newSection),
+    sections: (['summary', 'experience', 'education', 'skills'] as SectionType[]).map((type) => newSection(type, lang)),
     settings: { template: 'ats', fontScale: 1 },
   }
 }
 
+/** Já tem algo preenchido? Compara com os blocos vazios e olha os dados de contato. */
+export function hasContent(resume: Resume): boolean {
+  const h = resume.header
+  if ([h.fullName, h.headline, h.email, h.phone, h.location].some((v) => v.trim()) || h.links.length > 0) return true
+  return resume.sections.some((s) => JSON.stringify(s.data) !== JSON.stringify(newSection(s.type).data))
+}
+
+function browserLang(): Lang {
+  return i18n.language.startsWith('pt') ? 'pt' : 'en'
+}
+
 type State = {
+  /** Aba de idioma ativa: define o idioma do currículo, da interface e da introdução sugerida. */
+  lang: Lang
+  /** Currículo da aba ativa. */
   resume: Resume
+  /** Currículo da outra aba, se ela já foi aberta. */
+  saved: Partial<Record<Lang, Resume>>
   setHeader: (patch: Partial<Resume['header']>) => void
   addSection: (type: SectionType) => void
   insertSection: (section: Section, index: number) => void
@@ -50,14 +67,20 @@ type State = {
   updateSection: (id: string, patch: Partial<Pick<Section, 'title' | 'data'>>) => void
   reset: () => void
   importResume: (resume: Resume) => void
+  /** Troca de aba. Com `translated`, a nova aba nasce com o currículo traduzido; sem ele, abre vazia (ou como estava). */
+  switchLang: (next: Lang, translated?: Resume) => void
 }
+
+const initialLang = browserLang()
 
 export const useResumeStore = create<State>()(
   persist(
     (set) => ({
-      resume: defaultResume(),
+      lang: initialLang,
+      resume: defaultResume(initialLang),
+      saved: {},
       setHeader: (patch) => set((s) => ({ resume: { ...s.resume, header: { ...s.resume.header, ...patch } } })),
-      addSection: (type) => set((s) => ({ resume: { ...s.resume, sections: [...s.resume.sections, newSection(type)] } })),
+      addSection: (type) => set((s) => ({ resume: { ...s.resume, sections: [...s.resume.sections, newSection(type, s.lang)] } })),
       insertSection: (section, index) =>
         set((s) => {
           const sections = [...s.resume.sections]
@@ -80,25 +103,43 @@ export const useResumeStore = create<State>()(
             sections: s.resume.sections.map((x) => (x.id === id ? ({ ...x, ...patch } as Section) : x)),
           },
         })),
-      reset: () => set({ resume: defaultResume() }),
+      reset: () => set((s) => ({ resume: defaultResume(s.lang) })),
       importResume: (resume) => set({ resume }),
+      switchLang: (next, translated) =>
+        set((s) => {
+          if (next === s.lang) return s
+          const saved = { ...s.saved, [s.lang]: s.resume }
+          const target = translated ?? saved[next] ?? defaultResume(next)
+          delete saved[next]
+          return { lang: next, resume: target, saved }
+        }),
     }),
     {
       name: 'currimaker:resume',
-      version: 2,
-      // v1 guardava um texto único por bloco; v2 guarda linhas "tópico + texto".
+      version: 3,
+      // v1 guardava um texto único por bloco; v2, linhas "tópico + texto"; v3, um currículo por aba de idioma.
+      // O currículo que já existia vai para a aba do idioma que a interface estava usando.
       migrate: (persisted, version) => {
-        if (version < 2 && persisted && typeof persisted === 'object') {
+        if (persisted && typeof persisted === 'object') {
           const p = persisted as { resume?: unknown }
-          return { ...p, resume: migrateResume(p.resume) } as State
+          const resume = version < 2 ? migrateResume(p.resume) : p.resume
+          if (version < 3) return { lang: browserLang(), resume, saved: {} } as unknown as State
+          return { ...p, resume } as State
         }
         return persisted as State
       },
-      partialize: (s) => ({ resume: s.resume }),
+      partialize: (s) => ({ lang: s.lang, resume: s.resume, saved: s.saved }),
       // Dados salvos que não passam no schema são descartados em vez de quebrar a tela.
       merge: (persisted, current) => {
-        const parsed = resumeSchema.safeParse((persisted as { resume?: unknown } | undefined)?.resume)
-        return parsed.success ? { ...current, resume: parsed.data } : current
+        const p = (persisted ?? {}) as { lang?: unknown; resume?: unknown; saved?: Record<string, unknown> }
+        const lang: Lang = p.lang === 'pt' || p.lang === 'en' ? p.lang : current.lang
+        const parsed = resumeSchema.safeParse(p.resume)
+        const saved: Partial<Record<Lang, Resume>> = {}
+        for (const l of ['pt', 'en'] as const) {
+          const other = resumeSchema.safeParse(p.saved?.[l])
+          if (other.success && l !== lang) saved[l] = other.data
+        }
+        return { ...current, lang, resume: parsed.success ? parsed.data : defaultResume(lang), saved }
       },
     },
   ),

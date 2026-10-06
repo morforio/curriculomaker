@@ -17,13 +17,13 @@ const req: AnalyzeRequest = {
   jobText: 'x'.repeat(100),
   resumeText: 'Desenvolvedor\n\nExperiência\nDev, Acme | 2021 - 2024\nConstruí APIs em Node.js e React.\n\nHabilidades\nJavaScript, TypeScript, Node.js, React',
   summaryText: 'Desenvolvedor com experiência em APIs Node.js e React.',
-  languages: ['pt', 'en'],
+  language: 'pt',
 }
 
-function analysisWith(pt: string, en: string, changes: Analysis['summary']['changes'] = [{ from: 'APIs', to: 'APIs REST', reason: 'termo da vaga' }]): Analysis {
+function analysisWith(suggested: string, changes: Analysis['summary']['changes'] = [{ from: 'APIs', to: 'APIs REST', reason: 'termo da vaga' }]): Analysis {
   return {
     job: {},
-    summary: { suggested: { pt, en }, changes },
+    summary: { suggested, changes },
     skills: [{ name: 'Kubernetes', importance: 'required', status: 'missing', evidence: undefined }],
     keywords: [],
   }
@@ -70,31 +70,29 @@ function fakeProvider(replies: { text: string; changes?: Analysis['summary']['ch
 test('passa de primeira: nenhuma refação', async () => {
   const { verifier } = fakeVerifier()
   const { provider } = fakeProvider([])
-  const r = await refineSummaries({ analysis: analysisWith(GOOD, GOOD), req, provider, verifier })
+  const r = await refineSummaries({ analysis: analysisWith(GOOD), req, provider, verifier })
   assert.equal(r.verification.state, 'checked')
-  assert.equal(r.verification.versions.pt?.status, 'verified')
-  assert.equal(r.verification.versions.pt?.redos, 0)
-  assert.equal(r.verification.versions.en?.redos, 0)
+  assert.equal(r.verification.version?.status, 'verified')
+  assert.equal(r.verification.version?.redos, 0)
 })
 
-test('refaz só a versão reprovada', async () => {
+test('texto reprovado é refeito e a versão refeita passa', async () => {
   const { verifier } = fakeVerifier()
   const { provider } = fakeProvider([{ text: GOOD }])
-  const r = await refineSummaries({ analysis: analysisWith(EXAGGERATED, GOOD), req, provider, verifier })
-  assert.equal(r.verification.versions.pt?.redos, 1)
-  assert.equal(r.verification.versions.pt?.status, 'verified')
-  assert.equal(r.verification.versions.en?.redos, 0)
-  assert.equal(r.analysis.summary.suggested.pt, GOOD)
+  const r = await refineSummaries({ analysis: analysisWith(EXAGGERATED), req, provider, verifier })
+  assert.equal(r.verification.version?.redos, 1)
+  assert.equal(r.verification.version?.status, 'verified')
+  assert.equal(r.analysis.summary.suggested, GOOD)
 })
 
 test('número inventado e habilidade ausente são barrados no código, sem chamar o Jev', async () => {
   const { verifier, calls } = fakeVerifier()
   const bad = 'Desenvolvedor com 10 anos de experiência com Kubernetes.'
   const { provider } = fakeProvider([{ text: bad }, { text: bad }, { text: bad }])
-  const r = await refineSummaries({ analysis: analysisWith(bad, bad), req, provider, verifier })
+  const r = await refineSummaries({ analysis: analysisWith(bad), req, provider, verifier })
   assert.equal(calls.length, 0)
-  assert.equal(r.verification.versions.pt?.status, 'best_effort')
-  assert.equal(r.verification.versions.pt?.redos, 3)
+  assert.equal(r.verification.version?.status, 'best_effort')
+  assert.equal(r.verification.version?.redos, 3)
 })
 
 test('no máximo 3 refações; sem aprovação, vale a tentativa de maior nota', async () => {
@@ -103,11 +101,11 @@ test('no máximo 3 refações; sem aprovação, vale a tentativa de maior nota',
   const v2 = 'Desenvolvedor com experiência em APIs Node.js e React.' // fiel, mas pouco ajustada (adequação 1/3)
   const v3 = 'Desenvolvedor liderei APIs REST Node.js e React.' // ajustada, mas exagera
   const { provider, remaining } = fakeProvider([{ text: v2 }, { text: v3 }, { text: v1 }, { text: GOOD }])
-  const r = await refineSummaries({ analysis: analysisWith(v1, v2), req: { ...req, languages: ['pt'] }, provider, verifier })
-  const q = r.verification.versions.pt
+  const r = await refineSummaries({ analysis: analysisWith(v1), req, provider, verifier })
+  const q = r.verification.version
   assert.equal(q?.redos, 3)
   assert.equal(q?.status, 'best_effort')
-  assert.equal(r.analysis.summary.suggested.pt, v2)
+  assert.equal(r.analysis.summary.suggested, v2)
   assert.equal(remaining(), 1, 'a quarta resposta não pode ser usada')
 })
 
@@ -118,23 +116,23 @@ test('Jev fora do ar não derruba a análise', async () => {
     },
   }
   const { provider } = fakeProvider([])
-  const r = await refineSummaries({ analysis: analysisWith(GOOD, GOOD), req, provider, verifier: down })
+  const r = await refineSummaries({ analysis: analysisWith(GOOD), req, provider, verifier: down })
   assert.equal(r.verification.state, 'failed')
-  assert.equal(r.analysis.summary.suggested.pt, GOOD)
+  assert.equal(r.analysis.summary.suggested, GOOD)
 })
 
 test('sem verificador (chave ausente): conferência pulada', async () => {
   const { provider } = fakeProvider([])
-  const r = await refineSummaries({ analysis: analysisWith(GOOD, GOOD), req, provider })
+  const r = await refineSummaries({ analysis: analysisWith(GOOD), req, provider })
   assert.equal(r.verification.state, 'skipped')
-  assert.equal(r.analysis.summary.suggested.pt, GOOD)
+  assert.equal(r.analysis.summary.suggested, GOOD)
 })
 
 test('introdução vazia: não pergunta se manteve o original', async () => {
   const { verifier, calls } = fakeVerifier()
   const { provider } = fakeProvider([])
-  const noSummary = { ...req, summaryText: '', languages: ['pt' as const] }
-  await refineSummaries({ analysis: analysisWith(GOOD, GOOD, []), req: noSummary, provider, verifier })
+  const noSummary = { ...req, summaryText: '' }
+  await refineSummaries({ analysis: analysisWith(GOOD, []), req: noSummary, provider, verifier })
   const fidelityCall = calls.find((c) => c.ids.includes('no_invention'))
   assert.ok(fidelityCall)
   assert.ok(!fidelityCall.ids.includes('faithful_to_original'))
@@ -145,13 +143,8 @@ test('com versão refeita, a lista de alterações descarta as que não valem ma
   const { verifier } = fakeVerifier()
   const { provider } = fakeProvider([{ text: GOOD, changes: [{ from: 'APIs', to: 'APIs REST', reason: 'termo da vaga' }] }])
   const stale = { from: 'experiência em APIs', to: 'liderei APIs', reason: 'texto antigo' }
-  const r = await refineSummaries({
-    analysis: analysisWith(EXAGGERATED, GOOD, [stale]),
-    req: { ...req, languages: ['pt'] },
-    provider,
-    verifier,
-  })
-  assert.equal(r.analysis.summary.suggested.pt, GOOD)
+  const r = await refineSummaries({ analysis: analysisWith(EXAGGERATED, [stale]), req, provider, verifier })
+  assert.equal(r.analysis.summary.suggested, GOOD)
   assert.deepEqual(
     r.analysis.summary.changes.map((c) => c.to),
     ['APIs REST'],
