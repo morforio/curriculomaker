@@ -14,6 +14,11 @@ create table public.resumes (
 
 alter table public.resumes enable row level security;
 
+-- Permissões explícitas: só quem está logado ("authenticated") mexe na tabela; visitante sem login ("anon") não tem acesso nenhum.
+-- (Com "Automatically expose new tables" desligado no Supabase, isto é o que libera a tabela para a API.)
+revoke all on public.resumes from anon;
+grant select, insert, update, delete on public.resumes to authenticated;
+
 -- Cada usuário só enxerga e altera as próprias linhas. Sem login, nada.
 create policy "resumes_select_own" on public.resumes
   for select to authenticated using ((select auth.uid()) = user_id);
@@ -42,3 +47,6 @@ $$;
 create trigger resumes_set_updated_at
   before update on public.resumes
   for each row execute function public.set_updated_at();
+
+-- A função do gatilho não precisa ser chamável pela API.
+revoke execute on function public.set_updated_at() from public, anon, authenticated;
