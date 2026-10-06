@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import i18n, { type Lang } from '../lib/i18n'
 import { migrateResume } from '../lib/migrate'
-import { resumeSchema, type Resume, type Row, type Section, type SectionType } from '../lib/schemas/resume'
+import { DEFAULT_FONT_SIZE, resumeSchema, type Resume, type Row, type Section, type SectionType } from '../lib/schemas/resume'
 
 export function emptyRow(): Row {
   return { topic: '', text: '' }
@@ -37,7 +37,7 @@ function defaultResume(lang: Lang): Resume {
     version: 1,
     header: { fullName: '', headline: '', email: '', phone: '', location: '', links: [] },
     sections: (['summary', 'experience', 'education', 'skills'] as SectionType[]).map((type) => newSection(type, lang)),
-    settings: { template: 'ats', fontScale: 1 },
+    settings: { template: 'ats', fontScale: 1, fontSize: DEFAULT_FONT_SIZE },
   }
 }
 
@@ -60,6 +60,7 @@ type State = {
   /** Currículo da outra aba, se ela já foi aberta. */
   saved: Partial<Record<Lang, Resume>>
   setHeader: (patch: Partial<Resume['header']>) => void
+  setFontSize: (size: number) => void
   addSection: (type: SectionType) => void
   insertSection: (section: Section, index: number) => void
   removeSection: (id: string) => void
@@ -80,6 +81,7 @@ export const useResumeStore = create<State>()(
       resume: defaultResume(initialLang),
       saved: {},
       setHeader: (patch) => set((s) => ({ resume: { ...s.resume, header: { ...s.resume.header, ...patch } } })),
+      setFontSize: (size) => set((s) => ({ resume: { ...s.resume, settings: { ...s.resume.settings, fontSize: size } } })),
       addSection: (type) => set((s) => ({ resume: { ...s.resume, sections: [...s.resume.sections, newSection(type, s.lang)] } })),
       insertSection: (section, index) =>
         set((s) => {
