@@ -15,6 +15,7 @@ const KNOWN: ApiErrorCode[] = [
   'rate_limited_daily',
   'not_configured',
   'llm_unavailable',
+  'llm_busy',
   'bad_llm_output',
 ]
 

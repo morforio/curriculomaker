@@ -117,6 +117,7 @@ export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promis
         lastProblem = 'empty reply'
         continue
       }
+      if (e instanceof LLMError && e.kind === 'busy') return fail(503, 'llm_busy', 'O serviço de IA está com muitas solicitações no momento.')
       return fail(502, 'llm_unavailable', 'O serviço de IA está indisponível no momento.')
     }
 
