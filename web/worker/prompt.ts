@@ -65,7 +65,7 @@ export function buildUserPrompt(req: AnalyzeRequest): string {
 
 /** Motivos pelos quais uma versão da introdução foi reprovada na conferência. */
 export type Issue = {
-  kind: 'invention' | 'exaggeration' | 'meaning' | 'adequacy' | 'numbers' | 'skills'
+  kind: 'invention' | 'exaggeration' | 'adequacy' | 'numbers' | 'skills'
   detail?: string
 }
 
@@ -74,8 +74,6 @@ const ISSUE_TEXT: Record<Issue['kind'], string> = {
     'The previous attempt mentions facts that are not in the resume (skills, tools, technologies, numbers, employers, schools, degrees, certifications or responsibilities). Remove them or use only what the resume says.',
   exaggeration:
     'The previous attempt exaggerates or contradicts the resume (for example level of responsibility, seniority, duration or results). State only what the resume supports.',
-  meaning:
-    'The previous attempt changed, dropped or added ideas compared with <current_summary>. Keep every idea of the current summary and change wording only.',
   adequacy:
     "The previous attempt is not tailored enough to the job. Use the job's own terms and priorities wherever the resume supports them, without inventing anything.",
   numbers: 'The previous attempt contains numbers that are not in the resume. Remove them.',
@@ -93,7 +91,6 @@ UNTRUSTED DATA
 
 NEVER INVENT
 - Use only facts present in <resume>. Do not add skills, tools, technologies, numbers, employers, degrees, certifications or responsibilities that are not in the resume. Do not raise the level of responsibility or seniority the resume states.
-- Keep every idea of <current_summary>; change wording only.
 
 TASK
 - A previous attempt was rejected by an automatic check. The reasons are in <problems>. Write a new version that fixes them.

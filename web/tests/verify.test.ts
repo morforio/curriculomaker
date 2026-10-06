@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import type { Analysis, AnalyzeRequest } from '../src/lib/schemas/analysis.ts'
 import type { JevAnswer, JevQuestion, Verifier } from '../worker/jev.ts'
 import type { LLMProvider } from '../worker/llm.ts'
-import { refineSummaries } from '../worker/verify.ts'
+import { MAX_REDOS, refineSummaries } from '../worker/verify.ts'
 
 /**
  * Testes da conferência da introdução (worker/verify.ts), com LLM e Jev simulados:
@@ -88,25 +88,25 @@ test('texto reprovado é refeito e a versão refeita passa', async () => {
 test('número inventado e habilidade ausente são barrados no código, sem chamar o Jev', async () => {
   const { verifier, calls } = fakeVerifier()
   const bad = 'Desenvolvedor com 10 anos de experiência com Kubernetes.'
-  const { provider } = fakeProvider([{ text: bad }, { text: bad }, { text: bad }])
+  const { provider } = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: bad })))
   const r = await refineSummaries({ analysis: analysisWith(bad), req, provider, verifier })
   assert.equal(calls.length, 0)
   assert.equal(r.verification.version?.status, 'best_effort')
-  assert.equal(r.verification.version?.redos, 3)
+  assert.equal(r.verification.version?.redos, MAX_REDOS)
 })
 
-test('no máximo 3 refações; sem aprovação, vale a tentativa de maior nota', async () => {
+test('no máximo MAX_REDOS refações; sem aprovação, vale a tentativa de maior nota', async () => {
   const { verifier } = fakeVerifier()
   const v1 = 'Desenvolvedor liderei APIs Node.js e React.' // exagera e não usa os termos da vaga
   const v2 = 'Desenvolvedor com experiência em APIs Node.js e React.' // fiel, mas pouco ajustada (adequação 1/3)
-  const v3 = 'Desenvolvedor liderei APIs REST Node.js e React.' // ajustada, mas exagera
-  const { provider, remaining } = fakeProvider([{ text: v2 }, { text: v3 }, { text: v1 }, { text: GOOD }])
+  const replies = [{ text: v2 }, { text: v2 }, { text: v2 }, { text: GOOD }]
+  const { provider, remaining } = fakeProvider(replies)
   const r = await refineSummaries({ analysis: analysisWith(v1), req, provider, verifier })
   const q = r.verification.version
-  assert.equal(q?.redos, 3)
+  assert.equal(q?.redos, MAX_REDOS)
   assert.equal(q?.status, 'best_effort')
   assert.equal(r.analysis.summary.suggested, v2)
-  assert.equal(remaining(), 1, 'a quarta resposta não pode ser usada')
+  assert.equal(remaining(), replies.length - MAX_REDOS, 'respostas além do limite não podem ser usadas')
 })
 
 test('Jev fora do ar não derruba a análise', async () => {
@@ -128,11 +128,10 @@ test('sem verificador (chave ausente): conferência pulada', async () => {
   assert.equal(r.analysis.summary.suggested, GOOD)
 })
 
-test('introdução vazia: não pergunta se manteve o original', async () => {
+test('não penaliza mudar muito o texto: não pergunta se manteve o original', async () => {
   const { verifier, calls } = fakeVerifier()
   const { provider } = fakeProvider([])
-  const noSummary = { ...req, summaryText: '' }
-  await refineSummaries({ analysis: analysisWith(GOOD, []), req: noSummary, provider, verifier })
+  await refineSummaries({ analysis: analysisWith(GOOD), req, provider, verifier })
   const fidelityCall = calls.find((c) => c.ids.includes('no_invention'))
   assert.ok(fidelityCall)
   assert.ok(!fidelityCall.ids.includes('faithful_to_original'))

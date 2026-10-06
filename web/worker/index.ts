@@ -31,7 +31,7 @@ export default {
     const url = new URL(request.url)
 
     if (url.pathname === '/api/analyze') {
-      const perIp = number(env.RATE_PER_IP_HOUR, 5)
+      const perIp = number(env.RATE_PER_IP_HOUR, 20)
       const cap = number(env.DAILY_CAP, 200)
       const limiter = env.LIMITER.getByName('global')
       return handleAnalyze(request, {
@@ -43,7 +43,7 @@ export default {
 
     if (url.pathname === '/api/translate') {
       // Contadores próprios (outro objeto), para traduzir não gastar as análises de vaga.
-      const perIp = number(env.TRANSLATE_PER_IP_HOUR, 10)
+      const perIp = number(env.TRANSLATE_PER_IP_HOUR, 20)
       const cap = number(env.TRANSLATE_DAILY_CAP, 200)
       const limiter = env.LIMITER.getByName('translate')
       return handleTranslate(request, {

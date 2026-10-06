@@ -46,9 +46,9 @@ const resources = {
         coverage: '{{have}} de {{total}} habilidades obrigatórias atendidas (contando as parciais)',
         keywords: 'Palavras-chave da vaga',
         quality: {
-          verified: 'Conferida: não inventa nem muda o sentido do original e está ajustada à vaga.',
+          verified: 'Conferida: não inventa informações e aborda bem o que a vaga pede.',
           bestEffort: 'Melhor versão encontrada, mas ainda abaixo do limite de qualidade (0,80). Revise com atenção antes de aplicar.',
-          scores: '(fidelidade {{fidelity}} · adequação à vaga {{adequacy}}, de 0 a 1)',
+          scores: '(sem informação falsa {{fidelity}} · adequação à vaga {{adequacy}}, de 0 a 1)',
           redone: 'Refeita {{count}} vez(es).',
           failed: 'Não foi possível conferir esta sugestão desta vez. Leia com atenção antes de aplicar.',
         },
@@ -192,9 +192,9 @@ const resources = {
         coverage: '{{have}} of {{total}} required skills covered (counting partial ones)',
         keywords: 'Job keywords',
         quality: {
-          verified: 'Checked: it does not invent anything or change the meaning of the original, and it is tailored to the job.',
+          verified: 'Checked: it does not invent information and it addresses what the job asks for.',
           bestEffort: 'Best version found, but still below the quality threshold (0.80). Review it carefully before applying.',
-          scores: '(fidelity {{fidelity}} · job fit {{adequacy}}, on a 0 to 1 scale)',
+          scores: '(no false information {{fidelity}} · job fit {{adequacy}}, on a 0 to 1 scale)',
           redone: 'Rewritten {{count}} time(s).',
           failed: 'This suggestion could not be checked this time. Read it carefully before applying.',
         },

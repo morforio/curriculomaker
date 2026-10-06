@@ -7,13 +7,14 @@ import { extractJson, normalize } from './text.ts'
 
 /**
  * Conferência da introdução sugerida (um só texto, no idioma da aba ativa). O LLM escreve; o Jev dá duas notas (0 a 1):
- *  - fidelidade: sem invenção, sem fato errado e sem alteração incompatível com o original;
+ *  - fidelidade: sem informação falsa (nada que o currículo não sustente, nada exagerado); mudar muito o texto não conta contra;
  *  - adequação: quanto o texto está ajustado à vaga, usando só o que o currículo sustenta.
  * Se o texto não passa nas duas, é refeito pelo LLM (no máximo MAX_REDOS vezes). Se nenhuma tentativa passar,
  * vale a de maior nota.
  */
 export const QUALITY_THRESHOLD = 0.8
-export const MAX_REDOS = 3
+// Em produção, 3 refações dobravam o tempo (75 a 93 s) sem subir a nota; 1 basta para o MVP.
+export const MAX_REDOS = 1
 
 type Change = Analysis['summary']['changes'][number]
 type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number; issues: Issue[] }
@@ -47,15 +48,6 @@ const FIDELITY_QUESTIONS: Record<string, JevQuestion> = {
       true: 'No claim in `rewritten_summary` is stronger than, or different from, what `resume` says.',
       false: 'At least one claim in `rewritten_summary` exaggerates or contradicts `resume` (for example "participated" turned into "led").',
     },
-  },
-}
-
-const FAITHFUL_QUESTION: JevQuestion = {
-  type: 'noul',
-  instructions: 'Does `rewritten_summary` keep the same ideas and meaning as `current_summary`, apart from changes of wording?',
-  criteria: {
-    true: 'The same ideas are present; only wording or word order changed.',
-    false: 'An idea of `current_summary` was dropped, a new idea was added, or the meaning changed.',
   },
 }
 
@@ -118,23 +110,17 @@ async function assess(text: string, changes: Change[], ctx: Context): Promise<At
   const local = localIssues(text, ctx)
   if (local.length > 0) return { text, changes, fidelity: 0, adequacy: 0, issues: local }
 
-  const { summaryText, resumeText, jobText } = ctx.req
-  const hasOriginal = summaryText.trim().length > 0
-  const fidelityState = {
-    resume: resumeText,
-    ...(hasOriginal ? { current_summary: summaryText } : {}),
-    rewritten_summary: text,
-  }
-  const fidelityQuestions = hasOriginal ? { ...FIDELITY_QUESTIONS, faithful_to_original: FAITHFUL_QUESTION } : FIDELITY_QUESTIONS
+  // Só mede informação falsa e se a vaga foi bem abordada; quanto o texto mudou em relação ao original não conta.
+  const { resumeText, jobText } = ctx.req
+  const fidelityState = { resume: resumeText, rewritten_summary: text }
   const adequacyState = { job_description: jobText, resume: resumeText, rewritten_summary: text }
 
-  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, fidelityQuestions), ctx.verifier.ask(adequacyState, ADEQUACY_QUESTIONS)])
+  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, FIDELITY_QUESTIONS), ctx.verifier.ask(adequacyState, ADEQUACY_QUESTIONS)])
 
   const issues: Issue[] = []
   if (noulOf(fid.no_invention) <= QUALITY_THRESHOLD) issues.push({ kind: 'invention' })
   if (noulOf(fid.consistent_with_resume) <= QUALITY_THRESHOLD) issues.push({ kind: 'exaggeration' })
-  if (hasOriginal && noulOf(fid.faithful_to_original) <= QUALITY_THRESHOLD) issues.push({ kind: 'meaning' })
-  const fidelity = Math.min(...Object.keys(fidelityQuestions).map((id) => clamp01(noulOf(fid[id]))))
+  const fidelity = Math.min(...Object.keys(FIDELITY_QUESTIONS).map((id) => clamp01(noulOf(fid[id]))))
   const adequacy = clamp01(scoreOf(ade.adequacy) / ADEQUACY_TOP_LEVEL)
   if (adequacy <= QUALITY_THRESHOLD) issues.push({ kind: 'adequacy' })
   return { text, changes, fidelity, adequacy, issues }

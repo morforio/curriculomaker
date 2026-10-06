@@ -16,7 +16,7 @@
   },
   "vars": {
     "LLM_MODEL": "openai/gpt-oss-20b",
-    "RATE_PER_IP_HOUR": "5",
+    "RATE_PER_IP_HOUR": "20",
     "DAILY_CAP": "200"
   },
   // Logs do Worker no painel da Cloudflare (ligados pelo painel; aqui para o deploy não desligá-los).
