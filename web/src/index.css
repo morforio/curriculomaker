@@ -40,6 +40,14 @@ body {
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
 }
 
+/* Folha A4 da prévia na tela (uma por página): mesmas margens do @page. */
+.cv-sheet {
+  box-sizing: border-box;
+  padding: 15mm 18mm;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
 .cv {
   font-family: Arial, 'Liberation Sans', Helvetica, sans-serif;
   font-size: 10pt;

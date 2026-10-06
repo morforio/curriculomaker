@@ -77,8 +77,7 @@ function App() {
         <div className="print:hidden">
           <Editor />
         </div>
-        <div>
-          <h2 className="mb-3 text-sm font-semibold text-gray-900 print:hidden">{t('preview.title')}</h2>
+        <div className="relative min-w-0">
           <ResumePreview resume={resume} />
         </div>
       </main>
