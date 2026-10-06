@@ -14,7 +14,8 @@ export const analyzeRequestSchema = z.object({
   resumeText: z.string().min(20).max(30000),
   /** Texto atual da introdução (pode ser vazio). */
   summaryText: z.string().max(5000),
-  languages: z.array(z.enum(LANGS)).min(1).max(2),
+  /** Idioma da aba ativa: a introdução sugerida é escrita neste idioma. */
+  language: z.enum(LANGS),
 })
 export type AnalyzeRequest = z.infer<typeof analyzeRequestSchema>
 
@@ -40,7 +41,7 @@ export const analysisSchema = z.object({
     .nullish()
     .transform((v): { title?: string; company?: string; seniority?: string } => v ?? {}),
   summary: z.object({
-    suggested: z.object({ pt: optText(5000), en: optText(5000) }),
+    suggested: optText(5000),
     changes: z
       .array(z.object({ from: z.string().max(600), to: z.string().max(600), reason: z.string().max(400) }))
       .max(8),
@@ -50,7 +51,7 @@ export const analysisSchema = z.object({
 })
 export type Analysis = z.infer<typeof analysisSchema>
 
-/** Resultado da conferência de uma versão da introdução (notas de 0 a 1). */
+/** Resultado da conferência da introdução sugerida (notas de 0 a 1). */
 export type VersionQuality = {
   /** "verified": passou nas duas notas; "best_effort": melhor tentativa, mas ainda abaixo do limite. */
   status: 'verified' | 'best_effort'
@@ -65,7 +66,8 @@ export type VersionQuality = {
 export type Verification = {
   /** "checked": conferido pelo Jev; "skipped": serviço não configurado; "failed": o Jev falhou desta vez. */
   state: 'checked' | 'skipped' | 'failed'
-  versions: Partial<Record<Lang, VersionQuality>>
+  /** Notas da introdução sugerida; ausente quando não houve conferência. */
+  version?: VersionQuality
 }
 
 export type ApiErrorCode =

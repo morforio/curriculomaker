@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Resume, Section } from '../../lib/schemas/resume'
-import { newSection, useResumeStore } from '../../store/resumeStore'
+import { hasContent, useResumeStore } from '../../store/resumeStore'
 import { extractPdfLines, MAX_PDF_BYTES, MAX_PDF_PAGES } from './extractPdfText'
 import { parseResumeText, type ParsedResume } from './parseResumeText'
 
@@ -10,12 +10,6 @@ type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'review'; parsed: ParsedResume; pages: number; truncated: boolean }
-
-function hasContent(resume: Resume): boolean {
-  const h = resume.header
-  if ([h.fullName, h.email, h.phone, h.location].some((v) => v.trim()) || h.links.length > 0) return true
-  return resume.sections.some((s) => JSON.stringify(s.data) !== JSON.stringify(newSection(s.type).data))
-}
 
 function buildResume(parsed: ParsedResume, current: Resume): Resume {
   // Resumo, habilidades e idiomas mantêm o tipo; Experiência, Formação e outros entram como bloco livre.

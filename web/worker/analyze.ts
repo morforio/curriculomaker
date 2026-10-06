@@ -4,7 +4,6 @@ import {
   type Analysis,
   type AnalyzeRequest,
   type ApiErrorCode,
-  type Lang,
 } from '../src/lib/schemas/analysis.ts'
 import { createVerifier, type JevEnv, type Verifier } from './jev.ts'
 import { createProvider, DEFAULT_MODEL, LLMError, type LLMProvider } from './llm.ts'
@@ -39,7 +38,7 @@ function fail(status: number, error: ApiErrorCode, message: string): Response {
   return json(status, { error, message })
 }
 
-async function hashIp(ip: string): Promise<string> {
+export async function hashIp(ip: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip))
   return [...new Uint8Array(buf)]
     .slice(0, 8)
@@ -58,7 +57,7 @@ export function evidenceInResume(evidence: string, resumeNorm: string): boolean 
   return tokens.filter((t) => words.has(t)).length / tokens.length >= 0.8
 }
 
-/** Regras que não dependem do modelo: idiomas pedidos, habilidades sem duplicata e evidência verificada. */
+/** Regras que não dependem do modelo: habilidades sem duplicata e evidência verificada. */
 export function postProcess(raw: Analysis, req: AnalyzeRequest): { analysis: Analysis; downgraded: number } {
   const resumeNorm = normalize(req.resumeText)
   let downgraded = 0
@@ -75,13 +74,7 @@ export function postProcess(raw: Analysis, req: AnalyzeRequest): { analysis: Ana
       skills.push(s.status === 'missing' ? { ...s, evidence: undefined } : s)
     }
   }
-  const suggested: Analysis['summary']['suggested'] = { pt: undefined, en: undefined }
-  for (const lang of req.languages) suggested[lang] = raw.summary.suggested[lang]
-  return { analysis: { ...raw, skills, summary: { ...raw.summary, suggested } }, downgraded }
-}
-
-function missingLanguages(a: Analysis, languages: Lang[]): Lang[] {
-  return languages.filter((l) => !a.summary.suggested[l])
+  return { analysis: { ...raw, skills }, downgraded }
 }
 
 export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promise<Response> {
@@ -99,7 +92,7 @@ export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promis
     return fail(400, 'invalid_request', 'JSON inválido.')
   }
   const parsed = analyzeRequestSchema.safeParse(parsedBody)
-  if (!parsed.success) return fail(400, 'invalid_request', 'Dados inválidos (texto da vaga, currículo ou idiomas).')
+  if (!parsed.success) return fail(400, 'invalid_request', 'Dados inválidos (texto da vaga, currículo ou idioma).')
   const req = parsed.data
 
   if (!deps.provider && !deps.env.LLM_API_KEY) return fail(503, 'not_configured', 'O serviço de IA não está configurado.')
@@ -139,9 +132,8 @@ export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promis
       lastProblem = `schema error at ${checked.error.issues[0]?.path.join('.') || 'root'}`
       continue
     }
-    const absent = missingLanguages(checked.data, req.languages)
-    if (absent.length > 0) {
-      lastProblem = `missing suggested summary for: ${absent.join(', ')}`
+    if (!checked.data.summary.suggested) {
+      lastProblem = 'missing suggested summary'
       continue
     }
 

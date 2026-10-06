@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { wordDiff, type DiffToken } from '../../lib/diff'
+import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { resumeToText, summaryTextOf } from '../../lib/resumeText'
-import { LANGS, MAX_JOB_CHARS, MIN_JOB_CHARS, type Lang, type Skill, type Verification } from '../../lib/schemas/analysis'
+import { MAX_JOB_CHARS, MIN_JOB_CHARS, type Skill, type Verification } from '../../lib/schemas/analysis'
 import type { Row, Section } from '../../lib/schemas/resume'
 import { newSection, useResumeStore } from '../../store/resumeStore'
 import { ApiError, requestAnalysis, type AnalysisResult } from './api'
 
-type Result = AnalysisResult & { originalSummary: string; languages: Lang[] }
-type Applied = { sectionId: string; previous: Row[] | null; lang: Lang }
+type Result = AnalysisResult & { originalSummary: string; lang: Lang }
+type Applied = { sectionId: string; previous: Row[] | null }
 
 function Diff({ tokens }: { tokens: DiffToken[] }) {
   return (
@@ -31,11 +32,11 @@ function Diff({ tokens }: { tokens: DiffToken[] }) {
   )
 }
 
-function QualityBadge({ verification, lang }: { verification: Verification | undefined; lang: Lang }) {
+function QualityBadge({ verification }: { verification: Verification | undefined }) {
   const { t, i18n } = useTranslation()
   const fmt = (n: number) => n.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   if (!verification || verification.state === 'skipped') return null
-  const q = verification.versions[lang]
+  const q = verification.version
   if (verification.state === 'failed' || !q) {
     return <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.quality.failed')}</p>
   }
@@ -63,17 +64,13 @@ const STATUS_STYLE = {
 const STATUS_ICON = { has: '✔', partial: '◐', missing: '✕' } as const
 
 export function JobMatchPanel() {
-  const { t, i18n } = useTranslation()
-  const { resume, updateSection, insertSection, removeSection } = useResumeStore()
+  const { t } = useTranslation()
+  const { lang, resume, updateSection, insertSection, removeSection } = useResumeStore()
 
   const [jobText, setJobText] = useState('')
-  const [langs, setLangs] = useState<Record<Lang, boolean>>(() => ({
-    pt: i18n.language.startsWith('pt'),
-    en: !i18n.language.startsWith('pt'),
-  }))
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'done'>('idle')
   const [errorCode, setErrorCode] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
+  const [stored, setStored] = useState<Result | null>(null)
   const [applied, setApplied] = useState<Applied | null>(null)
   const [added, setAdded] = useState<Set<string>>(new Set())
 
@@ -83,20 +80,15 @@ export function JobMatchPanel() {
   const resumeReady = resumeText.length >= 20
   const canAnalyze = status !== 'loading' && resumeReady && jobLen >= MIN_JOB_CHARS && jobLen <= MAX_JOB_CHARS
 
-  function toggleLang(lang: Lang) {
-    setLangs((prev) => {
-      const next = { ...prev, [lang]: !prev[lang] }
-      return next.pt || next.en ? next : prev // ao menos um idioma
-    })
-  }
+  // O resultado é no idioma da aba em que foi gerado: em outra aba, ele não é mostrado.
+  const result = stored && stored.lang === lang ? stored : null
 
   async function analyze() {
     setStatus('loading')
     setErrorCode(null)
-    const languages = LANGS.filter((l) => langs[l])
     try {
-      const res = await requestAnalysis({ jobText: jobText.trim(), resumeText, summaryText: summary, languages })
-      setResult({ ...res, originalSummary: summary, languages })
+      const res = await requestAnalysis({ jobText: jobText.trim(), resumeText, summaryText: summary, language: lang })
+      setStored({ ...res, originalSummary: summary, lang })
       setApplied(null)
       setAdded(new Set())
       setStatus('done')
@@ -106,18 +98,18 @@ export function JobMatchPanel() {
     }
   }
 
-  function applySummary(lang: Lang, text: string) {
+  function applySummary(text: string) {
     const rows: Row[] = [{ topic: '', text }]
     const existing = resume.sections.find((s) => s.type === 'summary')
     if (existing && existing.type === 'summary') {
       // Guarda o texto original da primeira aplicação, para "Desfazer" voltar ao que o usuário tinha.
       const previous = applied && applied.sectionId === existing.id ? applied.previous : existing.data.rows
       updateSection(existing.id, { data: { rows } })
-      setApplied({ sectionId: existing.id, previous, lang })
+      setApplied({ sectionId: existing.id, previous })
     } else {
       const section = { ...newSection('summary'), data: { rows } } as Section
       insertSection(section, 0)
-      setApplied({ sectionId: section.id, previous: null, lang })
+      setApplied({ sectionId: section.id, previous: null })
     }
   }
 
@@ -151,6 +143,8 @@ export function JobMatchPanel() {
   }
 
   const analysis = result?.analysis
+  const suggested = analysis?.summary.suggested
+  const diff = result && suggested ? wordDiff(result.originalSummary, suggested) : null
   const skills = analysis
     ? [...analysis.skills].sort(
         (a, b) =>
@@ -183,17 +177,7 @@ export function JobMatchPanel() {
         {jobLen > 0 && jobLen < MIN_JOB_CHARS && <span>{t('analysis.tooShort', { min: MIN_JOB_CHARS })}</span>}
       </div>
 
-      <fieldset className="mt-3">
-        <legend className="mb-1 text-xs font-medium text-gray-600">{t('analysis.outputLang')}</legend>
-        <div className="flex gap-4">
-          {LANGS.map((l) => (
-            <label key={l} className="flex items-center gap-1.5 text-sm text-gray-800">
-              <input type="checkbox" checked={langs[l]} onChange={() => toggleLang(l)} />
-              {t(`analysis.langName.${l}`)}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <p className="mt-3 text-xs text-gray-600">{t('analysis.langNote', { lang: LANG_NAMES[lang] })}</p>
 
       {!resumeReady && <p className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.needResume')}</p>}
 
@@ -232,41 +216,32 @@ export function JobMatchPanel() {
 
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-gray-900">{t('analysis.summaryTitle')}</h4>
-            {result.languages.map((lang) => {
-              const suggested = analysis.summary.suggested[lang]
-              if (!suggested) return null
-              const diff = wordDiff(result.originalSummary, suggested)
-              const isApplied = applied?.lang === lang
-              return (
-                <div key={lang} className="space-y-3 rounded border border-gray-200 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{t(`analysis.langName.${lang}`)}</span>
-                    <div className="flex items-center gap-2">
-                      {isApplied && <span className="text-xs text-green-700">✔ {t('analysis.applied')}</span>}
-                      {isApplied && (
-                        <button type="button" onClick={undoSummary} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">
-                          {t('analysis.undo')}
-                        </button>
-                      )}
-                      {!isApplied && (
-                        <button type="button" onClick={() => applySummary(lang, suggested)} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
-                          {t('analysis.apply')}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <QualityBadge verification={result.meta.verification} lang={lang} />
-                  <div>
-                    <p className="mb-0.5 text-xs font-medium text-gray-500">{t('analysis.original')}</p>
-                    {result.originalSummary ? <Diff tokens={diff.original} /> : <p className="text-sm text-gray-400">{t('analysis.noOriginal')}</p>}
-                  </div>
-                  <div>
-                    <p className="mb-0.5 text-xs font-medium text-gray-500">{t('analysis.suggested')}</p>
-                    <Diff tokens={diff.suggested} />
-                  </div>
+            {suggested && (
+              <div className="space-y-3 rounded border border-gray-200 p-3">
+                <div className="flex items-center justify-end gap-2">
+                  {applied && <span className="text-xs text-green-700">✔ {t('analysis.applied')}</span>}
+                  {applied && (
+                    <button type="button" onClick={undoSummary} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">
+                      {t('analysis.undo')}
+                    </button>
+                  )}
+                  {!applied && (
+                    <button type="button" onClick={() => applySummary(suggested)} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                      {t('analysis.apply')}
+                    </button>
+                  )}
                 </div>
-              )
-            })}
+                <QualityBadge verification={result.meta.verification} />
+                <div>
+                  <p className="mb-0.5 text-xs font-medium text-gray-500">{t('analysis.original')}</p>
+                  {result.originalSummary && diff ? <Diff tokens={diff.original} /> : <p className="text-sm text-gray-400">{t('analysis.noOriginal')}</p>}
+                </div>
+                <div>
+                  <p className="mb-0.5 text-xs font-medium text-gray-500">{t('analysis.suggested')}</p>
+                  {diff && <Diff tokens={diff.suggested} />}
+                </div>
+              </div>
+            )}
 
             {analysis.summary.changes.length > 0 && (
               <div>

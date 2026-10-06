@@ -2,6 +2,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 export type Lang = 'pt' | 'en'
+export const LANG_NAMES: Record<Lang, string> = { pt: 'Português (BR)', en: 'English' }
 const LANG_KEY = 'currimaker:lang'
 
 const resources = {
@@ -17,7 +18,7 @@ const resources = {
         chars: '{{count}} / {{max}} caracteres',
         tooShort: 'Cole pelo menos {{min}} caracteres da vaga.',
         needResume: 'Preencha o currículo (por exemplo, a introdução e as habilidades) antes de analisar a vaga.',
-        outputLang: 'Idioma da introdução sugerida',
+        langNote: 'A introdução sugerida é escrita em {{lang}}, o idioma da aba ativa.',
         analyze: 'Analisar vaga',
         analyzing: 'Analisando… pode levar até 1 minuto.',
         privacy: 'O texto da vaga e o do seu currículo (sem nome, e-mail, telefone e links) são enviados ao serviço de IA para a análise e a um segundo serviço de IA, que confere se a introdução sugerida não inventa nada.',
@@ -31,7 +32,6 @@ const resources = {
         apply: 'Aplicar na introdução',
         applied: 'Aplicada na introdução',
         undo: 'Desfazer',
-        langName: { pt: 'Português', en: 'English' },
         skillsTitle: 'Habilidades da vaga × seu currículo',
         required: 'Obrigatória',
         preferred: 'Desejável',
@@ -83,6 +83,8 @@ const resources = {
         confirm: 'Importar para o editor',
         cancel: 'Cancelar',
         another: 'Escolher outro arquivo',
+        langWarning:
+          'É importante que a aba de idioma selecionada ({{lang}}) seja do mesmo idioma do currículo que será carregado. Se não for, aperte Cancelar e altere a aba; se for, aperte OK.',
         confirmReplace: 'Isso substitui o currículo atual no editor. Continuar?',
         truncated: 'O PDF tem {{pages}} páginas; só as primeiras {{max}} foram lidas.',
         errType: 'Escolha um arquivo PDF.',
@@ -90,7 +92,25 @@ const resources = {
         errNoText: 'Não foi possível ler texto neste PDF. Ele pode ser um documento escaneado (imagem). Preencha manualmente no editor.',
         errRead: 'Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido.',
       },
-      toolbar: { language: 'Idioma', exportPdf: 'Exportar PDF', reset: 'Limpar tudo', confirmReset: 'Apagar todo o currículo?' },
+      toolbar: { exportPdf: 'Exportar PDF', reset: 'Limpar tudo', confirmReset: 'Apagar todo o currículo desta aba?' },
+      tabs: {
+        label: 'Idioma do currículo',
+        askTitle: 'Traduzir o currículo?',
+        ask: 'Você já tem parte do seu currículo preenchido em {{from}}. Deseja traduzir o que já foi preenchido para {{to}}?',
+        yes: 'Sim',
+        no: 'Não',
+        translating: 'Traduzindo… pode levar até 1 minuto.',
+        err: {
+          invalid_request: 'Não foi possível enviar o currículo para tradução.',
+          forbidden_origin: 'Pedido bloqueado por segurança. Recarregue a página e tente de novo.',
+          rate_limited_ip: 'Você atingiu o limite de traduções por hora. Tente novamente mais tarde ou responda Não para abrir a aba vazia.',
+          rate_limited_daily: 'O limite diário de traduções do serviço foi atingido. Tente novamente amanhã ou responda Não para abrir a aba vazia.',
+          not_configured: 'O serviço de IA ainda não está configurado.',
+          llm_unavailable: 'O serviço de IA está indisponível no momento. Tente novamente em instantes.',
+          bad_llm_output: 'A IA devolveu uma resposta fora do formato. Tente novamente.',
+          network: 'Sem conexão com o servidor. Verifique a internet e tente de novo.',
+        },
+      },
       header: { title: 'Dados pessoais', fullName: 'Nome completo', headline: 'Cargo / título', email: 'E-mail', phone: 'Telefone', location: 'Cidade, UF', links: 'Links (LinkedIn, GitHub…)', linkLabel: 'Nome', linkUrl: 'Endereço', addLink: 'Adicionar link', removeLink: 'Remover link' },
       sections: { title: 'Blocos do currículo', add: 'Adicionar bloco', addButton: 'Adicionar', empty: 'Nenhum bloco. Adicione um acima.' },
       sectionType: {
@@ -144,7 +164,7 @@ const resources = {
         chars: '{{count}} / {{max}} characters',
         tooShort: 'Paste at least {{min}} characters of the job posting.',
         needResume: 'Fill in your resume (for example the summary and skills) before analyzing a job.',
-        outputLang: 'Language of the suggested summary',
+        langNote: 'The suggested summary is written in {{lang}}, the language of the active tab.',
         analyze: 'Analyze job',
         analyzing: 'Analyzing… this can take up to 1 minute.',
         privacy: 'The job text and your resume text (without name, email, phone and links) are sent to the AI service for the analysis and to a second AI service that checks the suggested summary does not invent anything.',
@@ -158,7 +178,6 @@ const resources = {
         apply: 'Apply to summary',
         applied: 'Applied to summary',
         undo: 'Undo',
-        langName: { pt: 'Português', en: 'English' },
         skillsTitle: 'Job skills × your resume',
         required: 'Required',
         preferred: 'Nice to have',
@@ -210,6 +229,8 @@ const resources = {
         confirm: 'Import into the editor',
         cancel: 'Cancel',
         another: 'Choose another file',
+        langWarning:
+          'It is important that the selected language tab ({{lang}}) matches the language of the resume you are about to upload. If it does not, press Cancel and change the tab; if it does, press OK.',
         confirmReplace: 'This replaces the current resume in the editor. Continue?',
         truncated: 'The PDF has {{pages}} pages; only the first {{max}} were read.',
         errType: 'Choose a PDF file.',
@@ -217,7 +238,25 @@ const resources = {
         errNoText: 'No text could be read from this PDF. It may be a scanned document (image). Fill it in manually in the editor.',
         errRead: 'This PDF could not be read. It may be password-protected or corrupted.',
       },
-      toolbar: { language: 'Language', exportPdf: 'Export PDF', reset: 'Clear all', confirmReset: 'Delete the whole resume?' },
+      toolbar: { exportPdf: 'Export PDF', reset: 'Clear all', confirmReset: 'Delete the whole resume in this tab?' },
+      tabs: {
+        label: 'Resume language',
+        askTitle: 'Translate the resume?',
+        ask: 'You already have part of your resume filled in {{from}}. Do you want to translate what you filled in to {{to}}?',
+        yes: 'Yes',
+        no: 'No',
+        translating: 'Translating… this can take up to 1 minute.',
+        err: {
+          invalid_request: 'Could not send the resume for translation.',
+          forbidden_origin: 'Request blocked for security. Reload the page and try again.',
+          rate_limited_ip: 'You reached the hourly translation limit. Try again later or answer No to open an empty tab.',
+          rate_limited_daily: 'The service daily translation limit was reached. Try again tomorrow or answer No to open an empty tab.',
+          not_configured: 'The AI service is not configured yet.',
+          llm_unavailable: 'The AI service is unavailable right now. Try again in a moment.',
+          bad_llm_output: 'The AI returned a reply in the wrong format. Try again.',
+          network: 'No connection to the server. Check your internet and try again.',
+        },
+      },
       header: { title: 'Personal details', fullName: 'Full name', headline: 'Job title', email: 'Email', phone: 'Phone', location: 'City, State', links: 'Links (LinkedIn, GitHub…)', linkLabel: 'Name', linkUrl: 'Address', addLink: 'Add link', removeLink: 'Remove link' },
       sections: { title: 'Resume blocks', add: 'Add block', addButton: 'Add', empty: 'No blocks. Add one above.' },
       sectionType: {
