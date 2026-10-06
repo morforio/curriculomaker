@@ -24,7 +24,7 @@ Supabase guarda autenticação e os currículos de cada usuário.
 | Idiomas (pt-BR/en) | react-i18next | Interface bilíngue; o idioma da interface segue a aba de idioma ativa do currículo (seção 5.4) |
 | Hospedagem | Cloudflare **Workers** (um só projeto: o site estático e a API em `/api/*`) | CDN global; já ligado ao repositório e ao domínio; o Worker é código sob demanda, sem servidor para cuidar |
 | Backend | Supabase (Auth, Postgres, Storage, Edge Functions) | Já decidido |
-| LLM | **Gemini 2.5 Flash-Lite** (API do Google AI Studio) por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front (seção 6.4) |
+| LLM | **Gemini 3.1 Flash-Lite** (API do Google AI Studio) por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front (seção 6.4) |
 | Conferência da introdução | **Jev** (TypeSafe), chamado pelo Worker | Mede se a sugestão inventa algo e se aborda a vaga (seção 6.6) |
 | Leitura de PDF | `pdfjs-dist` no navegador, só extração de texto (sem LLM) | Grátis, não inventa conteúdo, não sobe o arquivo para servidor |
 | Exportar PDF | Impressão com CSS `@media print` na v1; `@react-pdf/renderer` se precisar de mais controle | Ver seção 8 (ATS) |
@@ -61,7 +61,7 @@ Regras:
 - `web/worker/verify.ts`, `jev.ts`, `text.ts`: conferência da introdução sugerida com o Jev (seção 6.6).
 - `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (20 por hora na fase de teste, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc` (`RATE_PER_IP_HOUR` e `DAILY_CAP`).
 - Segurança: só aceita pedidos do próprio site (cabeçalho `Origin`); o texto da vaga é tratado como dado; o currículo enviado não leva nome, e-mail, telefone nem links.
-- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (chave do Google AI Studio) e `TYPESAFE_API_KEY` (Jev). Variáveis em `wrangler.jsonc`: `LLM_BASE_URL` (`https://generativelanguage.googleapis.com/v1beta/openai/`), `LLM_MODEL` (`gemini-2.5-flash-lite`) e `LLM_REASONING_EFFORT` (`none`, que desliga o "pensamento" do Gemini 2.5; nos modelos 3.x o equivalente é `minimal`). Se o provedor recusar o `reasoning_effort` (HTTP 400), o código repete a chamada sem ele. Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
+- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (chave do Google AI Studio) e `TYPESAFE_API_KEY` (Jev). Variáveis em `wrangler.jsonc`: `LLM_BASE_URL` (`https://generativelanguage.googleapis.com/v1beta/openai/`), `LLM_MODEL` (`gemini-3.1-flash-lite`) e `LLM_REASONING_EFFORT` (`minimal`, o nível mais baixo de "pensamento" do Gemini 3.x). Se o provedor recusar o `reasoning_effort` (HTTP 400), o código repete a chamada sem ele. Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
 - **Logs**: o Workers Logs está ligado (bloco `observability` do `wrangler.jsonc`). Cada chamada ao LLM registra o tempo, o modelo e os tokens de entrada, de saída e de raciocínio; falhas registram a causa (tempo esgotado, rede ou HTTP). Horários no painel aparecem em BRT.
 - Em desenvolvimento (`npm run dev`), o Vite atende `/api/analyze` com o mesmo código, lendo `LLM_API_KEY` do `.env` local, sem limite de uso.
 
@@ -122,7 +122,7 @@ create table public.job_analyses (
   job_title   text,
   job_text    text not null,
   result      jsonb not null,          -- saída validada do LLM (seção 6)
-  provider    text not null,           -- ex.: 'google:gemini-2.5-flash-lite'
+  provider    text not null,           -- ex.: 'google:gemini-3.1-flash-lite'
   created_at  timestamptz not null default now()
 );
 
@@ -233,13 +233,13 @@ type JobAnalysis = {
 - São traduzidos: cargo/título, local, títulos dos blocos, tópicos e textos, cargos, períodos (ex.: "Presente" ↔ "Present") e cursos.
 
 ### 6.4 Modelo escolhido
-**Gemini 2.5 Flash-Lite** (id `gemini-2.5-flash-lite`), pela API do Google AI Studio no modo compatível com OpenAI: endereço `https://generativelanguage.googleapis.com/v1beta/openai/` e chave no cabeçalho `Authorization: Bearer`.
+**Gemini 3.1 Flash-Lite** (id `gemini-3.1-flash-lite`), pela API do Google AI Studio no modo compatível com OpenAI: endereço `https://generativelanguage.googleapis.com/v1beta/openai/` e chave no cabeçalho `Authorization: Bearer`.
 - **Por que mudou da Groq:** em 06/10 a Groq deixou de aceitar novas assinaturas, e o plano atual recusava pedidos por limite de tokens por minuto (HTTP 429 e 413). O código é o mesmo; só trocaram as variáveis e o segredo.
-- **Acesso ao modelo:** a documentação do Google (outubro de 2026) diz que os modelos 2.5 têm "acesso limitado" a quem já os usou. A chave é de um projeto ativo desde fevereiro, então deve valer. Se a chave recusar o modelo (404 ou 403), a saída é `gemini-3.5-flash-lite` ou `gemini-3.1-flash-lite` (ambos estáveis), com `LLM_REASONING_EFFORT` = `minimal`.
+- **Por que o 3.1 e não o 2.5 nem o 3.5:** em 06/10 a chave recusou o `gemini-2.5-flash-lite` com HTTP 404 ("no longer available to new users"): o Google limita os modelos 2.5 a quem já os usou. O `gemini-3.5-flash-lite` existe, mas custa bem mais (US$ 0,30 por milhão de entrada e US$ 2,50 de saída). Escolha: `gemini-3.1-flash-lite` no plano gratuito.
 
 - **Por que mudou:** o plano partia do gpt-oss-120b. Em produção, o endpoint gratuito de teste da NVIDIA gerava só de **15 a 40 tokens por segundo**: a análise levava de 11 a 93 s e uma tradução pequena, 16 s. Os logs mostraram que o tempo era quase todo espera pelo provedor (Worker, limite de uso e Jev somavam cerca de 0,6 s). Trocando só o provedor, com o mesmo modelo, a análise caiu para **1,2 a 1,8 s** e a tradução para **1,5 s**.
-- **Custo (preços do Google consultados em outubro de 2026):** plano pago de US$ 0,10 por milhão de tokens de entrada e US$ 0,40 por milhão de saída; com ~5.000 tokens de entrada e ~1.000 de saída por análise, cerca de **US$ 0,0009 por análise** (US$ 0,90 por 1.000). Há plano gratuito, mas o Google usa o conteúdo do plano gratuito para melhorar os produtos dele; os limites por minuto e por dia aparecem em `aistudio.google.com/rate-limit`. Base de comparação anterior: `comparacao-llms-curriculo.md`.
-- **Esforço de raciocínio:** `LLM_REASONING_EFFORT` (hoje `none`). Modelos que "pensam" gastam tokens antes de responder: menos esforço é mais rápido e gasta menos do limite por minuto. Valores do Gemini 2.5: `none` desliga o pensamento, `low` = 1.024 tokens de pensamento, `medium` = 8.192, `high` = 24.576.
+- **Custo (preços do Google consultados em outubro de 2026):** o plano gratuito não cobra. No plano pago, US$ 0,25 por milhão de tokens de entrada e US$ 1,50 por milhão de saída; com ~5.000 tokens de entrada e ~1.000 de saída por análise, cerca de **US$ 0,0028 por análise** (US$ 2,75 por 1.000), mais caro que o gpt-oss. Há plano gratuito, mas o Google usa o conteúdo do plano gratuito para melhorar os produtos dele; os limites por minuto e por dia aparecem em `aistudio.google.com/rate-limit`. Base de comparação anterior: `comparacao-llms-curriculo.md`.
+- **Esforço de raciocínio:** `LLM_REASONING_EFFORT` (hoje `minimal`). Modelos que "pensam" gastam tokens antes de responder: menos esforço é mais rápido e gasta menos do limite por minuto. O Gemini 3.1 Flash-Lite aceita `minimal`, `low`, `medium` e `high`; se o modelo recusar o valor, o código repete a chamada sem ele.
 - **Troca de provedor** = mudar `LLM_BASE_URL`, `LLM_MODEL` e o segredo `LLM_API_KEY`; nenhum código muda.
 - **Desenvolvimento local:** `.env` com a chave (ver `web/.env.example`).
 - Validar o modelo com ~15 pares reais currículo+vaga (pt e en), medindo: JSON válido, fatos inventados, evidências corretas, qualidade do texto. **Ainda não feito**; os testes até agora foram com poucos exemplos.
@@ -377,7 +377,7 @@ curriculomaker/
 | 0 | Repositório, Vite + TS + Tailwind, lint, `.gitignore`, `.env.example` | App sobe em branco |
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
 | 2 | Supabase: projeto, migrations, Auth, salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
-| 3 | **Feito, em produção.** Adequação à vaga: Worker `/api/analyze`, provedor plugável (Gemini 2.5 Flash-Lite), conferência com o Jev, tela com diff + tabela, no idioma da aba ativa. Falta validar com ~15 pares reais | Saída validada; nada inventado nos testes |
+| 3 | **Feito, em produção.** Adequação à vaga: Worker `/api/analyze`, provedor plugável (Gemini 3.1 Flash-Lite), conferência com o Jev, tela com diff + tabela, no idioma da aba ativa. Falta validar com ~15 pares reais | Saída validada; nada inventado nos testes |
 | 4 | **Feito.** Wizard de perguntas ("Montar por perguntas") | Base criado só respondendo perguntas |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
 | 5.1 | **Feito, em produção.** Abas de idioma pt-BR/en, um currículo por aba, tradução ao trocar de aba e aviso na importação de PDF (seção 5.4) | Trocar de aba muda currículo, interface, introdução sugerida e PDF |
@@ -395,7 +395,7 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Planos: gratuito e pago; a cota e a cobrança ficam para depois.
 - App: Capacitor, somente após o web estar pronto e com ordem explícita.
 - Hospedagem: Cloudflare **Workers** (site e API no mesmo projeto), domínio `currimaker.niuai.com.br`, repositório GitHub `curriculomaker`. A VPS Hetzner e o Swarm não entram no início.
-- LLM: **Gemini 2.5 Flash-Lite** (Google AI Studio), sem pensamento (`LLM_REASONING_EFFORT` = `none`) (seção 6.4). A NVIDIA gratuita foi abandonada por ser lenta (15 a 40 tokens por segundo).
+- LLM: **Gemini 3.1 Flash-Lite** (Google AI Studio), com pensamento mínimo (`LLM_REASONING_EFFORT` = `minimal`), no plano gratuito (seção 6.4). A NVIDIA gratuita foi abandonada por ser lenta (15 a 40 tokens por segundo).
 - Conferência da introdução com o Jev: mede só informação falsa e adequação à vaga; mudar muito o texto não é falha (seção 6.6).
 - Template: um único, ATS-friendly.
 - Importação de PDF: só reconhecimento de texto, sem LLM e sem reescrever; o que não for reconhecido o usuário adiciona à mão.
