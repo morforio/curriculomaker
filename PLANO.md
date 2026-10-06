@@ -21,7 +21,7 @@ Supabase guarda autenticação e os currículos de cada usuário.
 | Drag-and-drop | `@dnd-kit/sortable` | Acessível (teclado), mobile/touch, lista vertical simples |
 | Estado | Zustand (+ TanStack Query para dados do Supabase) | Leve; separa estado do editor de estado do servidor |
 | Formulários/validação | React Hook Form + Zod | Zod também valida a saída do LLM |
-| Idiomas (pt-BR/en) | react-i18next | Interface bilíngue; idioma do currículo é independente do idioma da interface |
+| Idiomas (pt-BR/en) | react-i18next | Interface bilíngue; o idioma da interface segue a aba de idioma ativa do currículo (seção 5.4) |
 | Hospedagem do front | Cloudflare Pages (estático) | Grátis, CDN global; já ligado ao repositório e ao domínio |
 | Backend | Supabase (Auth, Postgres, Storage, Edge Functions) | Já decidido |
 | LLM | **gpt-oss-120b** por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front |
@@ -54,8 +54,9 @@ Regras:
 - Provedor escolhido por variáveis de ambiente (`LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`) nos *secrets* da função. A chave de API fica só nos secrets (e num `.env` local que não vai para o Git).
 
 **Situação atual (etapa 3, análise de vaga).** Ainda não existe projeto Supabase nem login. Por isso a análise roda num **Worker da Cloudflare**, no mesmo projeto e domínio do site, e não numa Edge Function. O desenho do diagrama acima continua valendo para quando o Supabase entrar; o código do LLM (`web/worker/`) é portável.
-- `web/worker/index.ts`: roteia `/api/analyze` e entrega o site (arquivos estáticos, modo SPA) para o resto.
-- `web/worker/analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; só os idiomas pedidos voltam; uma nova tentativa se a resposta vier fora do formato).
+- `web/worker/index.ts`: roteia `/api/analyze` e `/api/translate` e entrega o site (arquivos estáticos, modo SPA) para o resto.
+- `web/worker/analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; a introdução volta num só idioma, o da aba ativa; uma nova tentativa se a resposta vier fora do formato).
+- `web/worker/translate.ts`: tradução dos textos do currículo ao trocar de aba de idioma (seções 5.4 e 6.5). Usa os contadores do Durable Object em outra instância (`translate`), para traduzir não gastar as análises de vaga: 10 por hora por IP e 200 por dia (variáveis `TRANSLATE_PER_IP_HOUR` e `TRANSLATE_DAILY_CAP`).
 - `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (5 por hora, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc`.
 - Segurança: só aceita pedidos do próprio site (cabeçalho `Origin`); o texto da vaga é tratado como dado; o currículo enviado não leva nome, e-mail, telefone nem links.
 - Segredo `LLM_API_KEY` no painel da Cloudflare (não pode ser cadastrado enquanto o Worker só tiver arquivos estáticos). Opcionais: `LLM_BASE_URL` e `LLM_MODEL` (padrão `https://integrate.api.nvidia.com/v1` e `openai/gpt-oss-120b`).
@@ -155,9 +156,17 @@ Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para li
    - PDF escaneado (sem texto): avisar e oferecer o wizard ou o modo manual; OCR fica fora do escopo.
 
 ### 5.3 Adequação à vaga
-Tela com caixa de texto da vaga e **checkboxes de idioma de saída** (Português, Inglês ou ambos) → botão "Analisar" → resultado em duas abas:
-- **Introdução sugerida**: mostra o texto original × sugerido com **diff destacado** (para evidenciar que a mudança é pontual) e botões *Aplicar* / *Descartar* / *Editar*. Se mais de um idioma foi marcado, uma versão por idioma. Aplicar cria uma **variante** (`parent_id` = base), sem sobrescrever o base.
+Tela com caixa de texto da vaga → botão "Analisar" → resultado em duas abas. O idioma da introdução sugerida é **sempre o da aba de idioma ativa** (seção 5.4); não há escolha de idioma nesta tela e a IA não precisa descobrir o idioma. Se a vaga estiver em outro idioma que o da aba, não há aviso: o texto sai no idioma da aba.
+- **Introdução sugerida**: um só texto. Mostra o original × sugerido com **diff destacado** (para evidenciar que a mudança é pontual) e botões *Aplicar* / *Desfazer*. Aplicar cria uma **variante** (`parent_id` = base), sem sobrescrever o base. O resultado só aparece na aba em que foi gerado.
 - **Habilidades**: tabela (seção 6.2). Botão "Adicionar ao meu currículo" em cada habilidade faltante, para o caso de o usuário a possuir e não ter informado.
+
+### 5.4 Abas de idioma
+Nenhum texto fica em dois idiomas. O site tem duas abas no topo, **Português (BR)** e **English** (como no LinkedIn). Cada aba tem o seu currículo completo.
+- A aba ativa define o idioma do currículo, da **interface** (menus e botões), da introdução sugerida e do **PDF exportado**.
+- Ao clicar numa aba **nunca aberta** com a atual preenchida, aparece o aviso: "Você já tem parte do seu currículo preenchido em (idioma da aba atual). Deseja traduzir o que já foi preenchido para (idioma da outra aba)?". **Sim** traduz e monta a outra aba (`POST /api/translate`); **Não** abre a aba vazia, com os títulos padrão no idioma dela. Aba já aberta antes troca direto, sem perguntar.
+- Importar PDF: antes de abrir o envio do arquivo, mostra um aviso (Cancelar / OK) dizendo que a aba selecionada precisa ser do mesmo idioma do currículo; escolher errado é problema do usuário.
+- Dados no navegador (`localStorage`, versão 3): `lang` (aba ativa), `resume` (aba ativa) e `saved` (a outra aba). O currículo salvo no formato antigo vai para a aba do idioma que a interface estava usando. Isto é provisório: com login, cada usuário terá os currículos no seu banco (Supabase).
+- "Limpar tudo" limpa só a aba ativa.
 
 ## 6. Camada de LLM
 
@@ -185,7 +194,7 @@ type JobAnalysis = {
   job: { title?: string; company?: string; seniority?: string };
   summary: {
     original: string;
-    suggested: Partial<Record<'pt' | 'en', string>>;   // um texto por idioma marcado
+    suggested: string;                                  // um só texto, no idioma da aba ativa
     changes: { from: string; to: string; reason: string }[]; // alterações pontuais
   };
   skills: {
@@ -202,16 +211,17 @@ type JobAnalysis = {
 - **Não inventar**: a introdução só pode usar fatos presentes no currículo. Habilidade ausente **não** entra no texto; vai para a tabela como `missing`.
 - **Alterações pontuais**: manter a estrutura e a voz do texto original; trocar/ordenar termos para refletir a linguagem da vaga. Limite de mudança (ex.: no máximo 2–3 trechos) e `changes[]` obrigatório.
 - **Habilidade `has` exige `evidence`** vinda do currículo, com validação no servidor (a evidência deve existir como trecho do `content` enviado). Isso reduz falsos positivos.
-- Idioma(s) de saída: os marcados pelo usuário. O currículo **inteiro** é exportado no idioma escolhido (ver 6.5).
+- Idioma de saída: o da aba ativa (`language` no pedido). O currículo **inteiro** é exportado no idioma da aba (ver 6.5).
 - O texto da vaga é **dado, não instrução** (mitigação de *prompt injection*): vai delimitado em tag própria e o *system prompt* diz para ignorar comandos dentro dela.
 - Enviar ao LLM apenas o necessário (sem telefone/e-mail).
 
 ### 6.5 Tradução do currículo
-- Ao exportar, o currículo inteiro (não só a introdução) sai no idioma selecionado: português, inglês, ou os dois.
+- A tradução acontece uma única vez, quando o usuário responde **Sim** ao trocar de aba (seção 5.4); depois cada aba é editada à mão. Ao exportar, o currículo sai no idioma da aba ativa, sem tradução na hora.
+- `POST /api/translate` recebe só a lista de textos traduzíveis (não o currículo estruturado) e devolve a lista na mesma ordem; o servidor recusa respostas com quantidade de itens diferente ou que esvaziem um texto que existia (uma nova tentativa, depois erro).
 - **Termos técnicos em inglês não são traduzidos.** Exemplo correto: "Eu trabalho com LLM (Large Language Models)". Exemplo incorreto: "Eu trabalho com MLL (Modelos de Linguagem Larga)".
 - O prompt de tradução traz essa regra explícita, com exemplos, e vale nos dois sentidos (siglas, nomes de tecnologias, ferramentas, frameworks, cargos consagrados em inglês e nomes próprios ficam como estão).
-- Nomes próprios (empresas, instituições, produtos) e números, datas e links não mudam.
-- Só o texto livre é traduzido; os títulos fixos dos blocos vêm da interface (i18n).
+- Nomes próprios (empresas, instituições, produtos) e números e links não mudam. Nome, e-mail, telefone, links, empresas e instituições nem são enviados ao serviço de tradução.
+- São traduzidos: cargo/título, local, títulos dos blocos, tópicos e textos, cargos, períodos (ex.: "Presente" ↔ "Present") e cursos.
 
 ### 6.4 Modelo escolhido
 **gpt-oss-120b.** Custo estimado com ~4.000 tokens de entrada e ~1.500 de saída por análise: cerca de US$ 1,15 por 1.000 análises (Baseten, US$ 0,10 por milhão de tokens de entrada e US$ 0,50 de saída). Base: `comparacao-llms-curriculo.md`.
@@ -343,9 +353,10 @@ curriculomaker/
 | 0 | Repositório, Vite + TS + Tailwind, lint, `.gitignore`, `.env.example` | App sobe em branco |
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
 | 2 | Supabase: projeto, migrations, Auth, salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
-| 3 | **Código feito.** Adequação à vaga: Worker `/api/analyze`, provedor plugável, tela com diff + tabela + checkbox de idioma. Falta cadastrar a chave e validar com o modelo real | Saída validada; nada inventado nos testes |
+| 3 | **Código feito.** Adequação à vaga: Worker `/api/analyze`, provedor plugável, tela com diff + tabela, no idioma da aba ativa. Falta cadastrar a chave e validar com o modelo real | Saída validada; nada inventado nos testes |
 | 4 | Wizard de perguntas | Base criado só respondendo perguntas |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
+| 5.1 | **Feito (código).** Abas de idioma pt-BR/en, um currículo por aba, tradução ao trocar de aba e aviso na importação de PDF (seção 5.4) | Trocar de aba muda currículo, interface, introdução sugerida e PDF |
 | 6 | Variantes por vaga, histórico de análises, limites de uso, planos gratuito/pago | — |
 | 7 | App com Capacitor. **Só inicia com ordem explícita do dono do projeto**, depois de o site estar pronto e testado | Reaproveita schemas e camada de dados |
 
@@ -354,8 +365,8 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 ## 11. Decisões
 
 **Tomadas**
-- Idiomas: português e inglês (interface e currículo).
-- Idioma de saída do LLM: o usuário escolhe por checkbox (português, inglês ou ambos). O currículo inteiro é exportado traduzido para o idioma escolhido, mantendo os termos técnicos em inglês sem traduzir (seção 6.5).
+- Idiomas: português e inglês (interface e currículo), por **abas de idioma** (seção 5.4). Um texto nunca fica em dois idiomas: não existe mais a opção de gerar a introdução nos dois idiomas, e a IA não precisa detectar o idioma.
+- Idioma de saída do LLM: o da aba ativa. O PDF sai no idioma da aba. A tradução do currículo acontece ao trocar de aba, se o usuário aceitar, mantendo os termos técnicos em inglês sem traduzir (seção 6.5).
 - Planos: gratuito e pago; a cota e a cobrança ficam para depois.
 - App: Capacitor, somente após o web estar pronto e com ordem explícita.
 - Hospedagem: Cloudflare Pages, domínio `currimaker.niuai.com.br`, repositório GitHub `curriculomaker`. A VPS Hetzner e o Swarm não entram no início.
@@ -369,3 +380,12 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 1. Provedor do gpt-oss-120b em produção e termos de uso comercial do NVIDIA Build (a NVIDIA descreve o acesso como "trial service").
 2. Confirmar o id exato do modelo 120b na NVIDIA (a página vista pelo dono do projeto era a do gpt-oss-20b: `openai/gpt-oss-20b`). Se for diferente de `openai/gpt-oss-120b`, definir a variável `LLM_MODEL`.
 3. Cadastrar o segredo `LLM_API_KEY` no painel da Cloudflare (só é possível depois do primeiro deploy com o Worker) e validar a qualidade com cerca de 15 pares de currículo e vaga: JSON válido, fatos inventados, evidências corretas.
+
+## 12. Fluxo de trabalho no Git
+Vários agentes (sessões do Claude) trabalham no mesmo repositório, então o fluxo é o de equipes de software:
+- **Um branch por tarefa**, curto, criado a partir da `origin/main` atualizada, com PR, CI e **apagado depois do merge** (o GitHub apaga sozinho). Nunca reutilizar um branch já mesclado.
+- **Nomes:** `pilot/<tarefa>` para o Claude principal (ex.: `pilot/abas-de-idioma`) e `JEV/<tarefa>` para o agente que cuida da conferência com o Jev (ex.: `JEV/ajustar-fidelidade`).
+- **Uma pasta de trabalho (worktree) por agente**, para um não sobrescrever os arquivos do outro: `curriculo-pilot` (Claude principal) e `curriculo-jev`.
+- **`main` protegida** pelo ruleset `proteger-main`: só recebe código por PR, com o check `build` do CI passando (lint e build), sem push forçado e sem apagar o branch. A lista de exceções (bypass) está vazia. Merge por *squash*.
+- **Cada agente só mexe nos próprios arquivos**; quando uma mudança atravessa os arquivos do outro, avisa antes e combina a divisão.
+- **Cloudflare:** a `main` vai a produção pelo Workers Builds; cada branch ganha um preview (`wrangler preview`, o bloco `previews` do `wrangler.jsonc`). Segredos (chaves de API) ficam como tipo "Segredo" no painel, nunca em arquivo.
