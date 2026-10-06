@@ -15,7 +15,7 @@ export type TranslateDeps = {
 
 const MAX_BODY_CHARS = 80_000
 // O raciocínio do modelo conta nos tokens de saída; a tradução de um currículo inteiro precisa de folga.
-const MAX_TOKENS = 10_000
+const MAX_TOKENS = 5_000
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -97,6 +97,7 @@ export async function handleTranslate(request: Request, deps: TranslateDeps): Pr
         lastProblem = 'empty reply'
         continue
       }
+      if (e instanceof LLMError && e.kind === 'busy') return fail(503, 'llm_busy', 'O serviço de IA está com muitas solicitações no momento.')
       return fail(502, 'llm_unavailable', 'O serviço de IA está indisponível no momento.')
     }
 

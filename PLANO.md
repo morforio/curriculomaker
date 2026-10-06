@@ -402,10 +402,10 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Fase de teste: sem planos, sem login e sem CI de testes. Depois do teste manual do MVP, a ordem é: login, banco de currículos (Supabase), planos gratuito/pago e a limpeza de CI e testes.
 
 **Em aberto**
-1. Limites e termos de uso da Groq para uso comercial e em escala; escolher o plano pago antes de abrir para usuários reais.
+1. Limites e termos de uso da Groq para uso comercial e em escala. Em 06/10, às 19:39 (GMT-3), o plano atual recusou pedidos com HTTP 429 (limite de pedidos/tokens por minuto) e HTTP 413 (pedido grande demais), porque o código pedia `max_tokens` de 6.000 e a Groq reserva esse valor no limite por minuto. O padrão caiu para 4.000 e o Worker espera e repete uma vez no 429. Escolher o plano pago antes de abrir para usuários reais.
 2. Validar a qualidade com cerca de 15 pares de currículo e vaga (pt e en): JSON válido, fatos inventados, evidências corretas, qualidade do texto.
 3. Calibrar o limite de 0,80 e as perguntas do Jev com esses mesmos pares.
-4. CI: hoje roda só lint e build; falta rodar os testes (`npm test`, 20 testes) e decidir o que mais entra.
+4. CI: hoje roda só lint e build; falta rodar os testes (`npm test`, 25 testes) e decidir o que mais entra.
 5. A mensagem de espera da análise na tela ainda diz "até 1 minuto", o que deixou de ser verdade com a Groq.
 
 ## 12. Fluxo de trabalho no Git

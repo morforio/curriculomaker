@@ -16,8 +16,9 @@ export type LLMEnv = {
 }
 
 export class LLMError extends Error {
-  kind: 'unavailable' | 'empty'
-  constructor(message: string, kind: 'unavailable' | 'empty') {
+  /** "busy": o provedor recusou por excesso de pedidos (HTTP 429), mesmo após uma nova tentativa. */
+  kind: 'unavailable' | 'empty' | 'busy'
+  constructor(message: string, kind: 'unavailable' | 'empty' | 'busy') {
     super(message)
     this.kind = kind
   }
@@ -34,6 +35,17 @@ type Completion = {
   usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } }
 }
 
+/** Mensagem de erro do provedor, cortada em 300 caracteres, para o log. */
+async function errorDetail(res: Response): Promise<string> {
+  const text = await res.text().catch(() => '')
+  try {
+    const data = JSON.parse(text) as { error?: { message?: unknown } }
+    return String(data?.error?.message ?? text).slice(0, 300)
+  } catch {
+    return text.slice(0, 300)
+  }
+}
+
 export function createProvider(env: LLMEnv): LLMProvider {
   const base = (env.LLM_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '')
   const model = env.LLM_MODEL || DEFAULT_MODEL
@@ -41,7 +53,9 @@ export function createProvider(env: LLMEnv): LLMProvider {
   const effort = env.LLM_REASONING_EFFORT?.trim() || undefined
 
   return {
-    async complete({ system, user, maxTokens = 6000 }) {
+    // A Groq reserva o max_tokens inteiro no limite de tokens por minuto (TPM), mesmo que a resposta seja menor:
+    // pedir 6.000 tokens estourava o limite com currículos grandes (HTTP 413 e 429).
+    async complete({ system, user, maxTokens = 4000 }) {
       const started = Date.now()
 
       async function send(reasoningEffort: string | undefined): Promise<Response> {
@@ -79,11 +93,21 @@ export function createProvider(env: LLMEnv): LLMProvider {
         usedEffort = undefined
         res = await send(undefined)
       }
+      if (res.status === 429) {
+        // Limite de pedidos por minuto: espera o tempo que o provedor mandar (se for curto) e tenta uma vez mais.
+        const seconds = Number(res.headers.get('retry-after'))
+        const waitMs = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 2000
+        if (waitMs <= 10_000) {
+          console.error(`LLM HTTP 429 após ${Date.now() - started} ms (modelo: ${model}); nova tentativa em ${waitMs} ms`)
+          await new Promise((resolve) => setTimeout(resolve, waitMs))
+          res = await send(usedEffort)
+        }
+      }
       if (!res.ok) {
-        // Não repassa o corpo da resposta ao usuário (pode conter detalhes da conta).
-        // O status e o modelo vão para o log do servidor, para diagnosticar chave ou id de modelo errados.
-        console.error(`LLM HTTP ${res.status} após ${Date.now() - started} ms (modelo: ${model})`)
-        throw new LLMError(`O provedor de LLM respondeu HTTP ${res.status}.`, 'unavailable')
+        // O corpo da resposta vai só para o log do servidor (nunca para o usuário): traz o motivo exato do provedor,
+        // como o limite de tokens por minuto, o que permite diagnosticar sem adivinhar.
+        console.error(`LLM HTTP ${res.status} após ${Date.now() - started} ms (modelo: ${model}): ${await errorDetail(res)}`)
+        throw new LLMError(`O provedor de LLM respondeu HTTP ${res.status}.`, res.status === 429 ? 'busy' : 'unavailable')
       }
       const data = (await res.json().catch(() => null)) as Completion | null
       const message = data?.choices?.[0]?.message
