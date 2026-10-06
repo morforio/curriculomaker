@@ -61,7 +61,7 @@ Regras:
 - `web/worker/verify.ts`, `jev.ts`, `text.ts`: conferência da introdução sugerida com o Jev (seção 6.6).
 - `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (20 por hora na fase de teste, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc` (`RATE_PER_IP_HOUR` e `DAILY_CAP`).
 - Segurança: só aceita pedidos do próprio site (cabeçalho `Origin`); o texto da vaga é tratado como dado; o currículo enviado não leva nome, e-mail, telefone nem links.
-- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (chave da Groq) e `TYPESAFE_API_KEY` (Jev). Variáveis em `wrangler.jsonc`: `LLM_BASE_URL` (`https://api.groq.com/openai/v1`), `LLM_MODEL` (`openai/gpt-oss-20b`) e `LLM_REASONING_EFFORT` (`medium`; "low" ou "high" também valem). Se o provedor recusar o `reasoning_effort` (HTTP 400), o código repete a chamada sem ele. Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
+- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (chave da Groq) e `TYPESAFE_API_KEY` (Jev). Variáveis em `wrangler.jsonc`: `LLM_BASE_URL` (`https://api.groq.com/openai/v1`), `LLM_MODEL` (`openai/gpt-oss-20b`) e `LLM_REASONING_EFFORT` (`low`; "medium" ou "high" também valem). Se o provedor recusar o `reasoning_effort` (HTTP 400), o código repete a chamada sem ele. Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
 - **Logs**: o Workers Logs está ligado (bloco `observability` do `wrangler.jsonc`). Cada chamada ao LLM registra o tempo, o modelo e os tokens de entrada, de saída e de raciocínio; falhas registram a causa (tempo esgotado, rede ou HTTP). Horários no painel aparecem em BRT.
 - Em desenvolvimento (`npm run dev`), o Vite atende `/api/analyze` com o mesmo código, lendo `LLM_API_KEY` do `.env` local, sem limite de uso.
 
@@ -237,7 +237,7 @@ type JobAnalysis = {
 
 - **Por que mudou:** o plano partia do gpt-oss-120b. Em produção, o endpoint gratuito de teste da NVIDIA gerava só de **15 a 40 tokens por segundo**: a análise levava de 11 a 93 s e uma tradução pequena, 16 s. Os logs mostraram que o tempo era quase todo espera pelo provedor (Worker, limite de uso e Jev somavam cerca de 0,6 s). Trocando só o provedor, com o mesmo modelo, a análise caiu para **1,2 a 1,8 s** e a tradução para **1,5 s**.
 - **Custo (preços da Groq consultados em outubro de 2026):** US$ 0,075 por milhão de tokens de entrada e US$ 0,30 por milhão de saída; com ~5.000 tokens de entrada e ~1.000 de saída por análise, cerca de **US$ 0,0007 por análise** (US$ 0,68 por 1.000). Base de comparação anterior: `comparacao-llms-curriculo.md`.
-- **Esforço de raciocínio:** `LLM_REASONING_EFFORT` (hoje `medium`, para testes). O gpt-oss gasta tokens "pensando" antes de responder; menos esforço é mais rápido, mais esforço pode melhorar a qualidade.
+- **Esforço de raciocínio:** `LLM_REASONING_EFFORT` (hoje `low`). O gpt-oss gasta tokens "pensando" antes de responder: menos esforço é mais rápido e gasta menos do limite de tokens por minuto; mais esforço pode melhorar a qualidade. Em "medium", uma análise pequena gastou cerca de 1.300 tokens só de raciocínio.
 - **Troca de provedor** = mudar `LLM_BASE_URL`, `LLM_MODEL` e o segredo `LLM_API_KEY`; nenhum código muda.
 - **Desenvolvimento local:** `.env` com a chave (ver `web/.env.example`).
 - Validar o modelo com ~15 pares reais currículo+vaga (pt e en), medindo: JSON válido, fatos inventados, evidências corretas, qualidade do texto. **Ainda não feito**; os testes até agora foram com poucos exemplos.
@@ -393,7 +393,7 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Planos: gratuito e pago; a cota e a cobrança ficam para depois.
 - App: Capacitor, somente após o web estar pronto e com ordem explícita.
 - Hospedagem: Cloudflare **Workers** (site e API no mesmo projeto), domínio `currimaker.niuai.com.br`, repositório GitHub `curriculomaker`. A VPS Hetzner e o Swarm não entram no início.
-- LLM: **gpt-oss-20b na Groq**, com esforço de raciocínio `medium` na fase de teste (seção 6.4). A NVIDIA gratuita foi abandonada por ser lenta (15 a 40 tokens por segundo).
+- LLM: **gpt-oss-20b na Groq**, com esforço de raciocínio `low` (seção 6.4). A NVIDIA gratuita foi abandonada por ser lenta (15 a 40 tokens por segundo).
 - Conferência da introdução com o Jev: mede só informação falsa e adequação à vaga; mudar muito o texto não é falha (seção 6.6).
 - Template: um único, ATS-friendly.
 - Importação de PDF: só reconhecimento de texto, sem LLM e sem reescrever; o que não for reconhecido o usuário adiciona à mão.
