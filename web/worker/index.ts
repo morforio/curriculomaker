@@ -11,6 +11,7 @@ interface Env {
   LLM_API_KEY?: string
   LLM_BASE_URL?: string
   LLM_MODEL?: string
+  LLM_REASONING_EFFORT?: string
   /** Secret: chave do Jev (TypeSafe), que confere a introdução sugerida. Sem ela, a conferência é pulada. */
   TYPESAFE_API_KEY?: string
   TYPESAFE_BASE_URL?: string

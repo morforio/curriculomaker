@@ -6,7 +6,7 @@ import {
   type ApiErrorCode,
 } from '../src/lib/schemas/analysis.ts'
 import { createVerifier, type JevEnv, type Verifier } from './jev.ts'
-import { createProvider, DEFAULT_MODEL, LLMError, type LLMProvider } from './llm.ts'
+import { createProvider, DEFAULT_MODEL, LLMError, type LLMEnv, type LLMProvider } from './llm.ts'
 import { buildUserPrompt, SYSTEM_PROMPT } from './prompt.ts'
 import { extractJson, normalize } from './text.ts'
 import { refineSummaries } from './verify.ts'
@@ -16,7 +16,7 @@ export { extractJson }
 export type RateLimiter = { check(ipKey: string): Promise<'ok' | 'ip' | 'daily'> }
 
 export type AnalyzeDeps = {
-  env: { LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string } & JevEnv
+  env: LLMEnv & JevEnv
   ip: string
   limiter: RateLimiter
   /** Só para testes. */

@@ -1,12 +1,12 @@
 import type { ApiErrorCode } from '../src/lib/schemas/analysis.ts'
 import { translateRequestSchema, translateResponseSchema, type TranslateRequest } from '../src/lib/schemas/translate.ts'
 import { hashIp, type RateLimiter } from './analyze.ts'
-import { createProvider, LLMError, type LLMProvider } from './llm.ts'
+import { createProvider, LLMError, type LLMEnv, type LLMProvider } from './llm.ts'
 import { sanitize } from './prompt.ts'
 import { extractJson } from './text.ts'
 
 export type TranslateDeps = {
-  env: { LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string }
+  env: LLMEnv
   ip: string
   limiter: RateLimiter
   /** Só para testes. */
