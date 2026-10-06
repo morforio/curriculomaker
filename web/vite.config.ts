@@ -31,6 +31,7 @@ function apiDev(env: Record<string, string>): Plugin {
               LLM_API_KEY: env.LLM_API_KEY,
               LLM_BASE_URL: env.LLM_BASE_URL,
               LLM_MODEL: env.LLM_MODEL,
+              LLM_REASONING_EFFORT: env.LLM_REASONING_EFFORT,
               TYPESAFE_API_KEY: env.TYPESAFE_API_KEY,
               TYPESAFE_BASE_URL: env.TYPESAFE_BASE_URL,
               TYPESAFE_MODEL: env.TYPESAFE_MODEL,

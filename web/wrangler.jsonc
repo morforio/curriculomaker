@@ -16,6 +16,7 @@
   },
   "vars": {
     "LLM_MODEL": "openai/gpt-oss-20b",
+    "LLM_REASONING_EFFORT": "low",
     "RATE_PER_IP_HOUR": "20",
     "DAILY_CAP": "200"
   },
