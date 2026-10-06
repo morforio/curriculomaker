@@ -22,9 +22,10 @@ Supabase guarda autenticação e os currículos de cada usuário.
 | Estado | Zustand (+ TanStack Query para dados do Supabase) | Leve; separa estado do editor de estado do servidor |
 | Formulários/validação | React Hook Form + Zod | Zod também valida a saída do LLM |
 | Idiomas (pt-BR/en) | react-i18next | Interface bilíngue; o idioma da interface segue a aba de idioma ativa do currículo (seção 5.4) |
-| Hospedagem do front | Cloudflare Pages (estático) | Grátis, CDN global; já ligado ao repositório e ao domínio |
+| Hospedagem | Cloudflare **Workers** (um só projeto: o site estático e a API em `/api/*`) | CDN global; já ligado ao repositório e ao domínio; o Worker é código sob demanda, sem servidor para cuidar |
 | Backend | Supabase (Auth, Postgres, Storage, Edge Functions) | Já decidido |
-| LLM | **gpt-oss-120b** por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front |
+| LLM | **gpt-oss-20b na Groq** por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front (seção 6.4) |
+| Conferência da introdução | **Jev** (TypeSafe), chamado pelo Worker | Mede se a sugestão inventa algo e se aborda a vaga (seção 6.6) |
 | Leitura de PDF | `pdfjs-dist` no navegador, só extração de texto (sem LLM) | Grátis, não inventa conteúdo, não sobe o arquivo para servidor |
 | Exportar PDF | Impressão com CSS `@media print` na v1; `@react-pdf/renderer` se precisar de mais controle | Ver seção 8 (ATS) |
 
@@ -56,10 +57,12 @@ Regras:
 **Situação atual (etapa 3, análise de vaga).** Ainda não existe projeto Supabase nem login. Por isso a análise roda num **Worker da Cloudflare**, no mesmo projeto e domínio do site, e não numa Edge Function. O desenho do diagrama acima continua valendo para quando o Supabase entrar; o código do LLM (`web/worker/`) é portável.
 - `web/worker/index.ts`: roteia `/api/analyze` e `/api/translate` e entrega o site (arquivos estáticos, modo SPA) para o resto.
 - `web/worker/analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; a introdução volta num só idioma, o da aba ativa; uma nova tentativa se a resposta vier fora do formato).
-- `web/worker/translate.ts`: tradução dos textos do currículo ao trocar de aba de idioma (seções 5.4 e 6.5). Usa os contadores do Durable Object em outra instância (`translate`), para traduzir não gastar as análises de vaga: 10 por hora por IP e 200 por dia (variáveis `TRANSLATE_PER_IP_HOUR` e `TRANSLATE_DAILY_CAP`).
-- `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (5 por hora, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc`.
+- `web/worker/translate.ts`: tradução dos textos do currículo ao trocar de aba de idioma (seções 5.4 e 6.5). Usa os contadores do Durable Object em outra instância (`translate`), para traduzir não gastar as análises de vaga: 20 por hora por IP e 200 por dia (variáveis `TRANSLATE_PER_IP_HOUR` e `TRANSLATE_DAILY_CAP`).
+- `web/worker/verify.ts`, `jev.ts`, `text.ts`: conferência da introdução sugerida com o Jev (seção 6.6).
+- `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (20 por hora na fase de teste, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc` (`RATE_PER_IP_HOUR` e `DAILY_CAP`).
 - Segurança: só aceita pedidos do próprio site (cabeçalho `Origin`); o texto da vaga é tratado como dado; o currículo enviado não leva nome, e-mail, telefone nem links.
-- Segredo `LLM_API_KEY` no painel da Cloudflare (não pode ser cadastrado enquanto o Worker só tiver arquivos estáticos). Opcionais: `LLM_BASE_URL` e `LLM_MODEL` (padrão `https://integrate.api.nvidia.com/v1` e `openai/gpt-oss-120b`).
+- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (chave da Groq) e `TYPESAFE_API_KEY` (Jev). Variáveis em `wrangler.jsonc`: `LLM_BASE_URL` (`https://api.groq.com/openai/v1`), `LLM_MODEL` (`openai/gpt-oss-20b`) e `LLM_REASONING_EFFORT` (`medium`; "low" ou "high" também valem). Se o provedor recusar o `reasoning_effort` (HTTP 400), o código repete a chamada sem ele. Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
+- **Logs**: o Workers Logs está ligado (bloco `observability` do `wrangler.jsonc`). Cada chamada ao LLM registra o tempo, o modelo e os tokens de entrada, de saída e de raciocínio; falhas registram a causa (tempo esgotado, rede ou HTTP). Horários no painel aparecem em BRT.
 - Em desenvolvimento (`npm run dev`), o Vite atende `/api/analyze` com o mesmo código, lendo `LLM_API_KEY` do `.env` local, sem limite de uso.
 
 ## 4. Modelo de dados
@@ -74,7 +77,7 @@ type Resume = {
   header: { fullName: string; headline?: string; email?: string; phone?: string;
             location?: string; links?: { label: string; url: string }[] };
   sections: Section[];            // ordem = ordem no documento
-  settings: { template: 'ats'; fontScale: number };
+  settings: { template: 'ats'; fontScale: number; fontSize: number };  // fontSize em pt, de 8 a 12 (padrão 10)
 };
 
 // Linha de conteúdo: tópico (opcional, em negrito) + texto. Sem tópico, vira texto livre.
@@ -119,7 +122,7 @@ create table public.job_analyses (
   job_title   text,
   job_text    text not null,
   result      jsonb not null,          -- saída validada do LLM (seção 6)
-  provider    text not null,           -- ex.: 'nvidia:gpt-oss-120b'
+  provider    text not null,           -- ex.: 'groq:gpt-oss-20b'
   created_at  timestamptz not null default now()
 );
 
@@ -145,7 +148,7 @@ Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para li
 
 ### 5.2 Criação do modelo base (3 caminhos)
 1. **Manual**: começa com seções padrão vazias e o usuário preenche.
-2. **Guia de perguntas (wizard)**: passos curtos (dados pessoais → objetivo → formação → experiências → habilidades → idiomas). Cada resposta preenche diretamente uma seção. Sem LLM.
+2. **Guia de perguntas (wizard)**: passos curtos (dados pessoais → objetivo → formação → experiências → habilidades → idiomas). Cada resposta preenche diretamente uma seção. Sem LLM. **Feito:** botão "Montar por perguntas" na barra superior; só entra o que foi preenchido, no idioma da aba ativa; habilidades e idiomas usam o formato `Grupo: item, item`; pede confirmação antes de substituir uma aba que já tem conteúdo.
 3. **Importar PDF** (sem LLM, sem reescrever nada):
    - `pdfjs-dist` extrai o texto no navegador.
    - O código procura títulos de seção conhecidos em português e inglês ("Experiência", "Formação", "Habilidades", "Experience", "Education"…) e corta o texto em blocos. O conteúdo é copiado exatamente como está.
@@ -168,6 +171,12 @@ Nenhum texto fica em dois idiomas. O site tem duas abas no topo, **Português (B
 - Dados no navegador (`localStorage`, versão 3): `lang` (aba ativa), `resume` (aba ativa) e `saved` (a outra aba). O currículo salvo no formato antigo vai para a aba do idioma que a interface estava usando. Isto é provisório: com login, cada usuário terá os currículos no seu banco (Supabase).
 - "Limpar tudo" limpa só a aba ativa.
 
+### 5.5 Prévia em páginas A4 e tamanho da fonte
+- A prévia mostra **uma folha A4 por página**, com "Página N de M" e a contagem de páginas no título. O conteúdo é medido fora da tela com a largura real do A4 (174 mm) e cada folha mostra a sua janela; em colunas estreitas a folha é reduzida para caber, sem rolagem horizontal.
+- A quebra imita a impressão: a página fecha antes do primeiro bloco que não cabe (parágrafo, item de lista) e título de bloco ou cargo não fica sozinho no fim da página. É uma **estimativa**: o navegador faz a paginação real ao gerar o PDF e pode diferir em uma linha perto da borda.
+- Tamanho da fonte escolhido na prévia: 8, 9, 10, 11 ou 12 pt (padrão 10 pt), gravado em `settings.fontSize` e usado também no PDF.
+- A impressão usa o documento corrido (sem as folhas da prévia), então o texto do PDF continua contínuo para os extratores de ATS.
+
 ## 6. Camada de LLM
 
 ### 6.1 Interface plugável
@@ -185,7 +194,7 @@ export interface LLMProvider {
 // factory: getProvider(Deno.env.get('LLM_PROVIDER'))
 ```
 
-A implementação inicial fala o formato OpenAI-compatível (`/v1/chat/completions`), usado pela maioria dos provedores do gpt-oss-120b. A resposta é **sempre revalidada com Zod/JSON Schema** antes de ir ao cliente; se falhar, uma nova tentativa e, depois, erro claro.
+A implementação inicial fala o formato OpenAI-compatível (`/v1/chat/completions`), usado pela maioria dos provedores de gpt-oss. A resposta é **sempre revalidada com Zod/JSON Schema** antes de ir ao cliente; se falhar, uma nova tentativa e, depois, erro claro.
 
 ### 6.2 Contrato de saída de `analyze-job`
 
@@ -224,11 +233,24 @@ type JobAnalysis = {
 - São traduzidos: cargo/título, local, títulos dos blocos, tópicos e textos, cargos, períodos (ex.: "Presente" ↔ "Present") e cursos.
 
 ### 6.4 Modelo escolhido
-**gpt-oss-120b.** Custo estimado com ~4.000 tokens de entrada e ~1.500 de saída por análise: cerca de US$ 1,15 por 1.000 análises (Baseten, US$ 0,10 por milhão de tokens de entrada e US$ 0,50 de saída). Base: `comparacao-llms-curriculo.md`.
+**gpt-oss-20b na Groq** (id `openai/gpt-oss-20b`, API compatível com OpenAI, endereço `https://api.groq.com/openai/v1`).
 
-- **Desenvolvimento**: API do NVIDIA Build (conta já criada, gratuita), sujeita aos termos e limites da conta.
-- **Produção**: provedor a definir; conferir se os termos do NVIDIA Build permitem uso comercial.
-- Validar o modelo com ~15 pares reais currículo+vaga (pt e en), medindo: JSON válido, fatos inventados, evidências corretas, qualidade do texto.
+- **Por que mudou:** o plano partia do gpt-oss-120b. Em produção, o endpoint gratuito de teste da NVIDIA gerava só de **15 a 40 tokens por segundo**: a análise levava de 11 a 93 s e uma tradução pequena, 16 s. Os logs mostraram que o tempo era quase todo espera pelo provedor (Worker, limite de uso e Jev somavam cerca de 0,6 s). Trocando só o provedor, com o mesmo modelo, a análise caiu para **1,2 a 1,8 s** e a tradução para **1,5 s**.
+- **Custo (preços da Groq consultados em outubro de 2026):** US$ 0,075 por milhão de tokens de entrada e US$ 0,30 por milhão de saída; com ~5.000 tokens de entrada e ~1.000 de saída por análise, cerca de **US$ 0,0007 por análise** (US$ 0,68 por 1.000). Base de comparação anterior: `comparacao-llms-curriculo.md`.
+- **Esforço de raciocínio:** `LLM_REASONING_EFFORT` (hoje `medium`, para testes). O gpt-oss gasta tokens "pensando" antes de responder; menos esforço é mais rápido, mais esforço pode melhorar a qualidade.
+- **Troca de provedor** = mudar `LLM_BASE_URL`, `LLM_MODEL` e o segredo `LLM_API_KEY`; nenhum código muda.
+- **Desenvolvimento local:** `.env` com a chave (ver `web/.env.example`).
+- Validar o modelo com ~15 pares reais currículo+vaga (pt e en), medindo: JSON válido, fatos inventados, evidências corretas, qualidade do texto. **Ainda não feito**; os testes até agora foram com poucos exemplos.
+
+### 6.6 Conferência da introdução com o Jev
+O LLM escreve a introdução sugerida e o **Jev** (TypeSafe) a confere antes de ela chegar à tela. Sem a chave `TYPESAFE_API_KEY`, a conferência é pulada e a análise funciona como antes.
+- **Duas notas de 0 a 1**: *fidelidade* (sem informação falsa: nada que o currículo não sustente e nada exagerado) e *adequação* (quanto o texto aborda o que a vaga pede, usando só o que o currículo tem). Limite de aprovação: **0,80**.
+- **Mudar muito o texto não conta contra.** Foi retirada a pergunta que comparava com o original, porque punia justamente a adaptação à vaga.
+- **Checagens de código antes do Jev**: números e habilidades "não possui" que não existem no currículo reprovam o texto sem chamar o Jev.
+- **Refação**: se o texto não passa nas duas notas, o LLM o refaz **no máximo 1 vez** (`MAX_REDOS`); sem aprovação, vale a tentativa de maior nota. Eram 3 refações, mas não subiam a nota e dobravam o tempo.
+- **Tela**: selo "Conferida" (verde) ou "Melhor versão encontrada, abaixo do limite" (âmbar), com as duas notas. Se o Jev falhar, a análise segue com um aviso.
+- **Medido em produção** (gpt-oss-20b na Groq): análise completa em **1,2 a 1,8 s**, com fidelidade de 0,82 a 0,96 e adequação de 0,89 a 0,96, sem refações.
+- **Em aberto:** calibrar o limite de 0,80 e as perguntas com ~15 pares reais; o Jev é do agente `JEV/<tarefa>` (seção 12).
 
 ## 7. Segurança e custo
 - **RLS** em todas as tabelas; nada de `service_role` no cliente.
@@ -261,7 +283,7 @@ Base: pesquisa de 29/09/2026 (docs oficiais de Gupy, Greenhouse, Workday e RChil
 
 **Tipografia e página**
 - A4, margens de 15 mm (topo/base) e 18 mm (laterais).
-- Fonte Arial (ou fonte web **estática**; nunca fonte variável). Corpo de **10 pt**, `line-height` 1,3. Nome 18 pt, títulos de seção 11,5 pt em negrito, `letter-spacing` de no máximo 0,05em.
+- Fonte Arial (ou fonte web **estática**; nunca fonte variável). Corpo de **10 pt** por padrão (o usuário escolhe de 8 a 12 pt na prévia, seção 5.5), `line-height` 1,3. Nome 18 pt, títulos de seção 11,5 pt em negrito, `letter-spacing` de no máximo 0,05em.
 - `font-variant-ligatures: none` (ligaturas quebram palavras como "financeiro" nos extratores).
 - Bullets com `<ul>` nativo (`list-style: disc`). Nada de bullets via `content:` no CSS.
 - Sem `position: fixed/absolute`. Sem alinhar datas à direita com flex, tab ou float.
@@ -353,10 +375,11 @@ curriculomaker/
 | 0 | Repositório, Vite + TS + Tailwind, lint, `.gitignore`, `.env.example` | App sobe em branco |
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
 | 2 | Supabase: projeto, migrations, Auth, salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
-| 3 | **Código feito.** Adequação à vaga: Worker `/api/analyze`, provedor plugável, tela com diff + tabela, no idioma da aba ativa. Falta cadastrar a chave e validar com o modelo real | Saída validada; nada inventado nos testes |
-| 4 | Wizard de perguntas | Base criado só respondendo perguntas |
+| 3 | **Feito, em produção.** Adequação à vaga: Worker `/api/analyze`, provedor plugável (gpt-oss-20b na Groq), conferência com o Jev, tela com diff + tabela, no idioma da aba ativa. Falta validar com ~15 pares reais | Saída validada; nada inventado nos testes |
+| 4 | **Feito.** Wizard de perguntas ("Montar por perguntas") | Base criado só respondendo perguntas |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
-| 5.1 | **Feito (código).** Abas de idioma pt-BR/en, um currículo por aba, tradução ao trocar de aba e aviso na importação de PDF (seção 5.4) | Trocar de aba muda currículo, interface, introdução sugerida e PDF |
+| 5.1 | **Feito, em produção.** Abas de idioma pt-BR/en, um currículo por aba, tradução ao trocar de aba e aviso na importação de PDF (seção 5.4) | Trocar de aba muda currículo, interface, introdução sugerida e PDF |
+| 5.2 | **Feito, em produção.** Prévia em páginas A4 com contagem de páginas e tamanho da fonte de 8 a 12 pt (seção 5.5) | A prévia mostra quantas páginas o PDF terá |
 | 6 | Variantes por vaga, histórico de análises, limites de uso, planos gratuito/pago | — |
 | 7 | App com Capacitor. **Só inicia com ordem explícita do dono do projeto**, depois de o site estar pronto e testado | Reaproveita schemas e camada de dados |
 
@@ -369,17 +392,21 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Idioma de saída do LLM: o da aba ativa. O PDF sai no idioma da aba. A tradução do currículo acontece ao trocar de aba, se o usuário aceitar, mantendo os termos técnicos em inglês sem traduzir (seção 6.5).
 - Planos: gratuito e pago; a cota e a cobrança ficam para depois.
 - App: Capacitor, somente após o web estar pronto e com ordem explícita.
-- Hospedagem: Cloudflare Pages, domínio `currimaker.niuai.com.br`, repositório GitHub `curriculomaker`. A VPS Hetzner e o Swarm não entram no início.
-- LLM: gpt-oss-120b; NVIDIA Build no desenvolvimento.
+- Hospedagem: Cloudflare **Workers** (site e API no mesmo projeto), domínio `currimaker.niuai.com.br`, repositório GitHub `curriculomaker`. A VPS Hetzner e o Swarm não entram no início.
+- LLM: **gpt-oss-20b na Groq**, com esforço de raciocínio `medium` na fase de teste (seção 6.4). A NVIDIA gratuita foi abandonada por ser lenta (15 a 40 tokens por segundo).
+- Conferência da introdução com o Jev: mede só informação falsa e adequação à vaga; mudar muito o texto não é falha (seção 6.6).
 - Template: um único, ATS-friendly.
 - Importação de PDF: só reconhecimento de texto, sem LLM e sem reescrever; o que não for reconhecido o usuário adiciona à mão.
 
-- Backend da análise de vaga: Worker da Cloudflare, com limite por IP (5 por hora) e teto diário (200) por Durable Object. Migrar para o Supabase quando houver login.
+- Backend da análise de vaga: Worker da Cloudflare, com limite por IP (20 por hora na fase de teste, para não estourar num possível laço) e teto diário (200) por Durable Object; a tradução tem contadores próprios. Migrar para o Supabase quando houver login.
+- Fase de teste: sem planos, sem login e sem CI de testes. Depois do teste manual do MVP, a ordem é: login, banco de currículos (Supabase), planos gratuito/pago e a limpeza de CI e testes.
 
 **Em aberto**
-1. Provedor do gpt-oss-120b em produção e termos de uso comercial do NVIDIA Build (a NVIDIA descreve o acesso como "trial service").
-2. Confirmar o id exato do modelo 120b na NVIDIA (a página vista pelo dono do projeto era a do gpt-oss-20b: `openai/gpt-oss-20b`). Se for diferente de `openai/gpt-oss-120b`, definir a variável `LLM_MODEL`.
-3. Cadastrar o segredo `LLM_API_KEY` no painel da Cloudflare (só é possível depois do primeiro deploy com o Worker) e validar a qualidade com cerca de 15 pares de currículo e vaga: JSON válido, fatos inventados, evidências corretas.
+1. Limites e termos de uso da Groq para uso comercial e em escala; escolher o plano pago antes de abrir para usuários reais.
+2. Validar a qualidade com cerca de 15 pares de currículo e vaga (pt e en): JSON válido, fatos inventados, evidências corretas, qualidade do texto.
+3. Calibrar o limite de 0,80 e as perguntas do Jev com esses mesmos pares.
+4. CI: hoje roda só lint e build; falta rodar os testes (`npm test`, 20 testes) e decidir o que mais entra.
+5. A mensagem de espera da análise na tela ainda diz "até 1 minuto", o que deixou de ser verdade com a Groq.
 
 ## 12. Fluxo de trabalho no Git
 Vários agentes (sessões do Claude) trabalham no mesmo repositório, então o fluxo é o de equipes de software:
