@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Editor } from './features/editor/Editor'
 import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
+import { WizardDialog } from './features/wizard/WizardDialog'
 import { LanguageTabs } from './features/translate/LanguageTabs'
 import { LANG_NAMES, setLang } from './lib/i18n'
 import { useResumeStore } from './store/resumeStore'
@@ -11,6 +12,7 @@ function App() {
   const { t, i18n } = useTranslation()
   const { lang, resume, reset } = useResumeStore()
   const [importing, setImporting] = useState(false)
+  const [wizard, setWizard] = useState(false)
 
   // A aba ativa define o idioma da interface.
   useEffect(() => setLang(lang), [lang])
@@ -34,6 +36,13 @@ function App() {
           <h1 className="text-lg font-bold text-gray-900">{t('app.name')}</h1>
           <LanguageTabs />
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setWizard(true)}
+            >
+              {t('wizard.button')}
+            </button>
             <button
               type="button"
               className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
@@ -62,6 +71,7 @@ function App() {
       </div>
 
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
+      {wizard && <WizardDialog onClose={() => setWizard(false)} />}
 
       <main className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2 print:block print:p-0">
         <div className="print:hidden">
