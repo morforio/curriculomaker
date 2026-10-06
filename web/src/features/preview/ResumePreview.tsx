@@ -1,6 +1,7 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Resume, Row, Section } from '../../lib/schemas/resume'
+import { FONT_SIZES, type Resume, type Row, type Section } from '../../lib/schemas/resume'
+import { useResumeStore } from '../../store/resumeStore'
 
 /**
  * Template ATS-friendly: uma coluna, HTML semântico, texto real, sem tabelas, ícones nem
@@ -184,7 +185,8 @@ function Separated({ items }: { items: ReactNode[] }) {
   )
 }
 
-export function ResumePreview({ resume }: { resume: Resume }) {
+/** O currículo em si (sem a folha): o mesmo conteúdo vai para a tela, para a medição de páginas e para a impressão. */
+function ResumeContent({ resume }: { resume: Resume }) {
   const { t } = useTranslation()
   const { header } = resume
 
@@ -203,8 +205,7 @@ export function ResumePreview({ resume }: { resume: Resume }) {
     )
 
   return (
-    <article className="cv-page">
-      <div className="cv" style={{ fontSize: `${10 * resume.settings.fontScale}pt` }}>
+    <div className="cv" style={{ fontSize: `${resume.settings.fontSize}pt` }}>
         <header>
           <h1 className="cv-name">{header.fullName.trim() || t('preview.placeholderName')}</h1>
           {header.headline.trim() && <p className="cv-headline">{header.headline}</p>}
@@ -231,7 +232,137 @@ export function ResumePreview({ resume }: { resume: Resume }) {
               <SectionBody section={section} />
             </section>
           ))}
+    </div>
+  )
+}
+
+// A4 com as margens do @page (index.css): 15 mm em cima e embaixo, 18 mm nas laterais.
+// Unidades CSS absolutas: 1 mm = 96 / 25,4 px, independente da tela.
+const MM = 96 / 25.4
+const SHEET_W = 210 * MM
+const SHEET_H = 297 * MM
+const CONTENT_H = 267 * MM
+
+// Blocos que o navegador não parte ao imprimir (parágrafos, itens de lista, cabeçalho) e os que ficam com o seguinte.
+const BLOCKS = 'header > *, section h2, section p, section li'
+const KEEP_WITH_NEXT = '.cv-h2, .cv-title, .cv-meta'
+
+/**
+ * Onde cada página começa (em px, a partir do topo do conteúdo), imitando a quebra da impressão:
+ * a página fecha antes do primeiro bloco que não cabe, e título de bloco/cargo não fica sozinho no fim da página.
+ */
+function pageStarts(root: HTMLElement): number[] {
+  const base = root.getBoundingClientRect().top
+  const blocks = [...root.querySelectorAll<HTMLElement>(BLOCKS)].map((el) => {
+    const r = el.getBoundingClientRect()
+    return { top: r.top - base, bottom: r.bottom - base, keep: el.matches(KEEP_WITH_NEXT) }
+  })
+  const starts = [0]
+  let start = 0
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i].bottom - start <= CONTENT_H + 0.5) continue
+    let j = i
+    while (j > 0 && blocks[j - 1].keep && blocks[j - 1].top > start + 0.5) j--
+    // Bloco maior que a página (ou já no topo): corta onde a página acaba.
+    start = blocks[j].top > start + 0.5 ? blocks[j].top : start + CONTENT_H
+    starts.push(start)
+    i = j - 1
+  }
+  return starts
+}
+
+function sameStarts(a: number[], b: number[]) {
+  return a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 0.5)
+}
+
+export function ResumePreview({ resume }: { resume: Resume }) {
+  const { t, i18n } = useTranslation()
+  const setFontSize = useResumeStore((s) => s.setFontSize)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [starts, setStarts] = useState<number[]>([0])
+  const [scale, setScale] = useState(1)
+
+  // Mede o currículo fora da tela, com a largura real do A4, e calcula onde cada página começa.
+  useLayoutEffect(() => {
+    const measure = () => {
+      const root = measureRef.current?.firstElementChild as HTMLElement | null
+      if (!root) return
+      const next = pageStarts(root)
+      setStarts((prev) => (sameStarts(prev, next) ? prev : next))
+    }
+    measure()
+    void document.fonts?.ready.then(measure)
+  }, [resume, i18n.language])
+
+  // A folha tem tamanho fixo; em colunas mais estreitas, a prévia é reduzida para caber.
+  useLayoutEffect(() => {
+    const box = boxRef.current
+    if (!box) return
+    // Largura 0 = coluna ainda sem layout (ou oculta): mantém a escala anterior.
+    const update = () => box.clientWidth > 0 && setScale(Math.min(1, box.clientWidth / SHEET_W))
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [])
+
+  const pages = starts.length
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <h2 className="text-sm font-semibold text-gray-900">
+          {t('preview.title')} <span className="font-normal text-gray-500">· {t('preview.pages', { count: pages })}</span>
+        </h2>
+        <label className="flex items-center gap-1.5 text-sm text-gray-600">
+          {t('preview.fontSize')}
+          <select
+            className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+            value={resume.settings.fontSize}
+            onChange={(e) => setFontSize(Number(e.target.value))}
+          >
+            {FONT_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size} pt
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-    </article>
+
+      {/* Medição (fora da tela, sem afetar o layout). */}
+      <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: '174mm', visibility: 'hidden' }} ref={measureRef}>
+        <ResumeContent resume={resume} />
+      </div>
+
+      {/* Prévia na tela: uma folha A4 por página, mostrando só a parte do currículo que cai nela. */}
+      <div ref={boxRef} className="space-y-4 print:hidden">
+        {starts.map((start, i) => (
+          <div key={i}>
+            <div style={{ width: SHEET_W * scale, height: SHEET_H * scale, margin: '0 auto' }}>
+              <div
+                aria-hidden={i > 0 ? 'true' : undefined}
+                className="cv-sheet"
+                style={{ width: SHEET_W, height: SHEET_H, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+              >
+                {/* A janela termina onde a próxima página começa: assim o pedaço do bloco que vai para a próxima não aparece aqui. */}
+                <div style={{ height: i < pages - 1 ? Math.min(CONTENT_H, starts[i + 1] - start) : CONTENT_H, overflow: 'hidden' }}>
+                  <div style={{ transform: `translateY(${-start}px)` }}>
+                    <ResumeContent resume={resume} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="mt-1 text-center text-xs text-gray-500">{t('preview.pageOf', { current: i + 1, total: pages })}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Impressão: o documento corrido; o navegador faz a paginação real do PDF. */}
+      <article className="cv-page hidden print:block">
+        <ResumeContent resume={resume} />
+      </article>
+    </div>
   )
 }

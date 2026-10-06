@@ -192,7 +192,14 @@ const resources = {
         rowsHint:
           'Deixe o tópico vazio para escrever um texto livre. Use **texto** para negrito e comece a linha com - ou • para criar marcadores.',
       },
-      preview: { title: 'Pré-visualização', placeholderName: 'Seu nome' },
+      preview: {
+        title: 'Pré-visualização',
+        placeholderName: 'Seu nome',
+        pages_one: '{{count}} página',
+        pages_other: '{{count}} páginas',
+        pageOf: 'Página {{current}} de {{total}}',
+        fontSize: 'Tamanho da fonte',
+      },
     },
   },
   en: {
@@ -381,7 +388,14 @@ const resources = {
         rowsHint:
           'Leave the topic empty to write free text. Use **text** for bold and start a line with - or • to create bullets.',
       },
-      preview: { title: 'Preview', placeholderName: 'Your name' },
+      preview: {
+        title: 'Preview',
+        placeholderName: 'Your name',
+        pages_one: '{{count}} page',
+        pages_other: '{{count}} pages',
+        pageOf: 'Page {{current}} of {{total}}',
+        fontSize: 'Font size',
+      },
     },
   },
 }
