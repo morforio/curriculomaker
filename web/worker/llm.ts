@@ -26,6 +26,7 @@ export function createProvider(env: { LLM_API_KEY?: string; LLM_BASE_URL?: strin
   return {
     async complete({ system, user, maxTokens = 6000 }) {
       let res: Response
+      const started = Date.now()
       try {
         res = await fetch(`${base}/chat/completions`, {
           method: 'POST',
@@ -43,13 +44,16 @@ export function createProvider(env: { LLM_API_KEY?: string; LLM_BASE_URL?: strin
           }),
           signal: AbortSignal.timeout(90_000),
         })
-      } catch {
+      } catch (e) {
+        // Só o nome e a mensagem do erro (TimeoutError, TypeError...) vão para o log; a chave não aparece neles.
+        const cause = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+        console.error(`LLM fetch falhou após ${Date.now() - started} ms (modelo: ${model}): ${cause}`)
         throw new LLMError('Falha de rede ou tempo esgotado ao chamar o provedor de LLM.', 'unavailable')
       }
       if (!res.ok) {
         // Não repassa o corpo da resposta ao usuário (pode conter detalhes da conta).
         // O status e o modelo vão para o log do servidor, para diagnosticar chave ou id de modelo errados.
-        console.error(`LLM HTTP ${res.status} (modelo: ${model})`)
+        console.error(`LLM HTTP ${res.status} após ${Date.now() - started} ms (modelo: ${model})`)
         throw new LLMError(`O provedor de LLM respondeu HTTP ${res.status}.`, 'unavailable')
       }
       const data = (await res.json().catch(() => null)) as { choices?: { message?: { content?: string | null } }[] } | null
