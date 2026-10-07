@@ -88,6 +88,6 @@ export const useAuthStore = create<State>((set) => ({
     // Grava o que ficou pendente e só então sai; depois limpa o currículo deste navegador (o próximo usuário não pode vê-lo).
     await syncControl.flush().catch(() => {})
     await supabase?.auth.signOut()
-    useResumeStore.getState().hydrate(null)
+    useResumeStore.getState().hydrate()
   },
 }))

@@ -1,33 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { dataToRows, planInitialSync, remoteToData } from '../src/lib/sync.ts'
+import { dataToRows, remoteToData } from '../src/lib/sync.ts'
 
 const resume = (name: string) => ({
   version: 1,
   header: { fullName: name, headline: '', email: '', phone: '', location: '', links: [] },
   sections: [],
   settings: { template: 'ats', fontScale: 1, fontSize: 10 },
-})
-
-test('conta com currículo: vale o da conta', () => {
-  assert.equal(planInitialSync({ userId: 'u1', ownerId: 'u1', localHasContent: true, remoteCount: 1 }), 'load-remote')
-  assert.equal(planInitialSync({ userId: 'u1', ownerId: 'u2', localHasContent: true, remoteCount: 2 }), 'load-remote')
-})
-
-test('conta vazia e currículo de antes do login: sobe para a conta', () => {
-  assert.equal(planInitialSync({ userId: 'u1', ownerId: null, localHasContent: true, remoteCount: 0 }), 'upload-local')
-})
-
-test('conta vazia e currículo desta mesma conta no navegador: sobe para a conta', () => {
-  assert.equal(planInitialSync({ userId: 'u1', ownerId: 'u1', localHasContent: true, remoteCount: 0 }), 'upload-local')
-})
-
-test('conta vazia e currículo de OUTRA conta no navegador: começa vazio, sem vazar dados', () => {
-  assert.equal(planInitialSync({ userId: 'u1', ownerId: 'u2', localHasContent: true, remoteCount: 0 }), 'start-empty')
-})
-
-test('conta vazia e nada preenchido no navegador: começa vazio', () => {
-  assert.equal(planInitialSync({ userId: 'u1', ownerId: null, localHasContent: false, remoteCount: 0 }), 'start-empty')
 })
 
 test('remoteToData: usa o idioma preferido e guarda o outro em "saved"', () => {

@@ -3,20 +3,6 @@ import { resumeSchema, type Resume } from './schemas/resume.ts'
 
 /** Regras de sincronização do currículo com a conta (puras, para testar sem navegador nem banco). */
 
-export type InitialSync = 'load-remote' | 'upload-local' | 'start-empty'
-
-/**
- * O que fazer ao entrar na conta:
- * - a conta já tem currículo: vale o da conta (o do navegador era só uma cópia);
- * - a conta está vazia e o navegador tem um currículo que é de antes do login ou desta mesma conta: sobe para a conta;
- * - a conta está vazia e o currículo do navegador é de OUTRA conta: começa vazio (nunca vaza dados entre contas).
- */
-export function planInitialSync(args: { userId: string; ownerId: string | null; localHasContent: boolean; remoteCount: number }): InitialSync {
-  if (args.remoteCount > 0) return 'load-remote'
-  const mine = args.ownerId === null || args.ownerId === args.userId
-  return mine && args.localHasContent ? 'upload-local' : 'start-empty'
-}
-
 export type AccountData = { lang: Lang; resume: Resume; saved: Partial<Record<Lang, Resume>> }
 
 const LANGS: Lang[] = ['pt', 'en']

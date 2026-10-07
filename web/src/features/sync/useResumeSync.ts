@@ -1,13 +1,13 @@
 import { useEffect } from 'react'
-import { dataToRows, planInitialSync, remoteToData } from '../../lib/sync'
+import { dataToRows, remoteToData } from '../../lib/sync'
 import { getSupabase } from '../../lib/supabase'
-import { hasContent, useResumeStore } from '../../store/resumeStore'
+import { useResumeStore } from '../../store/resumeStore'
 import { useAuthStore } from '../auth/authStore'
 import { syncControl, useSyncStatus } from './syncStatus'
 
 /**
  * Mantém o currículo da conta (tabela `resumes`) e o do editor iguais:
- * ao entrar, carrega da conta (ou sobe o do navegador se a conta estiver vazia, ver `planInitialSync`);
+ * ao entrar, carrega o currículo da conta (conta sem currículo começa em branco; o que havia no navegador nunca é aproveitado);
  * depois grava sozinho 1 s depois da última alteração. Sem login configurado, não faz nada.
  */
 export function useResumeSync() {
@@ -78,22 +78,10 @@ export function useResumeSync() {
         setStatus('loadError')
         return
       }
-      const local = useResumeStore.getState()
-      const remote = remoteToData(data ?? [], local.lang)
-      const localHasContent = hasContent(local.resume) || Object.values(local.saved).some((r) => r && hasContent(r))
-      const plan = planInitialSync({ userId, ownerId: local.ownerId, localHasContent, remoteCount: remote ? data.length : 0 })
-
-      if (plan === 'load-remote' && remote) useResumeStore.getState().hydrate(userId, remote)
-      else if (plan === 'start-empty') useResumeStore.getState().hydrate(userId)
-      else useResumeStore.setState({ ownerId: userId })
-
+      // A conta é a fonte da verdade: com currículo, carrega; sem, começa em branco (o do navegador é descartado).
+      useResumeStore.getState().hydrate(remoteToData(data ?? [], useResumeStore.getState().lang) ?? undefined)
       ready = true
-      if (plan === 'upload-local') {
-        dirty = true
-        await save()
-      } else {
-        setStatus('saved')
-      }
+      setStatus('saved')
     })()
 
     return () => {
