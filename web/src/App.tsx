@@ -18,7 +18,7 @@ const btnSecondary =
   'inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50'
 
 function App() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { lang, resume, reset } = useResumeStore()
   const [importing, setImporting] = useState(false)
   const [wizard, setWizard] = useState(false)
@@ -29,13 +29,13 @@ function App() {
   // O título do documento vira o nome sugerido do PDF e o metadado "Title".
   const fullName = resume.header.fullName.trim()
   useEffect(() => {
-    const suffix = i18n.language.startsWith('pt') ? 'Currículo' : 'Resume'
-    document.title = fullName ? `${fullName} - ${suffix}` : t('app.name')
+    // "CurriMaker" primeiro: é o que o usuário procura entre as abas abertas.
+    document.title = fullName ? `${t('app.name')} - ${fullName}` : t('app.name')
     // Ao sair (a tela de login substitui o editor), o nome da pessoa não pode ficar na aba.
     return () => {
       document.title = t('app.name')
     }
-  }, [fullName, i18n.language, t])
+  }, [fullName, t])
 
   // Com login, o currículo vem da conta antes de aparecer; se não carregar, nada é mostrado (nem gravado por cima).
   useResumeSync()
