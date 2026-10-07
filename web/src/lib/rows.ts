@@ -46,3 +46,11 @@ export function linesToRows(lines: string[]): RowLike[] {
 export function textToRows(text: string): RowLike[] {
   return linesToRows(text.split('\n'))
 }
+
+/** Cada linha com texto vira uma linha própria, começando com "• " (marcadores digitados antes são trocados). */
+export function bulletRows(lines: string[]): RowLike[] {
+  return lines
+    .map((l) => l.replace(BULLET_START, '').trim())
+    .filter(Boolean)
+    .map((text) => ({ topic: '', text: `• ${text}` }))
+}

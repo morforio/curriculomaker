@@ -12,6 +12,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SECTION_TYPES, type SectionType } from '../../lib/schemas/resume'
+import { isOnlyPrefix, linkPrefix } from '../../lib/links'
 import { JobMatchPanel } from '../job-match/JobMatchPanel'
 import { useResumeStore } from '../../store/resumeStore'
 import { TextField } from './fields'
@@ -62,6 +63,14 @@ export function Editor() {
                 value={link.url}
                 placeholder="linkedin.com/in/usuario"
                 onChange={(url) => setHeader({ links: header.links.map((l, j) => (j === i ? { ...l, url } : l)) })}
+                // Em links chamados LinkedIn ou GitHub, o começo do endereço já vem preenchido; se a pessoa sair sem completar, ele some.
+                onFocus={() => {
+                  const prefix = linkPrefix(link.label)
+                  if (prefix && !link.url.trim()) setHeader({ links: header.links.map((l, j) => (j === i ? { ...l, url: prefix } : l)) })
+                }}
+                onBlur={() => {
+                  if (isOnlyPrefix(link.url)) setHeader({ links: header.links.map((l, j) => (j === i ? { ...l, url: '' } : l)) })
+                }}
               />
               <button
                 type="button"
