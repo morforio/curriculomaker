@@ -2,7 +2,9 @@ import type { Resume, Row, Section } from '../../lib/schemas/resume'
 
 /**
  * Percorre os textos do currículo que devem ser traduzidos, sempre na mesma ordem.
- * Ficam de fora (nunca vão ao serviço de tradução): nome, e-mail, telefone, links, empresas e instituições.
+ * Ficam de fora (nunca vão ao serviço de tradução): nome, e-mail, telefone, endereço dos links, empresas e instituições.
+ * O teste tests/translation.test.ts garante que todo texto do currículo está aqui ou na lista de exceções:
+ * um campo novo no formato do currículo sem tradução faz o teste falhar.
  */
 function mapTexts(resume: Resume, fn: (text: string) => string): Resume {
   const tr = (text: string) => (text.trim() ? fn(text) : text)
@@ -27,7 +29,14 @@ function mapTexts(resume: Resume, fn: (text: string) => string): Resume {
     }
   })
 
-  return { ...resume, header: { ...resume.header, headline: tr(resume.header.headline), location: tr(resume.header.location) }, sections }
+  const header = {
+    ...resume.header,
+    headline: tr(resume.header.headline),
+    location: tr(resume.header.location),
+    // O nome do link ("Portfólio", "Site pessoal") é traduzido; o endereço, não.
+    links: resume.header.links.map((l) => ({ ...l, label: tr(l.label) })),
+  }
+  return { ...resume, header, sections }
 }
 
 export type TranslationPlan = {

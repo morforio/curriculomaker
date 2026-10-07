@@ -176,6 +176,13 @@ const resources = {
         languages: { title: 'Idiomas', label: 'Um idioma por linha', hint: 'Exemplo: Inglês: avançado (C1)' },
       },
       tabs: {
+        pull: {
+          button: 'Traduzir',
+          hint: 'Traz o conteúdo da aba {{from}}, traduzido, para esta aba ({{to}})',
+          empty: 'A aba {{from}} está vazia: não há o que traduzir.',
+          title: 'Trazer a tradução da outra aba?',
+          ask: 'Vamos pegar tudo o que está na aba {{from}} e trazer traduzido para a aba {{to}}. O que está hoje na aba {{to}} será substituído.',
+        },
         caption: 'Idioma do currículo a ser gerado:',
         label: 'Idioma do currículo',
         askTitle: 'Traduzir o currículo?',
@@ -415,6 +422,13 @@ const resources = {
         languages: { title: 'Languages', label: 'One language per line', hint: 'Example: English: advanced (C1)' },
       },
       tabs: {
+        pull: {
+          button: 'Translate',
+          hint: 'Brings the content of the {{from}} tab, translated, into this tab ({{to}})',
+          empty: 'The {{from}} tab is empty: there is nothing to translate.',
+          title: 'Bring the translation from the other tab?',
+          ask: 'We will take everything in the {{from}} tab and bring it, translated, into the {{to}} tab. What is in the {{to}} tab today will be replaced.',
+        },
         caption: 'Language of the resume to be generated:',
         label: 'Resume language',
         askTitle: 'Translate the resume?',

@@ -10,6 +10,7 @@ import { useSyncStatus } from './features/sync/syncStatus'
 import { useResumeSync } from './features/sync/useResumeSync'
 import { WizardDialog } from './features/wizard/WizardDialog'
 import { LanguageStripe, LanguageTabs } from './features/translate/LanguageTabs'
+import { PullTranslationButton } from './features/translate/PullTranslationButton'
 import { LANG_NAMES, setLang } from './lib/i18n'
 import { useResumeStore } from './store/resumeStore'
 
@@ -64,8 +65,11 @@ function App() {
           {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
           <div className="grid grid-cols-[auto_1fr] items-end gap-x-6 gap-y-1 px-4 pt-2 lg:flex">
             <h1 className="col-start-1 row-start-1 pb-2 text-lg font-bold text-gray-900">{t('app.name')}</h1>
-            <div className="col-span-2 row-start-2 lg:col-auto lg:row-auto">
+            <div className="col-span-2 row-start-2 flex items-end gap-3 lg:col-auto lg:row-auto">
               <LanguageTabs />
+              <div className="pb-2">
+                <PullTranslationButton />
+              </div>
             </div>
             <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-2 pb-2 lg:ml-auto lg:col-auto lg:row-auto">
               <button type="button" className={btnSecondary} onClick={() => setWizard(true)}>

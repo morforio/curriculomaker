@@ -27,6 +27,12 @@ export const IconWand = () => (
   </Icon>
 )
 
+export const IconLanguages = () => (
+  <Icon>
+    <path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
+  </Icon>
+)
+
 export const IconUpload = () => (
   <Icon>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
