@@ -382,7 +382,7 @@ curriculomaker/
 |---|---|---|
 | 0 | Repositório, Vite + TS + Tailwind, lint, `.gitignore`, `.env.example` | App sobe em branco |
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
-| 2 | **Código feito; falta criar o projeto e ligar.** Supabase: projeto, migrations, Auth (e-mail e senha), salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
+| 2 | **Feito, ligado em produção (aguarda teste manual).** Supabase: projeto, migrations, Auth (e-mail e senha), salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
 | 3 | **Feito, em produção.** Adequação à vaga: Worker `/api/analyze`, provedor plugável (Gemini 3.1 Flash-Lite), conferência com o Jev, tela com diff + tabela, no idioma da aba ativa. Falta validar com ~15 pares reais | Saída validada; nada inventado nos testes |
 | 4 | **Feito.** Wizard de perguntas ("Montar por perguntas") | Base criado só respondendo perguntas |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
@@ -410,7 +410,7 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Login e banco (06/10): e-mail e senha, login obrigatório, só o currículo base (seção 4.3). Em seguida: planos gratuito/pago e a limpeza de CI e testes.
 
 **Em aberto**
-0. Criar o projeto no Supabase, rodar a migração e preencher `SUPABASE_URL` e `SUPABASE_ANON_KEY` em `wrangler.jsonc`. Antes de abrir ao público: religar a confirmação de e-mail e configurar o envio de e-mails; login com Google é um acréscimo futuro.
+0. Antes de abrir ao público: religar a confirmação de e-mail e configurar o envio de e-mails do Supabase; login com Google é um acréscimo futuro. O projeto Supabase (`zxjfojugzayjzygvvnhn`, região São Paulo) já existe e a migração já foi aplicada.
 1. Limites e termos do Google AI Studio para uso comercial e em escala (plano gratuito x pago, uso do conteúdo para treino no plano gratuito). Histórico da Groq: Em 06/10, às 19:39 (GMT-3), o plano atual recusou pedidos com HTTP 429 (limite de pedidos/tokens por minuto) e HTTP 413 (pedido grande demais), porque o código pedia `max_tokens` de 6.000 e a Groq reserva esse valor no limite por minuto. O padrão caiu para 4.000 e o Worker espera e repete uma vez no 429. Confirmar o plano da chave do Gemini antes de abrir para usuários reais.
 2. Validar a qualidade com cerca de 15 pares de currículo e vaga (pt e en): JSON válido, fatos inventados, evidências corretas, qualidade do texto.
 3. Calibrar o limite de 0,80 e as perguntas do Jev com esses mesmos pares.

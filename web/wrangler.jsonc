@@ -18,9 +18,10 @@
     "LLM_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai/",
     "LLM_MODEL": "gemini-3.1-flash-lite",
     "LLM_REASONING_EFFORT": "minimal",
-    // Login (Supabase): preencher com o Project URL e a chave pública (anon). Vazios = o site abre sem login.
-    // "SUPABASE_URL": "https://SEU-PROJETO.supabase.co",
-    // "SUPABASE_ANON_KEY": "chave-publica-anon",
+    // Login (Supabase). A chave "anon" é PÚBLICA por desenho (quem protege os dados é o RLS do banco); a "service_role" e a "secret" nunca entram aqui.
+    // Para voltar a abrir o site sem login, apague estas duas linhas.
+    "SUPABASE_URL": "https://zxjfojugzayjzygvvnhn.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4amZvanVnemF5anp5Z3Z2bmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMjc3NTMsImV4cCI6MjEwNjkwMzc1M30.wy3kLvWNVHRij_qFtowiUKqYzCC9l8OM8o7o6jejjXo",
     "RATE_PER_IP_HOUR": "20",
     "DAILY_CAP": "200"
   },
