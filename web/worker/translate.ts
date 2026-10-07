@@ -186,7 +186,8 @@ export async function handleTranslate(request: Request, deps: TranslateDeps): Pr
       CONCURRENCY,
     )
     const translated = new Map<number, string>(parts.flatMap((m) => [...m]))
-    return json(200, { texts: req.texts.map((text, id) => (text.trim() ? translated.get(id)! : text)) })
+    const texts = req.texts.map((text, id) => (text.trim() ? translated.get(id)! : text))
+    return json(200, provider.fallbackUsed?.() ? { texts, fallback: true } : { texts })
   } catch (e) {
     if (e instanceof BadOutput) {
       console.error(`Tradução rejeitada após 2 tentativas: ${e.message}`)

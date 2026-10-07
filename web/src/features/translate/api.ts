@@ -2,6 +2,7 @@ import type { ApiErrorCode, Lang } from '../../lib/schemas/analysis'
 import { translateResponseSchema } from '../../lib/schemas/translate'
 import { authHeaders } from '../auth/token'
 import { ApiError } from '../job-match/api'
+import { useNoticeStore } from '../notice/noticeStore'
 
 const KNOWN: ApiErrorCode[] = [
   'unauthorized',
@@ -34,5 +35,7 @@ export async function requestTranslation(from: Lang, to: Lang, texts: string[], 
   if (!res.ok) throw new ApiError(KNOWN.find((c) => c === data?.error) ?? 'llm_unavailable')
   const parsed = translateResponseSchema.safeParse(data)
   if (!parsed.success || parsed.data.texts.length !== texts.length) throw new ApiError('bad_llm_output')
+  if (parsed.data.fallback) useNoticeStore.getState().show('fallback')
+  else useNoticeStore.getState().clear()
   return parsed.data.texts
 }

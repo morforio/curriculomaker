@@ -1,5 +1,6 @@
 import { analysisSchema, type Analysis, type AnalyzeRequest, type ApiErrorCode, type Verification } from '../../lib/schemas/analysis'
 import { authHeaders } from '../auth/token'
+import { useNoticeStore } from '../notice/noticeStore'
 
 export class ApiError extends Error {
   code: ApiErrorCode
@@ -22,7 +23,7 @@ const KNOWN: ApiErrorCode[] = [
   'bad_llm_output',
 ]
 
-export type AnalysisResult = { analysis: Analysis; meta: { model: string; downgraded: number; verification?: Verification } }
+export type AnalysisResult = { analysis: Analysis; meta: { model: string; downgraded: number; verification?: Verification; fallback?: boolean } }
 
 export async function requestAnalysis(req: AnalyzeRequest, signal?: AbortSignal): Promise<AnalysisResult> {
   let res: Response
@@ -44,5 +45,7 @@ export async function requestAnalysis(req: AnalyzeRequest, signal?: AbortSignal)
   }
   const parsed = analysisSchema.safeParse(data?.analysis)
   if (!parsed.success) throw new ApiError('bad_llm_output')
+  if (data?.meta?.fallback) useNoticeStore.getState().show('fallback')
+  else useNoticeStore.getState().clear()
   return { analysis: parsed.data, meta: data?.meta ?? { model: '', downgraded: 0 } }
 }

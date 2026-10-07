@@ -17,5 +17,5 @@ export const translateRequestSchema = z
   .refine((v) => v.texts.reduce((n, t) => n + t.length, 0) <= MAX_TRANSLATE_CHARS, { message: 'texto grande demais' })
 export type TranslateRequest = z.infer<typeof translateRequestSchema>
 
-export const translateResponseSchema = z.object({ texts: z.array(z.string().max(8000)) })
+export const translateResponseSchema = z.object({ texts: z.array(z.string().max(8000)), /** O modelo principal falhou e o reserva respondeu. */ fallback: z.boolean().optional() })
 export type TranslateResponse = z.infer<typeof translateResponseSchema>

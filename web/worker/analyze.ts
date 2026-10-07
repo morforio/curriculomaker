@@ -142,7 +142,7 @@ export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promis
     const { analysis: processed, downgraded } = postProcess(checked.data, req)
     const verifier = deps.verifier ?? (deps.env.TYPESAFE_API_KEY ? createVerifier(deps.env) : undefined)
     const { analysis, verification } = await refineSummaries({ analysis: processed, req, provider, verifier })
-    return json(200, { analysis, meta: { model: deps.env.LLM_MODEL || DEFAULT_MODEL, downgraded, verification } })
+    return json(200, { analysis, meta: { model: deps.env.LLM_MODEL || DEFAULT_MODEL, downgraded, verification, fallback: provider.fallbackUsed?.() ?? false } })
   }
 
   console.error(`Resposta do LLM rejeitada após 2 tentativas: ${lastProblem}`)

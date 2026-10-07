@@ -17,6 +17,8 @@
   "vars": {
     "LLM_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai/",
     "LLM_MODEL": "gemini-3.1-flash-lite",
+    // Reserva (mesmo provedor e chave): usado quando o modelo principal recusa por excesso de demanda (HTTP 503) ou não responde.
+    "LLM_FALLBACK_MODEL": "gemini-3.5-flash",
     "LLM_REASONING_EFFORT": "minimal",
     // Login (Supabase). A chave "anon" é PÚBLICA por desenho (quem protege os dados é o RLS do banco); a "service_role" e a "secret" nunca entram aqui.
     // Para voltar a abrir o site sem login, apague estas duas linhas.
