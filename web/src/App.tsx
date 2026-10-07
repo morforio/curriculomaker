@@ -31,6 +31,10 @@ function App() {
   useEffect(() => {
     const suffix = i18n.language.startsWith('pt') ? 'Currículo' : 'Resume'
     document.title = fullName ? `${fullName} - ${suffix}` : t('app.name')
+    // Ao sair (a tela de login substitui o editor), o nome da pessoa não pode ficar na aba.
+    return () => {
+      document.title = t('app.name')
+    }
   }, [fullName, i18n.language, t])
 
   // Com login, o currículo vem da conta antes de aparecer; se não carregar, nada é mostrado (nem gravado por cima).
