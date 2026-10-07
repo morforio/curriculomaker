@@ -158,7 +158,7 @@ export function JobMatchPanel() {
   const covered = requiredSkills.filter((s) => s.status !== 'missing').length
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm" aria-labelledby="job-title">
+    <section className="glass rounded-lg border border-gray-200 p-4" aria-labelledby="job-title">
       <h2 id="job-title" className="text-sm font-semibold text-gray-900">
         {t('analysis.title')}
       </h2>
@@ -167,7 +167,7 @@ export function JobMatchPanel() {
       <label className="mt-3 block">
         <span className="mb-0.5 block text-xs font-medium text-gray-600">{t('analysis.jobLabel')}</span>
         <textarea
-          className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded border border-gray-300 bg-white/5 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           rows={7}
           maxLength={MAX_JOB_CHARS + 2000}
           placeholder={t('analysis.jobPlaceholder')}
@@ -314,7 +314,7 @@ export function JobMatchPanel() {
               <h4 className="mb-1 text-sm font-semibold text-gray-900">{t('analysis.keywords')}</h4>
               <ul className="flex flex-wrap gap-1.5">
                 {analysis.keywords.map((k) => (
-                  <li key={k} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-900">
+                  <li key={k} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-100">
                     {k}
                   </li>
                 ))}

@@ -55,7 +55,7 @@ export function PullTranslationButton() {
           setErrorCode(null)
           setOpen(true)
         }}
-        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white/5 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <IconLanguages />
         {t('tabs.pull.button')}
@@ -63,7 +63,7 @@ export function PullTranslationButton() {
 
       {open && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4 print:hidden">
-          <div role="dialog" aria-modal="true" aria-labelledby="pull-title" className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="pull-title" className="glass-strong w-full max-w-md rounded-lg border border-gray-200 p-5 shadow-xl">
             <h2 id="pull-title" className="text-base font-semibold text-gray-900">
               {t('tabs.pull.title')}
             </h2>

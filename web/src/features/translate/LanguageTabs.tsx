@@ -67,7 +67,7 @@ export function LanguageTabs() {
                 // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
                 style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
                 className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm ${
-                  active ? 'relative z-10 bg-white pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  active ? 'relative z-10 bg-[#0d1018] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 {LANG_NAMES[l]}
@@ -78,7 +78,7 @@ export function LanguageTabs() {
       </div>
       {target && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4 print:hidden">
-          <div role="dialog" aria-modal="true" aria-labelledby="translate-title" className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="translate-title" className="glass-strong w-full max-w-md rounded-lg border border-gray-200 p-5 shadow-xl">
             <h2 id="translate-title" className="text-base font-semibold text-gray-900">
               {t('tabs.askTitle')}
             </h2>

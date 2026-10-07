@@ -138,7 +138,7 @@ export function WizardDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/40 p-4 print:hidden">
-      <div role="dialog" aria-modal="true" aria-labelledby="wizard-title" className="my-8 w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl">
+      <div role="dialog" aria-modal="true" aria-labelledby="wizard-title" className="glass-strong my-8 w-full max-w-2xl rounded-lg border border-gray-200 p-5 shadow-xl">
         <div className="mb-1 flex items-center justify-between">
           <h2 id="wizard-title" className="text-base font-semibold text-gray-900">
             {t('wizard.title')}
@@ -148,7 +148,7 @@ export function WizardDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="text-xs text-gray-500">{t('wizard.intro')}</p>
-        <p className="mt-2 text-xs font-medium text-blue-700">{t('wizard.step', { current: index + 1, total: STEPS.length })}</p>
+        <p className="mt-2 text-xs font-medium text-blue-300">{t('wizard.step', { current: index + 1, total: STEPS.length })}</p>
         <div className="mt-1 h-1.5 w-full overflow-hidden rounded bg-gray-100">
           <div className="h-full bg-blue-600" style={{ width: `${((index + 1) / STEPS.length) * 100}%` }} />
         </div>

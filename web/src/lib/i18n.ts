@@ -175,6 +175,11 @@ const resources = {
         },
         languages: { title: 'Idiomas', label: 'Um idioma por linha', hint: 'Exemplo: Inglês: avançado (C1)' },
       },
+      motion: {
+        label: 'Animações de fundo',
+        titleOn: 'Desligar as animações de fundo',
+        titleOff: 'Ligar as animações de fundo',
+      },
       notice: {
         fallback: 'O modelo de IA principal está sobrecarregado agora, então usamos o modelo reserva. Funciona normalmente, mas a resposta pode demorar um pouco mais e variar em relação ao habitual: revise o resultado com atenção.',
         close: 'Fechar aviso',
@@ -424,6 +429,11 @@ const resources = {
           hint: 'Example: Languages: JavaScript, TypeScript',
         },
         languages: { title: 'Languages', label: 'One language per line', hint: 'Example: English: advanced (C1)' },
+      },
+      motion: {
+        label: 'Background animations',
+        titleOn: 'Turn background animations off',
+        titleOff: 'Turn background animations on',
       },
       notice: {
         fallback: 'The main AI model is overloaded right now, so we used the backup model. It works normally, but the answer may take a little longer and differ from what you are used to: please review the result carefully.',

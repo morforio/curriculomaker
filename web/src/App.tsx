@@ -16,7 +16,7 @@ import { LANG_NAMES, setLang } from './lib/i18n'
 import { useResumeStore } from './store/resumeStore'
 
 const btnSecondary =
-  'inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50'
+  'inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white/5 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-white/10'
 
 function App() {
   const { t } = useTranslation()
@@ -66,7 +66,7 @@ function App() {
   return (
     <div className="min-h-screen">
       <div className="print:hidden">
-        <header className="sticky top-0 z-20 bg-white">
+        <header className="sticky top-0 z-20 bg-[#07080c]/70 backdrop-blur-md">
           {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
           <div className="grid grid-cols-[auto_1fr] items-end gap-x-6 gap-y-1 px-4 pt-2 lg:flex">
             <h1 className="col-start-1 row-start-1 pb-2 text-lg font-bold text-gray-900">{t('app.name')}</h1>
@@ -115,7 +115,7 @@ function App() {
       {wizard && <WizardDialog onClose={() => setWizard(false)} />}
 
       <main className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2 print:block print:p-0">
-        <div className="print:hidden">
+        <div className="float-block print:hidden">
           <Editor />
         </div>
         <div className="relative min-w-0">
