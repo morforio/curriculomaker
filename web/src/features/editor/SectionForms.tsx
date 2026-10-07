@@ -42,6 +42,7 @@ export function SectionForm({ section, onChange }: { section: Section; onChange:
     case 'summary':
     case 'skills':
     case 'languages':
+      return <RowsEditor kind={section.type} rows={section.data.rows} onChange={(rows) => onChange({ rows })} />
     case 'custom':
       return <RowsEditor rows={section.data.rows} onChange={(rows) => onChange({ rows })} />
     case 'experience': {

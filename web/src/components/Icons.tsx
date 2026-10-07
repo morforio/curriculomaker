@@ -20,13 +20,6 @@ function Icon({ children }: { children: ReactNode }) {
   )
 }
 
-export const IconWand = () => (
-  <Icon>
-    <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M12.2 6.2 11 5" />
-    <path d="m3 21 9-9" />
-  </Icon>
-)
-
 export const IconLanguages = () => (
   <Icon>
     <path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />

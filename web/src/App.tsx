@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconDownload, IconTrash, IconUpload, IconWand } from './components/Icons'
+import { IconDownload, IconTrash, IconUpload } from './components/Icons'
 import { AccountBar } from './features/auth/AccountBar'
 import { useAuthStore } from './features/auth/authStore'
 import { Editor } from './features/editor/Editor'
@@ -9,7 +9,6 @@ import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
 import { useSyncStatus } from './features/sync/syncStatus'
 import { useResumeSync } from './features/sync/useResumeSync'
-import { WizardDialog } from './features/wizard/WizardDialog'
 import { LanguageStripe, LanguageTabs } from './features/translate/LanguageTabs'
 import { PullTranslationButton } from './features/translate/PullTranslationButton'
 import { LANG_NAMES, setLang } from './lib/i18n'
@@ -23,7 +22,6 @@ function App() {
   const { t } = useTranslation()
   const { lang, resume, reset } = useResumeStore()
   const [importing, setImporting] = useState(false)
-  const [wizard, setWizard] = useState(false)
 
   // A aba ativa define o idioma da interface.
   useEffect(() => setLang(lang), [lang])
@@ -75,10 +73,6 @@ function App() {
               <LanguageTabs above={<PullTranslationButton />} />
             </div>
             <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-3 pb-2 lg:ml-auto lg:col-auto lg:row-auto">
-              <button type="button" className={btnAction} onClick={() => setWizard(true)}>
-                <IconWand />
-                {t('wizard.button')}
-              </button>
               <button type="button" className={btnAction} onClick={startImport}>
                 <IconUpload />
                 {t('import.button')}
@@ -110,7 +104,6 @@ function App() {
       </div>
 
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
-      {wizard && <WizardDialog onClose={() => setWizard(false)} />}
 
       <main className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2 print:block print:p-0">
         <div className="float-block print:hidden">

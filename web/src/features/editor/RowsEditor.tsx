@@ -2,10 +2,15 @@ import { useTranslation } from 'react-i18next'
 import type { Row } from '../../lib/schemas/resume'
 import { emptyRow } from '../../store/resumeStore'
 import { TextAreaField, TextField } from './fields'
+import { GuidedRows, type GuidedKind } from './GuidedRows'
 
-/** Lista de linhas "tópico + texto". Tópico vazio = texto livre. */
-export function RowsEditor({ rows, onChange }: { rows: Row[]; onChange: (rows: Row[]) => void }) {
+/**
+ * Lista de linhas "tópico + texto". Tópico vazio = texto livre.
+ * Resumo, habilidades e idiomas (`kind`) têm campos próprios, com exemplos e dicas.
+ */
+export function RowsEditor({ rows, onChange, kind }: { rows: Row[]; onChange: (rows: Row[]) => void; kind?: GuidedKind }) {
   const { t } = useTranslation()
+  if (kind) return <GuidedRows kind={kind} rows={rows} onChange={onChange} />
   const update = (i: number, patch: Partial<Row>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
 
   return (
