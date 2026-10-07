@@ -26,11 +26,11 @@ export function LoginScreen() {
   }
 
   const input =
-    'w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+    'w-full rounded border border-gray-300 bg-white/5 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm glass space-y-4 rounded-lg border border-gray-200 p-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
           <p className="mt-1 text-sm text-gray-600">{mode === 'signIn' ? t('auth.signInIntro') : t('auth.signUpIntro')}</p>
@@ -60,7 +60,7 @@ export function LoginScreen() {
           </p>
         )}
         {notice && (
-          <p role="status" className="rounded border border-blue-200 bg-blue-50 p-2 text-sm text-blue-900">
+          <p role="status" className="rounded border border-blue-200 bg-blue-50 p-2 text-sm text-blue-100">
             {notice}
           </p>
         )}
@@ -75,7 +75,7 @@ export function LoginScreen() {
 
         <button
           type="button"
-          className="w-full text-center text-sm text-blue-700 hover:underline"
+          className="w-full text-center text-sm text-blue-300 hover:underline"
           onClick={() => {
             setMode(mode === 'signIn' ? 'signUp' : 'signIn')
             setError(null)

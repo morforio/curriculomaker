@@ -74,7 +74,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-title"
-        className="my-8 w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl"
+        className="glass-strong my-8 w-full max-w-2xl rounded-lg border border-gray-200 p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -106,7 +106,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
 
         {state.status === 'review' && (
           <div className="space-y-4">
-            <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">{t('import.recognized')}</p>
+            <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-100">{t('import.recognized')}</p>
             {state.truncated && (
               <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 {t('import.truncated', { pages: state.pages, max: MAX_PDF_PAGES })}

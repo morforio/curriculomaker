@@ -50,7 +50,7 @@ export function AccountBar() {
         <IconUser />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-10 z-30 w-64 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+        <div role="menu" className="absolute right-0 top-10 z-30 w-64 glass-strong rounded-lg border border-gray-200 p-2 shadow-lg">
           <p className="px-2 pt-1 text-xs text-gray-500">{t('auth.signedInAs')}</p>
           <p className="truncate px-2 pb-2 text-sm font-medium text-gray-900" title={email ?? ''}>
             {email}

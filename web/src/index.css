@@ -23,9 +23,81 @@
 
 body {
   margin: 0;
-  background: #f3f4f6;
-  color: #111827;
+  background: #05060a;
+  color: #eceef6;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ---------- Tema escuro ----------
+   As escalas de cinza, vermelho, amarelo e verde do Tailwind são redefinidas em ordem invertida, com tom azulado:
+   as classes dos componentes (text-gray-900, bg-red-50...) continuam as mesmas e passam a dar texto claro sobre fundo escuro.
+   O azul dos botões não muda; só os tons claros do azul (50 a 200), usados em avisos. */
+:root {
+  color-scheme: dark;
+  --color-gray-50: #10131c;
+  --color-gray-100: #161a26;
+  --color-gray-200: rgba(91, 140, 255, 0.16);
+  --color-gray-300: #2e3448;
+  --color-gray-400: #5b6178;
+  --color-gray-500: #8189a0;
+  --color-gray-600: #9aa1b8;
+  --color-gray-700: #b8bed0;
+  --color-gray-800: #d2d6e3;
+  --color-gray-900: #eceef6;
+  --color-red-50: #2a1316;
+  --color-red-100: #3a181c;
+  --color-red-200: #5c2328;
+  --color-red-600: #f08080;
+  --color-red-700: #f59a9a;
+  --color-red-800: #f8b4b4;
+  --color-amber-50: #2a2110;
+  --color-amber-100: #3a2d12;
+  --color-amber-200: #5c4617;
+  --color-amber-800: #f0c96e;
+  --color-amber-900: #f6dc9a;
+  --color-green-50: #10281b;
+  --color-green-100: #153523;
+  --color-green-200: #1f5236;
+  --color-green-600: #4ade80;
+  --color-green-700: #6ee7a0;
+  --color-green-800: #86efac;
+  --color-green-900: #bbf7d0;
+  --color-blue-50: #0f1a35;
+  --color-blue-100: #14224a;
+  --color-blue-200: #21397a;
+}
+
+/* O conteúdo fica acima do fundo animado (um canvas fixo, criado em BackgroundFx). */
+#root { position: relative; z-index: 1; }
+.fx-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+/* Cartões e janelas de vidro fosco. Em @layer components, para as classes de borda e sombra do Tailwind ainda mandarem. */
+@layer components {
+  .glass {
+    background: rgba(12, 15, 26, 0.66);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 0 0 1px rgba(91, 140, 255, 0.04), 0 0 36px rgba(91, 140, 255, 0.045), 0 30px 70px rgba(0, 0, 0, 0.45);
+  }
+  .glass-strong {
+    background: rgba(12, 15, 26, 0.94);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 0 1px rgba(91, 140, 255, 0.05), 0 0 46px rgba(91, 140, 255, 0.06), 0 30px 80px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Blocos flutuantes: andam muito pouco com o mouse (--mx e --my vêm de BackgroundFx). Valores da maquete aprovada. */
+.float-block {
+  translate: calc(var(--mx, 0) * -5px) calc(var(--my, 0) * -3.5px);
+  transition: translate 0.6s ease-out;
+}
+.float-sheet {
+  translate: calc(var(--mx, 0) * -12px) calc(var(--my, 0) * -9px);
+  transform: perspective(900px) rotateY(calc(-3deg + var(--mx, 0) * -2.4deg)) rotateX(calc(var(--my, 0) * 1.6deg));
+  transition: translate 0.6s ease-out, transform 0.6s ease-out;
+}
+@media (max-width: 1023px) {
+  .float-block,
+  .float-sheet { translate: none; transform: none; }
 }
 
 /* ---------- Currículo (template ATS) ---------- */
@@ -112,7 +184,8 @@ body {
 .cv-text-block { white-space: pre-line; }
 
 @media print {
-  body { background: #fff; }
+  body { background: #fff; color: #111; }
+  .fx-bg, .motion-toggle { display: none !important; }
   .cv-page {
     width: auto;
     max-width: none;
