@@ -3,7 +3,7 @@ import type { Analysis, AnalyzeRequest, Lang, Verification, VersionQuality } fro
 import type { JevAnswer, JevQuestion, Verifier } from './jev.ts'
 import type { LLMProvider } from './llm.ts'
 import { buildRedoPrompt, REDO_SYSTEM_PROMPT, type Issue } from './prompt.ts'
-import { extractJson, normalize } from './text.ts'
+import { extractJson, normalize, toBullets } from './text.ts'
 
 /**
  * Conferência da introdução sugerida (um só texto, no idioma da aba ativa). O LLM escreve; o Jev dá duas notas (0 a 1):
@@ -140,7 +140,7 @@ async function redo(state: VersionState, ctx: Context): Promise<{ text: string; 
   try {
     const reply = await ctx.provider.complete({ system: REDO_SYSTEM_PROMPT, user })
     const parsed = redoSchema.safeParse(extractJson(reply))
-    return parsed.success ? { text: parsed.data.text, changes: parsed.data.changes ?? [] } : null
+    return parsed.success ? { text: toBullets(parsed.data.text), changes: parsed.data.changes ?? [] } : null
   } catch {
     return null
   }

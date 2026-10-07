@@ -8,7 +8,7 @@ import {
 import { createVerifier, type JevEnv, type Verifier } from './jev.ts'
 import { createProvider, DEFAULT_MODEL, LLMError, type LLMEnv, type LLMProvider } from './llm.ts'
 import { buildUserPrompt, SYSTEM_PROMPT } from './prompt.ts'
-import { extractJson, normalize } from './text.ts'
+import { extractJson, normalize, toBullets } from './text.ts'
 import { refineSummaries } from './verify.ts'
 
 export { extractJson }
@@ -57,7 +57,7 @@ export function evidenceInResume(evidence: string, resumeNorm: string): boolean 
   return tokens.filter((t) => words.has(t)).length / tokens.length >= 0.8
 }
 
-/** Regras que não dependem do modelo: habilidades sem duplicata e evidência verificada. */
+/** Regras que não dependem do modelo: habilidades sem duplicata e evidência verificada; introdução sempre em tópicos. */
 export function postProcess(raw: Analysis, req: AnalyzeRequest): { analysis: Analysis; downgraded: number } {
   const resumeNorm = normalize(req.resumeText)
   let downgraded = 0
@@ -74,7 +74,8 @@ export function postProcess(raw: Analysis, req: AnalyzeRequest): { analysis: Ana
       skills.push(s.status === 'missing' ? { ...s, evidence: undefined } : s)
     }
   }
-  return { analysis: { ...raw, skills }, downgraded }
+  const summary = { ...raw.summary, suggested: toBullets(raw.summary.suggested ?? '') }
+  return { analysis: { ...raw, summary, skills }, downgraded }
 }
 
 export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promise<Response> {

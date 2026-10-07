@@ -82,7 +82,7 @@ test('texto reprovado é refeito e a versão refeita passa', async () => {
   const r = await refineSummaries({ analysis: analysisWith(EXAGGERATED), req, provider, verifier })
   assert.equal(r.verification.version?.redos, 1)
   assert.equal(r.verification.version?.status, 'verified')
-  assert.equal(r.analysis.summary.suggested, GOOD)
+  assert.equal(r.analysis.summary.suggested, `• ${GOOD}`, 'a versão refeita sai em tópicos')
 })
 
 test('número inventado e habilidade ausente são barrados no código, sem chamar o Jev', async () => {
@@ -105,7 +105,7 @@ test('no máximo MAX_REDOS refações; sem aprovação, vale a tentativa de maio
   const q = r.verification.version
   assert.equal(q?.redos, MAX_REDOS)
   assert.equal(q?.status, 'best_effort')
-  assert.equal(r.analysis.summary.suggested, v2)
+  assert.equal(r.analysis.summary.suggested, `• ${v2}`)
   assert.equal(remaining(), replies.length - MAX_REDOS, 'respostas além do limite não podem ser usadas')
 })
 
@@ -143,7 +143,7 @@ test('com versão refeita, a lista de alterações descarta as que não valem ma
   const { provider } = fakeProvider([{ text: GOOD, changes: [{ from: 'APIs', to: 'APIs REST', reason: 'termo da vaga' }] }])
   const stale = { from: 'experiência em APIs', to: 'liderei APIs', reason: 'texto antigo' }
   const r = await refineSummaries({ analysis: analysisWith(EXAGGERATED, [stale]), req, provider, verifier })
-  assert.equal(r.analysis.summary.suggested, GOOD)
+  assert.equal(r.analysis.summary.suggested, `• ${GOOD}`)
   assert.deepEqual(
     r.analysis.summary.changes.map((c) => c.to),
     ['APIs REST'],

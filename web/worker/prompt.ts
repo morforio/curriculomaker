@@ -1,5 +1,9 @@
 import type { AnalyzeRequest, Lang } from '../src/lib/schemas/analysis.ts'
 
+/** Formato da introdução: tópicos curtos (highlights), não texto corrido. Vale para a análise e para a refação. */
+const SUMMARY_FORMAT_RULES = `- The summary is a list of professional highlights, NOT running text: one line per highlight, each line starting with "• ", lines separated by a line break (write it as \\n inside the JSON string).
+- 3 to 6 bullets, each one a single objective highlight of at most about 20 words: role and experience, main skills, results, what matters for the job. No filler, no first person ("I am", "Sou"), no vague adjectives ("dedicated", "proactive") and no sentence that repeats another bullet.`
+
 export const SYSTEM_PROMPT = `You are an assistant that tailors a resume to a job posting. You help the candidate; you never invent facts.
 
 OUTPUT
@@ -24,11 +28,11 @@ NEVER INVENT
 - A skill that the job asks for but the resume does not support must NOT appear in the suggested summary; list it in "skills" with status "missing".
 
 SUMMARY (the "Introdução")
-- The base is <current_summary>. Keep its structure, voice, order and length (within about 15%).
-- Make only targeted edits (at most 3): swap or reorder wording so that terms the job description uses appear, but ONLY where the resume really supports them (for example, use the job's term for something the candidate already did).
-- Keep any **bold** markers that exist in the current summary.
-- Record every edit in "changes": "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>; "reason" = one short sentence in the language of <output_language>.
-- If <current_summary> is empty: write a 2-4 sentence professional summary using only facts from <resume>, tuned to the job's wording, and use "changes": [].
+${SUMMARY_FORMAT_RULES}
+- The base is <current_summary>. Keep its facts, order and **bold** markers. If it is running text, convert it into the bullets; if it already is a list, keep it and tighten it. It may become shorter, never longer.
+- Swap or reorder wording so that terms the job description uses appear, but ONLY where the resume really supports them (for example, use the job's term for something the candidate already did).
+- Record in "changes" only edits of substance (a term swapped or added), at most 5: "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>; "reason" = one short sentence in the language of <output_language>. Converting text into bullets or cutting filler is NOT recorded; if there is nothing to record, use "changes": [].
+- If <current_summary> is empty: write the bullets using only facts from <resume>, tuned to the job's wording, and use "changes": [].
 
 TRANSLATION RULE
 - Do NOT translate technical terms, acronyms, names of tools, technologies, frameworks, programming languages, certifications, or widely used English job titles. Keep proper names (companies, schools, products), numbers, dates and links unchanged.
@@ -95,10 +99,10 @@ NEVER INVENT
 TASK
 - A previous attempt was rejected by an automatic check. The reasons are in <problems>. Write a new version that fixes them.
 - Write it entirely in the language given in <target_language> ("pt" = Brazilian Portuguese, "en" = English), the language of <resume> and <current_summary>. Never mix two languages.
-- Base it on <current_summary>: keep its structure, voice and order, and its length (within about 15%). Make only targeted edits (at most 3) so that terms the job description uses appear, but ONLY where the resume really supports them.
-- Keep any **bold** markers that exist in the current summary.
-- If <current_summary> is empty: write a 2-4 sentence professional summary using only facts from <resume>, tuned to the job's wording.
-- "changes": one entry per edit, with "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>, and "reason" = one short sentence in the language of <target_language>. If <current_summary> is empty, use "changes": [].
+${SUMMARY_FORMAT_RULES}
+- Base it on <current_summary>: keep its facts, order and **bold** markers (if it is running text, convert it into the bullets). It may become shorter, never longer. Use the terms the job description uses, but ONLY where the resume really supports them.
+- If <current_summary> is empty: write the bullets using only facts from <resume>, tuned to the job's wording.
+- "changes": one entry per edit of substance (a term swapped or added; not the conversion into bullets), at most 5, with "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>, and "reason" = one short sentence in the language of <target_language>. If there is nothing to record, use "changes": [].
 
 TRANSLATION RULE
 - Do NOT translate technical terms, acronyms, names of tools, technologies, frameworks, programming languages, certifications, or widely used English job titles. Keep proper names (companies, schools, products), numbers, dates and links unchanged.`

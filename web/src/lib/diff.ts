@@ -1,6 +1,7 @@
 export type DiffToken = { text: string; kind: 'same' | 'add' | 'del' }
 
-const words = (s: string) => s.split(/\s+/).filter(Boolean)
+/** Palavras; a quebra de linha conta como um item à parte, para a introdução em tópicos continuar um tópico por linha. */
+const words = (s: string) => s.split(/(\n)|[^\S\n]+/).filter(Boolean)
 
 /** Diferença palavra a palavra (maior subsequência comum). Textos de introdução são curtos. */
 export function wordDiff(original: string, suggested: string): { original: DiffToken[]; suggested: DiffToken[] } {
