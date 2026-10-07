@@ -1,4 +1,5 @@
 import { analysisSchema, type Analysis, type AnalyzeRequest, type ApiErrorCode, type Verification } from '../../lib/schemas/analysis'
+import { authHeaders } from '../auth/token'
 
 export class ApiError extends Error {
   code: ApiErrorCode
@@ -16,6 +17,8 @@ const KNOWN: ApiErrorCode[] = [
   'not_configured',
   'llm_unavailable',
   'llm_busy',
+  'unauthorized',
+  'auth_unavailable',
   'bad_llm_output',
 ]
 
@@ -26,7 +29,7 @@ export async function requestAnalysis(req: AnalyzeRequest, signal?: AbortSignal)
   try {
     res = await fetch('/api/analyze', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify(req),
       signal,
     })

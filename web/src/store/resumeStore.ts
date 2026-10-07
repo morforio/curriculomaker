@@ -70,6 +70,8 @@ type State = {
   importResume: (resume: Resume) => void
   /** Troca de aba. Com `translated`, a nova aba nasce com o currículo traduzido; sem ele, abre vazia (ou como estava). */
   switchLang: (next: Lang, translated?: Resume) => void
+  /** Substitui tudo pelos dados da conta (ou por um currículo vazio, se `data` vier sem nada). */
+  hydrate: (data?: { lang: Lang; resume: Resume; saved: Partial<Record<Lang, Resume>> }) => void
 }
 
 const initialLang = browserLang()
@@ -115,6 +117,7 @@ export const useResumeStore = create<State>()(
           delete saved[next]
           return { lang: next, resume: target, saved }
         }),
+      hydrate: (data) => set((s) => (data ? { lang: data.lang, resume: data.resume, saved: data.saved } : { resume: defaultResume(s.lang), saved: {} })),
     }),
     {
       name: 'currimaker:resume',

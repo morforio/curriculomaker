@@ -54,7 +54,7 @@ Regras:
 - Edge Functions validam o JWT do usuário, aplicam limite de uso e só então chamam o LLM.
 - Provedor escolhido por variáveis de ambiente (`LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`) nos *secrets* da função. A chave de API fica só nos secrets (e num `.env` local que não vai para o Git).
 
-**Situação atual (etapa 3, análise de vaga).** Ainda não existe projeto Supabase nem login. Por isso a análise roda num **Worker da Cloudflare**, no mesmo projeto e domínio do site, e não numa Edge Function. O desenho do diagrama acima continua valendo para quando o Supabase entrar; o código do LLM (`web/worker/`) é portável.
+**Situação atual (etapa 3, análise de vaga).** O login e o banco entram na fase 2 (seção 4.3); a análise continua num **Worker da Cloudflare**, no mesmo projeto e domínio do site, e não numa Edge Function. O desenho do diagrama acima continua valendo para quando o Supabase entrar; o código do LLM (`web/worker/`) é portável.
 - `web/worker/index.ts`: roteia `/api/analyze` e `/api/translate` e entrega o site (arquivos estáticos, modo SPA) para o resto.
 - `web/worker/analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; a introdução volta num só idioma, o da aba ativa; uma nova tentativa se a resposta vier fora do formato).
 - `web/worker/translate.ts`: tradução dos textos do currículo ao trocar de aba de idioma (seções 5.4 e 6.5). Usa os contadores do Durable Object em outra instância (`translate`), para traduzir não gastar as análises de vaga: 20 por hora por IP e 200 por dia (variáveis `TRANSLATE_PER_IP_HOUR` e `TRANSLATE_DAILY_CAP`).
@@ -103,17 +103,16 @@ Blocos vindos da importação de PDF (seção 5.2) mantêm o tipo quando é Resu
 ### 4.2 Tabelas (SQL, com RLS)
 
 ```sql
+-- Implementada em supabase/migrations/20261006000000_resumes.sql (resumo):
 create table public.resumes (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  title       text not null default 'Meu currículo',
-  is_base     boolean not null default false,
-  parent_id   uuid references public.resumes(id) on delete set null, -- variante derivada do base
+  lang        text not null check (lang in ('pt', 'en')),
   content     jsonb not null,
   created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  updated_at  timestamptz not null default now(),
+  unique (user_id, lang)       -- um currículo base por idioma (variantes por vaga: fase 6)
 );
-create unique index one_base_per_user on public.resumes(user_id) where is_base;
 
 create table public.job_analyses (
   id          uuid primary key default gen_random_uuid(),
@@ -136,6 +135,13 @@ create policy "own analyses" on public.job_analyses
 ```
 
 Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para limite diário (a cota por plano, gratuito ou pago, será definida depois).
+
+### 4.3 Login e sincronização (fase 2)
+- **Decisões (06/10):** login por **e-mail e senha** (Google fica para depois); **login obrigatório** para usar o site; no banco fica **só o currículo base**, um por idioma (histórico de análises e variantes por vaga ficam para a fase 6).
+- **Banco:** `supabase/migrations/20261006000000_resumes.sql` (tabela `resumes` com uma linha por usuário e idioma, RLS por usuário, gatilho `updated_at`). Roda-se uma vez no SQL Editor do Supabase.
+- **Configuração pública:** `SUPABASE_URL` e `SUPABASE_ANON_KEY` ficam em `wrangler.jsonc` (a chave "anon" é pública por desenho; quem protege os dados é o RLS). O Worker as serve em `/api/config` e o site cria o cliente com elas. **Sem elas, o site abre sem login.** A chave `service_role`, a chave "secret" e a senha do banco nunca entram no site nem no repositório.
+- **Entrada:** `AuthGate` mostra a tela de e-mail e senha. Ao entrar, o currículo da conta carrega antes de aparecer; conta sem currículo começa em branco, e o que havia no navegador é sempre descartado (a conta é a fonte da verdade e nenhum dado passa de uma conta para outra). Salva sozinho 1 s depois da última alteração e ao esconder a aba, e mostra "Salvando…/Salvo". Ao sair, grava o que estava pendente e limpa o currículo do navegador.
+- **API protegida:** com o login configurado, `/api/analyze` e `/api/translate` exigem o token da sessão (o Worker confere com o Supabase em `/auth/v1/user`, só com a chave pública) e o limite de uso passa a ser **por usuário**, não por IP.
 
 ## 5. Funcionalidades do front-end
 
@@ -376,7 +382,7 @@ curriculomaker/
 |---|---|---|
 | 0 | Repositório, Vite + TS + Tailwind, lint, `.gitignore`, `.env.example` | App sobe em branco |
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
-| 2 | Supabase: projeto, migrations, Auth, salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
+| 2 | **Código feito; falta criar o projeto e ligar.** Supabase: projeto, migrations, Auth (e-mail e senha), salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
 | 3 | **Feito, em produção.** Adequação à vaga: Worker `/api/analyze`, provedor plugável (Gemini 3.1 Flash-Lite), conferência com o Jev, tela com diff + tabela, no idioma da aba ativa. Falta validar com ~15 pares reais | Saída validada; nada inventado nos testes |
 | 4 | **Feito.** Wizard de perguntas ("Montar por perguntas") | Base criado só respondendo perguntas |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
@@ -401,9 +407,10 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 - Importação de PDF: só reconhecimento de texto, sem LLM e sem reescrever; o que não for reconhecido o usuário adiciona à mão.
 
 - Backend da análise de vaga: Worker da Cloudflare, com limite por IP (20 por hora na fase de teste, para não estourar num possível laço) e teto diário (200) por Durable Object; a tradução tem contadores próprios. Migrar para o Supabase quando houver login.
-- Fase de teste: sem planos, sem login e sem CI de testes. Depois do teste manual do MVP, a ordem é: login, banco de currículos (Supabase), planos gratuito/pago e a limpeza de CI e testes.
+- Login e banco (06/10): e-mail e senha, login obrigatório, só o currículo base (seção 4.3). Em seguida: planos gratuito/pago e a limpeza de CI e testes.
 
 **Em aberto**
+0. Criar o projeto no Supabase, rodar a migração e preencher `SUPABASE_URL` e `SUPABASE_ANON_KEY` em `wrangler.jsonc`. Antes de abrir ao público: religar a confirmação de e-mail e configurar o envio de e-mails; login com Google é um acréscimo futuro.
 1. Limites e termos do Google AI Studio para uso comercial e em escala (plano gratuito x pago, uso do conteúdo para treino no plano gratuito). Histórico da Groq: Em 06/10, às 19:39 (GMT-3), o plano atual recusou pedidos com HTTP 429 (limite de pedidos/tokens por minuto) e HTTP 413 (pedido grande demais), porque o código pedia `max_tokens` de 6.000 e a Groq reserva esse valor no limite por minuto. O padrão caiu para 4.000 e o Worker espera e repete uma vez no 429. Confirmar o plano da chave do Gemini antes de abrir para usuários reais.
 2. Validar a qualidade com cerca de 15 pares de currículo e vaga (pt e en): JSON válido, fatos inventados, evidências corretas, qualidade do texto.
 3. Calibrar o limite de 0,80 e as perguntas do Jev com esses mesmos pares.

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AccountBar } from './features/auth/AccountBar'
+import { useAuthStore } from './features/auth/authStore'
 import { Editor } from './features/editor/Editor'
 import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
+import { useSyncStatus } from './features/sync/syncStatus'
+import { useResumeSync } from './features/sync/useResumeSync'
 import { WizardDialog } from './features/wizard/WizardDialog'
 import { LanguageTabs } from './features/translate/LanguageTabs'
 import { LANG_NAMES, setLang } from './lib/i18n'
@@ -23,6 +27,26 @@ function App() {
     const suffix = i18n.language.startsWith('pt') ? 'Currículo' : 'Resume'
     document.title = fullName ? `${fullName} - ${suffix}` : t('app.name')
   }, [fullName, i18n.language, t])
+
+  // Com login, o currículo vem da conta antes de aparecer; se não carregar, nada é mostrado (nem gravado por cima).
+  useResumeSync()
+  const signedIn = useAuthStore((s) => s.status === 'signedIn')
+  const sync = useSyncStatus((s) => s.status)
+  if (signedIn && (sync === 'idle' || sync === 'loading')) {
+    return <div className="flex min-h-screen items-center justify-center p-4 text-sm text-gray-600">{t('sync.loading')}</div>
+  }
+  if (signedIn && sync === 'loadError') {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4 text-center text-sm text-gray-600">
+        <div className="space-y-3">
+          <p role="alert">{t('sync.loadError')}</p>
+          <button type="button" className="rounded border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-100" onClick={() => window.location.reload()}>
+            {t('auth.retry')}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   function startImport() {
     // Quem escolher a aba errada só descobre depois: avisa antes de abrir o envio do arquivo.
@@ -66,6 +90,7 @@ function App() {
             >
               {t('toolbar.exportPdf')}
             </button>
+            <AccountBar />
           </div>
         </header>
       </div>
