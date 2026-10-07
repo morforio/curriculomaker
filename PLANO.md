@@ -176,6 +176,8 @@ Nenhum texto fica em dois idiomas. O site tem duas abas no topo, **Português (B
 - Importar PDF: antes de abrir o envio do arquivo, mostra um aviso (Cancelar / OK) dizendo que a aba selecionada precisa ser do mesmo idioma do currículo; escolher errado é problema do usuário.
 - Dados no navegador (`localStorage`, versão 3): `lang` (aba ativa), `resume` (aba ativa) e `saved` (a outra aba). O currículo salvo no formato antigo vai para a aba do idioma que a interface estava usando. Isto é provisório: com login, cada usuário terá os currículos no seu banco (Supabase).
 - "Limpar tudo" limpa só a aba ativa.
+- **Barra superior:** as abas ficam à esquerda, com a legenda "Idioma do currículo a ser gerado:" ao lado, e os botões (Montar por perguntas, Importar PDF, Limpar tudo, Exportar PDF) à direita, pequenos e com ícone. A aba ativa "abre" para uma **faixa colorida** que corre sob a barra, como uma aba de navegador: português em verde com tracejado azul; English em azul, branco e vermelho. Em telas menores, logo e botões ficam em cima e as abas na linha de baixo, sempre encostadas na faixa.
+- **Conta:** um avatar genérico redondo no canto direito abre o e-mail logado e o botão Sair; o estado "Salvando/Salvo" fica ao lado dele.
 
 ### 5.5 Prévia em páginas A4 e tamanho da fonte
 - A prévia mostra **uma folha A4 por página**, com "Página N de M" e a contagem de páginas no título. O conteúdo é medido fora da tela com a largura real do A4 (174 mm) e cada folha mostra a sua janela; em colunas estreitas a folha é reduzida para caber, sem rolagem horizontal.

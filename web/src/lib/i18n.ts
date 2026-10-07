@@ -111,6 +111,8 @@ const resources = {
         toSignUp: 'Ainda não tenho conta',
         toSignIn: 'Já tenho conta',
         signOut: 'Sair',
+        account: 'Minha conta',
+        signedInAs: 'Conectado como',
         checkEmail: 'Enviamos um e-mail de confirmação. Abra o link e depois entre aqui.',
         err: {
           invalidCredentials: 'E-mail ou senha incorretos.',
@@ -174,6 +176,7 @@ const resources = {
         languages: { title: 'Idiomas', label: 'Um idioma por linha', hint: 'Exemplo: Inglês: avançado (C1)' },
       },
       tabs: {
+        caption: 'Idioma do currículo a ser gerado:',
         label: 'Idioma do currículo',
         askTitle: 'Traduzir o currículo?',
         ask: 'Você já tem parte do seu currículo preenchido em {{from}}. Deseja traduzir o que já foi preenchido para {{to}}?',
@@ -347,6 +350,8 @@ const resources = {
         toSignUp: "I don't have an account yet",
         toSignIn: 'I already have an account',
         signOut: 'Sign out',
+        account: 'My account',
+        signedInAs: 'Signed in as',
         checkEmail: 'We sent you a confirmation email. Open the link, then sign in here.',
         err: {
           invalidCredentials: 'Wrong email or password.',
@@ -410,6 +415,7 @@ const resources = {
         languages: { title: 'Languages', label: 'One language per line', hint: 'Example: English: advanced (C1)' },
       },
       tabs: {
+        caption: 'Language of the resume to be generated:',
         label: 'Resume language',
         askTitle: 'Translate the resume?',
         ask: 'You already have part of your resume filled in {{from}}. Do you want to translate what you filled in to {{to}}?',

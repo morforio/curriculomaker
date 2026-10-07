@@ -5,6 +5,7 @@ import { LANGS } from '../../lib/schemas/analysis'
 import { hasContent, useResumeStore } from '../../store/resumeStore'
 import { ApiError } from '../job-match/api'
 import { requestTranslation } from './api'
+import { LANG_THEME, STRIPE_HEIGHT } from './langTheme'
 import { planTranslation } from './resumeTranslation'
 
 /** Abas de idioma do currículo (como no LinkedIn). Trocar de aba muda o currículo e a interface. */
@@ -51,21 +52,30 @@ export function LanguageTabs() {
 
   return (
     <>
-      <div role="tablist" aria-label={t('tabs.label')} className="flex rounded-lg border border-gray-300 bg-gray-50 p-0.5">
-        {LANGS.map((l) => (
-          <button
-            key={l}
-            type="button"
-            role="tab"
-            aria-selected={l === lang}
-            onClick={() => select(l)}
-            className={`rounded-md px-3 py-1 text-sm font-medium ${l === lang ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-          >
-            {LANG_NAMES[l]}
-          </button>
-        ))}
+      <div className="flex items-end gap-3">
+        <span className="hidden pb-2 text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
+        <div role="tablist" aria-label={t('tabs.label')} className="flex items-end gap-1">
+          {LANGS.map((l) => {
+            const active = l === lang
+            return (
+              <button
+                key={l}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => select(l)}
+                // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
+                style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
+                className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm ${
+                  active ? 'relative z-10 bg-white pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                {LANG_NAMES[l]}
+              </button>
+            )
+          })}
+        </div>
       </div>
-
       {target && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4 print:hidden">
           <div role="dialog" aria-modal="true" aria-labelledby="translate-title" className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
@@ -96,4 +106,10 @@ export function LanguageTabs() {
       )}
     </>
   )
+}
+
+/** Faixa colorida sob a barra superior, na cor do idioma ativo (a aba ativa a atravessa). */
+export function LanguageStripe() {
+  const lang = useResumeStore((s) => s.lang)
+  return <div aria-hidden="true" className="w-full" style={{ height: STRIPE_HEIGHT, background: LANG_THEME[lang].stripe }} />
 }
