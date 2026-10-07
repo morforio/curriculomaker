@@ -7,6 +7,16 @@ export function extractJson(text: string): unknown {
   return JSON.parse(cleaned.slice(start, end + 1))
 }
 
+/** Garante a introdução em tópicos: uma linha por tópico, todas com "• " (o modelo às vezes usa "-", "*" ou esquece o marcador). */
+export function toBullets(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.replace(/^\s*(?:[•▪·●■◦▫‣]\s*|[-–—*]\s+)?/u, '').trim())
+    .filter(Boolean)
+    .map((line) => `• ${line}`)
+    .join('\n')
+}
+
 /** Minúsculas, sem acentos e sem pontuação: base para comparar textos. */
 export function normalize(s: string): string {
   return s

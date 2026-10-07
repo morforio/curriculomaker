@@ -25,7 +25,8 @@ function Diff({ tokens }: { tokens: DiffToken[] }) {
                 : ''
           }
         >
-          {tk.text}{' '}
+          {tk.text}
+          {tk.text !== '\n' && ' '}
         </span>
       ))}
     </p>
