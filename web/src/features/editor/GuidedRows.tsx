@@ -3,6 +3,7 @@ import { stripBullet } from '../../lib/rows'
 import type { Row } from '../../lib/schemas/resume'
 import { inputCls } from './fields'
 import { LabeledRows } from './LabeledRows'
+import { SortableList } from './SortableList'
 
 export type GuidedKind = 'summary' | 'skills' | 'languages'
 
@@ -20,35 +21,34 @@ function BulletRows({ rows, onChange, examples }: { rows: Row[]; onChange: (rows
 
   return (
     <div className="space-y-2">
-      {rows.map((row, i) => {
-        const multi = row.text.includes('\n')
-        return (
-          <div key={i} className="flex items-start gap-2">
-            {!multi && (
-              <span aria-hidden="true" className="mt-1.5 text-gray-500">
-                •
-              </span>
-            )}
-            <textarea
-              className={`${inputCls} resize-none`}
-              rows={multi ? 3 : 2}
-              aria-label={`${t('guide.summary.topic')} ${i + 1}`}
-              placeholder={examples[i % examples.length]}
-              value={multi ? row.text : stripBullet(row.text)}
-              onChange={(e) => update(i, e.target.value, multi)}
-            />
-            <button
-              type="button"
-              className={`${removeCls} mt-0.5`}
-              aria-label={t('guide.remove')}
-              title={t('guide.remove')}
-              onClick={() => onChange(rows.length > 1 ? rows.filter((_, j) => j !== i) : [{ topic: '', text: '' }])}
-            >
-              ✕
-            </button>
-          </div>
-        )
-      })}
+      <SortableList
+        rows={rows}
+        onChange={onChange}
+        renderRow={({ row, index: i, handle, remove }) => {
+          const multi = row.text.includes('\n')
+          return (
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5">{handle}</div>
+              {!multi && (
+                <span aria-hidden="true" className="mt-1.5 text-gray-500">
+                  •
+                </span>
+              )}
+              <textarea
+                className={`${inputCls} resize-none`}
+                rows={multi ? 3 : 2}
+                aria-label={`${t('guide.summary.topic')} ${i + 1}`}
+                placeholder={examples[i % examples.length]}
+                value={multi ? row.text : stripBullet(row.text)}
+                onChange={(e) => update(i, e.target.value, multi)}
+              />
+              <button type="button" className={`${removeCls} mt-0.5`} aria-label={t('guide.remove')} title={t('guide.remove')} onClick={remove}>
+                ✕
+              </button>
+            </div>
+          )
+        }}
+      />
       <button type="button" className={addCls} onClick={() => onChange([...rows, { topic: '', text: '' }])}>
         + {t('guide.summary.add')}
       </button>

@@ -244,6 +244,7 @@ const resources = {
         rowText: 'Texto',
         addRow: 'Adicionar tópico',
         removeRow: 'Remover tópico',
+        dragRow: 'Arrastar para reordenar',
         rowsHint:
           'Deixe o tópico vazio para escrever um texto livre. Use **texto** para negrito e comece a linha com - ou • para criar marcadores.',
       },
@@ -495,6 +496,7 @@ const resources = {
         rowText: 'Text',
         addRow: 'Add topic',
         removeRow: 'Remove topic',
+        dragRow: 'Drag to reorder',
         rowsHint:
           'Leave the topic empty to write free text. Use **text** for bold and start a line with - or • to create bullets.',
       },
