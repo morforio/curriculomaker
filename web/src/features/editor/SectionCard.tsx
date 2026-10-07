@@ -21,7 +21,7 @@ export function SectionCard({ section, index, total }: { section: Section; index
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-lg border bg-white shadow-sm ${isDragging ? 'z-10 border-blue-500 shadow-lg' : 'border-gray-200'}`}
+      className={`glass rounded-lg border ${isDragging ? 'z-10 border-blue-500 shadow-lg' : 'border-gray-200'}`}
     >
       <div className="flex items-center gap-1 border-b border-gray-100 p-2">
         <button

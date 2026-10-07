@@ -175,6 +175,11 @@ const resources = {
         },
         languages: { title: 'Idiomas', label: 'Um idioma por linha', hint: 'Exemplo: Inglês: avançado (C1)' },
       },
+      motion: {
+        label: 'Animações de fundo',
+        titleOn: 'Desligar as animações de fundo',
+        titleOff: 'Ligar as animações de fundo',
+      },
       notice: {
         fallback: 'O primeiro modelo de IA está com muita demanda agora, então esta resposta foi feita por um segundo modelo.',
         close: 'Fechar aviso',
@@ -424,6 +429,11 @@ const resources = {
           hint: 'Example: Languages: JavaScript, TypeScript',
         },
         languages: { title: 'Languages', label: 'One language per line', hint: 'Example: English: advanced (C1)' },
+      },
+      motion: {
+        label: 'Background animations',
+        titleOn: 'Turn background animations off',
+        titleOff: 'Turn background animations on',
       },
       notice: {
         fallback: 'The first AI model is under heavy demand right now, so this answer was produced by a second model.',

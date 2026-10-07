@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { LANGS } from '../../lib/schemas/analysis'
@@ -8,8 +8,11 @@ import { requestTranslation } from './api'
 import { LANG_THEME, STRIPE_HEIGHT } from './langTheme'
 import { planTranslation } from './resumeTranslation'
 
-/** Abas de idioma do currículo (como no LinkedIn). Trocar de aba muda o currículo e a interface. */
-export function LanguageTabs() {
+/**
+ * Abas de idioma do currículo (como no LinkedIn). Trocar de aba muda o currículo e a interface.
+ * `above` (o botão Traduzir) fica acima da legenda "Idioma do currículo a ser gerado", à esquerda das abas.
+ */
+export function LanguageTabs({ above }: { above?: ReactNode }) {
   const { t } = useTranslation()
   const { lang, resume, saved, switchLang } = useResumeStore()
   const [target, setTarget] = useState<Lang | null>(null)
@@ -52,8 +55,11 @@ export function LanguageTabs() {
 
   return (
     <>
-      <div className="flex items-end gap-3">
-        <span className="hidden pb-2 text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
+      <div className="flex items-end gap-4">
+        <div className="flex flex-col items-start gap-1.5 pb-2">
+          {above}
+          <span className="hidden text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
+        </div>
         <div role="tablist" aria-label={t('tabs.label')} className="flex items-end gap-1">
           {LANGS.map((l) => {
             const active = l === lang
@@ -67,7 +73,7 @@ export function LanguageTabs() {
                 // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
                 style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
                 className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm ${
-                  active ? 'relative z-10 bg-white pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  active ? 'relative z-10 bg-[#0d1018] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 {LANG_NAMES[l]}
@@ -78,7 +84,7 @@ export function LanguageTabs() {
       </div>
       {target && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4 print:hidden">
-          <div role="dialog" aria-modal="true" aria-labelledby="translate-title" className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="translate-title" className="glass-strong w-full max-w-md rounded-lg border border-gray-200 p-5 shadow-xl">
             <h2 id="translate-title" className="text-base font-semibold text-gray-900">
               {t('tabs.askTitle')}
             </h2>

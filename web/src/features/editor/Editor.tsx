@@ -38,7 +38,7 @@ export function Editor() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <section className="glass rounded-lg border border-gray-200 p-4">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">{t('header.title')}</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <TextField label={t('header.fullName')} value={header.fullName} onChange={(fullName) => setHeader({ fullName })} />
@@ -92,7 +92,7 @@ export function Editor() {
           <div className="flex items-center gap-2">
             <select
               aria-label={t('sections.add')}
-              className="rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+              className="rounded border border-gray-300 bg-white/5 px-2 py-1.5 text-sm text-gray-900"
               value={newType}
               onChange={(e) => setNewType(e.target.value as SectionType)}
             >

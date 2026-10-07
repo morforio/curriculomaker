@@ -84,15 +84,24 @@ function RowsView({ rows }: { rows: Row[] }) {
     )
     topicRows = []
   }
+  // Linhas seguidas sem tópico formam um texto só: marcadores em linhas separadas viram uma única lista.
+  let freeTexts: string[] = []
+  const flushFree = () => {
+    if (freeTexts.length === 0) return
+    out.push(<RichText key={`r${out.length}`} text={freeTexts.join('\n')} />)
+    freeTexts = []
+  }
   for (const row of rows) {
     if (row.topic.trim()) {
+      flushFree()
       topicRows.push(row)
     } else if (row.text.trim()) {
       flush()
-      out.push(<RichText key={`r${out.length}`} text={row.text} />)
+      freeTexts.push(row.text)
     }
   }
   flush()
+  flushFree()
   return <>{out}</>
 }
 
@@ -318,7 +327,7 @@ export function ResumePreview({ resume }: { resume: Resume }) {
         <label className="flex items-center gap-1.5 text-sm text-gray-600">
           {t('preview.fontSize')}
           <select
-            className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+            className="rounded border border-gray-300 bg-white/5 px-2 py-1 text-sm text-gray-900"
             value={resume.settings.fontSize}
             onChange={(e) => setFontSize(Number(e.target.value))}
           >
@@ -340,7 +349,7 @@ export function ResumePreview({ resume }: { resume: Resume }) {
       <div ref={boxRef} className="space-y-4 print:hidden">
         {starts.map((start, i) => (
           <div key={i}>
-            <div style={{ width: SHEET_W * scale, height: SHEET_H * scale, margin: '0 auto' }}>
+            <div className="float-sheet" style={{ width: SHEET_W * scale, height: SHEET_H * scale, margin: '0 auto' }}>
               <div
                 aria-hidden={i > 0 ? 'true' : undefined}
                 className="cv-sheet"
