@@ -100,7 +100,9 @@ export function JobMatchPanel() {
   }
 
   function applySummary(text: string) {
-    const rows: Row[] = [{ topic: '', text }]
+    // Cada tópico ("• ...") vira a sua própria linha do bloco, com a sua caixa de texto.
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+    const rows: Row[] = lines.length > 0 ? lines.map((line) => ({ topic: '', text: line })) : [{ topic: '', text }]
     const existing = resume.sections.find((s) => s.type === 'summary')
     if (existing && existing.type === 'summary') {
       // Guarda o texto original da primeira aplicação, para "Desfazer" voltar ao que o usuário tinha.

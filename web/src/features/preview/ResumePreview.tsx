@@ -84,15 +84,24 @@ function RowsView({ rows }: { rows: Row[] }) {
     )
     topicRows = []
   }
+  // Linhas seguidas sem tópico formam um texto só: marcadores em linhas separadas viram uma única lista.
+  let freeTexts: string[] = []
+  const flushFree = () => {
+    if (freeTexts.length === 0) return
+    out.push(<RichText key={`r${out.length}`} text={freeTexts.join('\n')} />)
+    freeTexts = []
+  }
   for (const row of rows) {
     if (row.topic.trim()) {
+      flushFree()
       topicRows.push(row)
     } else if (row.text.trim()) {
       flush()
-      out.push(<RichText key={`r${out.length}`} text={row.text} />)
+      freeTexts.push(row.text)
     }
   }
   flush()
+  flushFree()
   return <>{out}</>
 }
 
