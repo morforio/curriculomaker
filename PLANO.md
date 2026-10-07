@@ -235,7 +235,7 @@ type JobAnalysis = {
 
 ### 6.5 Tradução do currículo
 - A tradução acontece uma única vez, quando o usuário responde **Sim** ao trocar de aba (seção 5.4); depois cada aba é editada à mão. Ao exportar, o currículo sai no idioma da aba ativa, sem tradução na hora.
-- `POST /api/translate` recebe só a lista de textos traduzíveis (não o currículo estruturado) e devolve a lista na mesma ordem; o servidor recusa respostas com quantidade de itens diferente ou que esvaziem um texto que existia (uma nova tentativa, depois erro).
+- `POST /api/translate` recebe só a lista de textos traduzíveis (não o currículo estruturado) e devolve a lista na mesma ordem. Por dentro, cada texto vai ao modelo com um **id**, em pedaços de até 20 textos feitos em paralelo; a resposta é casada pelo id, então sobra ou ordem trocada não atrapalha (em 06/10 o modelo devolveu 59 itens para 51 enviados, e a contagem exata derrubava a tradução). Só o que faltou ou voltou vazio é pedido de novo, uma vez; na primeira tentativa a tradução também precisa manter o número de linhas do original, para não aceitar conteúdo no id errado. Se ainda faltar algo, o erro é claro e nada parcial é aplicado.
 - **Termos técnicos em inglês não são traduzidos.** Exemplo correto: "Eu trabalho com LLM (Large Language Models)". Exemplo incorreto: "Eu trabalho com MLL (Modelos de Linguagem Larga)".
 - O prompt de tradução traz essa regra explícita, com exemplos, e vale nos dois sentidos (siglas, nomes de tecnologias, ferramentas, frameworks, cargos consagrados em inglês e nomes próprios ficam como estão).
 - Nomes próprios (empresas, instituições, produtos) e números e links não mudam. Nome, e-mail, telefone, links, empresas e instituições nem são enviados ao serviço de tradução.
