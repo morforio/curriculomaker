@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createProvider, LLMError } from '../worker/llm.ts'
+import { createProvider, LLMError, resetFallbackState } from '../worker/llm.ts'
 
 /** Testes do envio de reasoning_effort e do tratamento de HTTP 429 (worker/llm.ts), com fetch simulado. */
 
@@ -113,6 +113,99 @@ test('HTTP 413 (pedido grande demais): erro "unavailable", sem nova tentativa', 
       (e: unknown) => e instanceof LLMError && e.kind === 'unavailable',
     )
     assert.equal(m.sent.length, 1)
+  } finally {
+    m.restore()
+  }
+})
+
+/** Modelo reserva: quando o principal recusa (HTTP 503 do Google) ou não responde, o reserva responde e o usuário é avisado. */
+
+const env = { LLM_API_KEY: 'k', LLM_MODEL: 'principal', LLM_FALLBACK_MODEL: 'reserva' }
+const models = (sent: Sent[]) => sent.map((s) => s.model)
+
+test('principal responde: o reserva não é usado nem avisado', async () => {
+  resetFallbackState()
+  const m = mockFetch([200])
+  try {
+    const provider = createProvider(env)
+    await provider.complete({ system: 's', user: 'u' })
+    assert.deepEqual(models(m.sent), ['principal'])
+    assert.equal(provider.fallbackUsed?.(), false)
+  } finally {
+    m.restore()
+  }
+})
+
+test('principal recusa (HTTP 503): o reserva responde e fica registrado que foi usado', async () => {
+  resetFallbackState()
+  const m = mockFetch([503, 200])
+  try {
+    const provider = createProvider(env)
+    assert.equal(await provider.complete({ system: 's', user: 'u' }), 'ok')
+    assert.deepEqual(models(m.sent), ['principal', 'reserva'])
+    assert.equal(provider.fallbackUsed?.(), true)
+  } finally {
+    m.restore()
+  }
+})
+
+test('depois da falha, os próximos pedidos vão direto ao reserva (sem esperar o principal de novo)', async () => {
+  resetFallbackState()
+  const m = mockFetch([503, 200, 200])
+  try {
+    await createProvider(env).complete({ system: 's', user: 'u' })
+    const second = createProvider(env)
+    await second.complete({ system: 's', user: 'u' })
+    assert.deepEqual(models(m.sent), ['principal', 'reserva', 'reserva'])
+    assert.equal(second.fallbackUsed?.(), true, 'o aviso vale também para os pedidos que já nascem no reserva')
+  } finally {
+    m.restore()
+  }
+})
+
+test('principal em excesso de pedidos (429 mesmo após a nova tentativa): usa o reserva', async () => {
+  resetFallbackState()
+  const m = mockFetch([{ status: 429, headers: { 'retry-after': '0.01' } }, { status: 429, headers: { 'retry-after': '0.01' } }, 200])
+  try {
+    await createProvider(env).complete({ system: 's', user: 'u' })
+    assert.deepEqual(models(m.sent), ['principal', 'principal', 'reserva'])
+  } finally {
+    m.restore()
+  }
+})
+
+test('os dois falham: o erro do reserva sobe, sem laço', async () => {
+  resetFallbackState()
+  const m = mockFetch([503, 503])
+  try {
+    await assert.rejects(createProvider(env).complete({ system: 's', user: 'u' }), (e: unknown) => e instanceof LLMError && e.kind === 'unavailable')
+    assert.deepEqual(models(m.sent), ['principal', 'reserva'])
+  } finally {
+    m.restore()
+  }
+})
+
+test('sem modelo reserva configurado: comportamento de antes (erro direto, sem aviso)', async () => {
+  resetFallbackState()
+  const m = mockFetch([503])
+  try {
+    const provider = createProvider({ LLM_API_KEY: 'k', LLM_MODEL: 'principal' })
+    await assert.rejects(provider.complete({ system: 's', user: 'u' }), (e: unknown) => e instanceof LLMError)
+    assert.deepEqual(models(m.sent), ['principal'])
+    assert.equal(provider.fallbackUsed?.(), false)
+  } finally {
+    m.restore()
+  }
+})
+
+test('o parâmetro reasoning_effort recusado por um modelo não é cortado do outro', async () => {
+  resetFallbackState()
+  const m = mockFetch([503, 400, 200])
+  try {
+    await createProvider({ ...env, LLM_REASONING_EFFORT: 'minimal' }).complete({ system: 's', user: 'u' })
+    assert.deepEqual(models(m.sent), ['principal', 'reserva', 'reserva'])
+    assert.equal(m.sent[1].reasoning_effort, 'minimal')
+    assert.ok(!('reasoning_effort' in m.sent[2]))
   } finally {
     m.restore()
   }

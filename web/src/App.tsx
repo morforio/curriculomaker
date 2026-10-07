@@ -4,6 +4,7 @@ import { IconDownload, IconTrash, IconUpload, IconWand } from './components/Icon
 import { AccountBar } from './features/auth/AccountBar'
 import { useAuthStore } from './features/auth/authStore'
 import { Editor } from './features/editor/Editor'
+import { NoticeBanner } from './features/notice/NoticeBanner'
 import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
 import { useSyncStatus } from './features/sync/syncStatus'
@@ -107,6 +108,7 @@ function App() {
           </div>
           <LanguageStripe />
         </header>
+        <NoticeBanner />
       </div>
 
       {importing && <ImportDialog onClose={() => setImporting(false)} />}

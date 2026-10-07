@@ -175,6 +175,10 @@ const resources = {
         },
         languages: { title: 'Idiomas', label: 'Um idioma por linha', hint: 'Exemplo: Inglês: avançado (C1)' },
       },
+      notice: {
+        fallback: 'O modelo de IA principal está sobrecarregado agora, então usamos o modelo reserva. Funciona normalmente, mas a resposta pode demorar um pouco mais e variar em relação ao habitual: revise o resultado com atenção.',
+        close: 'Fechar aviso',
+      },
       tabs: {
         pull: {
           button: 'Traduzir',
@@ -420,6 +424,10 @@ const resources = {
           hint: 'Example: Languages: JavaScript, TypeScript',
         },
         languages: { title: 'Languages', label: 'One language per line', hint: 'Example: English: advanced (C1)' },
+      },
+      notice: {
+        fallback: 'The main AI model is overloaded right now, so we used the backup model. It works normally, but the answer may take a little longer and differ from what you are used to: please review the result carefully.',
+        close: 'Dismiss notice',
       },
       tabs: {
         pull: {

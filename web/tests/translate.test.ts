@@ -184,3 +184,16 @@ test('LLM ocupado (429 do provedor): 503 llm_busy', async () => {
   assert.equal(res.status, 503)
   assert.equal(((await res.json()) as { error: string }).error, 'llm_busy')
 })
+
+test('quando o modelo reserva respondeu, a resposta traz fallback: true (o site avisa o usuário)', async () => {
+  const f = fakeProvider((items) => reply(translate(items)))
+  const res = await handleTranslate(request(base), deps({ ...f.provider, fallbackUsed: () => true }))
+  assert.equal(res.status, 200)
+  assert.equal(((await res.json()) as { fallback?: boolean }).fallback, true)
+})
+
+test('sem reserva, a resposta não traz o campo fallback', async () => {
+  const f = fakeProvider((items) => reply(translate(items)))
+  const res = await handleTranslate(request(base), deps(f.provider))
+  assert.ok(!('fallback' in ((await res.json()) as object)))
+})
