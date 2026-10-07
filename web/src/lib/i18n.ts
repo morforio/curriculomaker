@@ -210,7 +210,7 @@ const resources = {
         titleOff: 'Ligar as animações de fundo',
       },
       notice: {
-        fallback: 'O modelo de IA principal está sobrecarregado agora, então usamos o modelo reserva. Funciona normalmente, mas a resposta pode demorar um pouco mais e variar em relação ao habitual: revise o resultado com atenção.',
+        fallback: 'O primeiro modelo de IA está com muita demanda agora, então esta resposta foi feita por um segundo modelo.',
         close: 'Fechar aviso',
       },
       tabs: {
@@ -494,7 +494,7 @@ const resources = {
         titleOff: 'Turn background animations on',
       },
       notice: {
-        fallback: 'The main AI model is overloaded right now, so we used the backup model. It works normally, but the answer may take a little longer and differ from what you are used to: please review the result carefully.',
+        fallback: 'The first AI model is under heavy demand right now, so this answer was produced by a second model.',
         close: 'Dismiss notice',
       },
       tabs: {
