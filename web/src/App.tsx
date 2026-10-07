@@ -15,8 +15,9 @@ import { PullTranslationButton } from './features/translate/PullTranslationButto
 import { LANG_NAMES, setLang } from './lib/i18n'
 import { useResumeStore } from './store/resumeStore'
 
-const btnSecondary =
-  'inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white/5 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-white/10'
+// Botões de ação do lado direito: tom azulado, para se distinguirem do botão Traduzir (cinza), que fica junto das abas de idioma.
+const btnAction =
+  'inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-blue-500/20'
 
 function App() {
   const { t } = useTranslation()
@@ -68,26 +69,23 @@ function App() {
       <div className="print:hidden">
         <header className="sticky top-0 z-20 bg-[#07080c]/70 backdrop-blur-md">
           {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
-          <div className="grid grid-cols-[auto_1fr] items-end gap-x-6 gap-y-1 px-4 pt-2 lg:flex">
+          <div className="grid grid-cols-[auto_1fr] items-end gap-x-8 gap-y-3 px-5 pt-3 lg:flex lg:gap-x-12">
             <h1 className="col-start-1 row-start-1 pb-2 text-lg font-bold text-gray-900">{t('app.name')}</h1>
-            <div className="col-span-2 row-start-2 flex items-end gap-3 lg:col-auto lg:row-auto">
-              <LanguageTabs />
-              <div className="pb-2">
-                <PullTranslationButton />
-              </div>
+            <div className="col-span-2 row-start-2 lg:col-auto lg:row-auto">
+              <LanguageTabs above={<PullTranslationButton />} />
             </div>
-            <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-2 pb-2 lg:ml-auto lg:col-auto lg:row-auto">
-              <button type="button" className={btnSecondary} onClick={() => setWizard(true)}>
+            <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-3 pb-2 lg:ml-auto lg:col-auto lg:row-auto">
+              <button type="button" className={btnAction} onClick={() => setWizard(true)}>
                 <IconWand />
                 {t('wizard.button')}
               </button>
-              <button type="button" className={btnSecondary} onClick={startImport}>
+              <button type="button" className={btnAction} onClick={startImport}>
                 <IconUpload />
                 {t('import.button')}
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-gray-500 hover:bg-red-50 hover:text-red-700"
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:bg-red-50 hover:text-red-700"
                 onClick={() => {
                   if (window.confirm(t('toolbar.confirmReset'))) reset()
                 }}
@@ -97,7 +95,7 @@ function App() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
+                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
                 onClick={() => window.print()}
               >
                 <IconDownload />

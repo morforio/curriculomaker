@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { LANGS } from '../../lib/schemas/analysis'
@@ -8,8 +8,11 @@ import { requestTranslation } from './api'
 import { LANG_THEME, STRIPE_HEIGHT } from './langTheme'
 import { planTranslation } from './resumeTranslation'
 
-/** Abas de idioma do currículo (como no LinkedIn). Trocar de aba muda o currículo e a interface. */
-export function LanguageTabs() {
+/**
+ * Abas de idioma do currículo (como no LinkedIn). Trocar de aba muda o currículo e a interface.
+ * `above` (o botão Traduzir) fica acima da legenda "Idioma do currículo a ser gerado", à esquerda das abas.
+ */
+export function LanguageTabs({ above }: { above?: ReactNode }) {
   const { t } = useTranslation()
   const { lang, resume, saved, switchLang } = useResumeStore()
   const [target, setTarget] = useState<Lang | null>(null)
@@ -52,8 +55,11 @@ export function LanguageTabs() {
 
   return (
     <>
-      <div className="flex items-end gap-3">
-        <span className="hidden pb-2 text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
+      <div className="flex items-end gap-4">
+        <div className="flex flex-col items-start gap-1.5 pb-2">
+          {above}
+          <span className="hidden text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
+        </div>
         <div role="tablist" aria-label={t('tabs.label')} className="flex items-end gap-1">
           {LANGS.map((l) => {
             const active = l === lang
