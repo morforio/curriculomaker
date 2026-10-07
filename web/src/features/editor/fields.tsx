@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const inputCls =
+export const inputCls =
   'w-full rounded border border-gray-300 bg-white/5 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
 
 export function TextField({
@@ -8,16 +8,20 @@ export function TextField({
   value,
   onChange,
   placeholder,
+  onFocus,
+  onBlur,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
+  onFocus?: () => void
+  onBlur?: () => void
 }) {
   return (
     <label className="block">
       <span className="mb-0.5 block text-xs font-medium text-gray-600">{label}</span>
-      <input className={inputCls} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <input className={inputCls} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onFocus={onFocus} onBlur={onBlur} />
     </label>
   )
 }

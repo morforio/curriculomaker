@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { linesToRows, textToRows } from '../../lib/rows'
-import type { Resume, Section } from '../../lib/schemas/resume'
+import { GITHUB_PREFIX, isOnlyPrefix, LINKEDIN_PREFIX } from '../../lib/links'
+import { bulletRows, linesToRows } from '../../lib/rows'
+import type { Resume, Row, Section } from '../../lib/schemas/resume'
 import { hasContent, newSection, useResumeStore } from '../../store/resumeStore'
 import { TextAreaField, TextField } from '../editor/fields'
+import { LabeledRows, LineList } from './LabeledRows'
 
 type ExperienceDraft = { role: string; company: string; period: string; location: string; description: string }
 type EducationDraft = { degree: string; institution: string; period: string }
@@ -16,13 +18,14 @@ type Draft = {
   location: string
   linkedin: string
   github: string
-  summary: string
+  summary: string[]
   experiences: ExperienceDraft[]
   education: EducationDraft[]
-  skills: string
-  languages: string
+  skills: Row[]
+  languages: Row[]
 }
 
+const emptyRow = (): Row => ({ topic: '', text: '' })
 const emptyExperience = (): ExperienceDraft => ({ role: '', company: '', period: '', location: '', description: '' })
 const emptyEducation = (): EducationDraft => ({ degree: '', institution: '', period: '' })
 
@@ -34,11 +37,11 @@ const initialDraft = (): Draft => ({
   location: '',
   linkedin: '',
   github: '',
-  summary: '',
+  summary: ['', '', ''],
   experiences: [emptyExperience()],
   education: [emptyEducation()],
-  skills: '',
-  languages: '',
+  skills: [emptyRow(), emptyRow()],
+  languages: [emptyRow()],
 })
 
 const STEPS = ['personal', 'summary', 'experience', 'education', 'skills', 'languages'] as const
@@ -51,12 +54,13 @@ function buildResumeFromDraft(d: Draft, current: Resume, lang: 'pt' | 'en'): Res
   const links = [
     { label: 'LinkedIn', url: d.linkedin.trim() },
     { label: 'GitHub', url: d.github.trim() },
-  ].filter((l) => l.url)
+  ].filter((l) => l.url && !isOnlyPrefix(l.url))
 
   const sections: Section[] = []
   const add = (type: Section['type'], data: Section['data']) => sections.push({ ...newSection(type, lang), data } as Section)
 
-  if (d.summary.trim()) add('summary', { rows: [{ topic: '', text: d.summary.trim() }] })
+  const summary = bulletRows(d.summary)
+  if (summary.length > 0) add('summary', { rows: summary })
 
   const experiences = d.experiences.filter((e) => filled(e.role, e.company, e.period, e.location, e.description))
   if (experiences.length > 0) {
@@ -78,8 +82,11 @@ function buildResumeFromDraft(d: Draft, current: Resume, lang: 'pt' | 'en'): Res
     })
   }
 
-  if (d.skills.trim()) add('skills', { rows: textToRows(d.skills) })
-  if (d.languages.trim()) add('languages', { rows: textToRows(d.languages) })
+  const filledRows = (rows: Row[]) => rows.map((r) => ({ topic: r.topic.trim(), text: r.text.trim() })).filter((r) => r.topic || r.text)
+  const skills = filledRows(d.skills)
+  if (skills.length > 0) add('skills', { rows: skills })
+  const languages = filledRows(d.languages)
+  if (languages.length > 0) add('languages', { rows: languages })
 
   return {
     version: 1,
@@ -166,14 +173,48 @@ export function WizardDialog({ onClose }: { onClose: () => void }) {
               </div>
               <TextField label={t('header.location')} value={draft.location} onChange={(v) => set('location', v)} />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <TextField label={t('wizard.personal.linkedin')} value={draft.linkedin} onChange={(v) => set('linkedin', v)} />
-                <TextField label={t('wizard.personal.github')} value={draft.github} onChange={(v) => set('github', v)} />
+                <TextField
+                  label={t('wizard.personal.linkedin')}
+                  value={draft.linkedin}
+                  onChange={(v) => set('linkedin', v)}
+                  onFocus={() => !draft.linkedin.trim() && set('linkedin', LINKEDIN_PREFIX)}
+                  onBlur={() => isOnlyPrefix(draft.linkedin) && set('linkedin', '')}
+                />
+                <TextField
+                  label={t('wizard.personal.github')}
+                  value={draft.github}
+                  onChange={(v) => set('github', v)}
+                  onFocus={() => !draft.github.trim() && set('github', GITHUB_PREFIX)}
+                  onBlur={() => isOnlyPrefix(draft.github) && set('github', '')}
+                />
               </div>
             </>
           )}
 
           {step === 'summary' && (
-            <TextAreaField label={t('wizard.summary.label')} hint={t('wizard.summary.hint')} rows={6} value={draft.summary} onChange={(v) => set('summary', v)} />
+            <div className="space-y-3">
+              <div>
+                <span className="block text-xs font-medium text-gray-600">{t('wizard.summary.label')}</span>
+                <span className="mt-0.5 block text-xs text-gray-500">{t('wizard.summary.hint')}</span>
+              </div>
+              <LineList
+                lines={draft.summary}
+                onChange={(v) => set('summary', v)}
+                label={t('wizard.summary.topic')}
+                examples={[t('wizard.summary.example1'), t('wizard.summary.example2'), t('wizard.summary.example3')]}
+                addLabel={t('wizard.summary.add')}
+                removeLabel={t('wizard.remove')}
+              />
+              <div className="rounded border border-gray-200 bg-white/5 p-3">
+                <p className="text-xs font-medium text-gray-700">{t('wizard.summary.tipsTitle')}</p>
+                <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-gray-600">
+                  <li>{t('wizard.summary.tip1')}</li>
+                  <li>{t('wizard.summary.tip2')}</li>
+                  <li>{t('wizard.summary.tip3')}</li>
+                  <li>{t('wizard.summary.tip4')}</li>
+                </ul>
+              </div>
+            </div>
           )}
 
           {step === 'experience' && (
@@ -259,17 +300,36 @@ export function WizardDialog({ onClose }: { onClose: () => void }) {
           )}
 
           {step === 'skills' && (
-            <TextAreaField label={t('wizard.skills.label')} hint={t('wizard.skills.hint')} rows={6} value={draft.skills} onChange={(v) => set('skills', v)} />
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">{t('wizard.skills.hint')}</p>
+              <LabeledRows
+                rows={draft.skills}
+                onChange={(v) => set('skills', v)}
+                topicLabel={t('wizard.skills.group')}
+                textLabel={t('wizard.skills.items')}
+                topicExamples={[t('wizard.skills.group1'), t('wizard.skills.group2'), t('wizard.skills.group3')]}
+                textExamples={[t('wizard.skills.items1'), t('wizard.skills.items2'), t('wizard.skills.items3')]}
+                addLabel={t('wizard.skills.add')}
+                removeLabel={t('wizard.remove')}
+              />
+              <p className="text-xs text-gray-500">{t('wizard.skills.examples')}</p>
+            </div>
           )}
 
           {step === 'languages' && (
-            <TextAreaField
-              label={t('wizard.languages.label')}
-              hint={t('wizard.languages.hint')}
-              rows={4}
-              value={draft.languages}
-              onChange={(v) => set('languages', v)}
-            />
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">{t('wizard.languages.hint')}</p>
+              <LabeledRows
+                rows={draft.languages}
+                onChange={(v) => set('languages', v)}
+                topicLabel={t('wizard.languages.language')}
+                textLabel={t('wizard.languages.level')}
+                topicExamples={[t('wizard.languages.language1'), t('wizard.languages.language2')]}
+                textExamples={[t('wizard.languages.level1'), t('wizard.languages.level2')]}
+                addLabel={t('wizard.languages.add')}
+                removeLabel={t('wizard.remove')}
+              />
+            </div>
           )}
         </div>
 
