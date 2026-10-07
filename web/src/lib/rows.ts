@@ -51,3 +51,11 @@ export function textToRows(text: string): RowLike[] {
 export function stripBullet(text: string): string {
   return text.replace(BULLET_START, '')
 }
+
+/** Cópia da lista com o item de `from` movido para `to` (os demais mantêm a ordem). */
+export function moveItem<T>(list: T[], from: number, to: number): T[] {
+  const next = list.slice()
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}

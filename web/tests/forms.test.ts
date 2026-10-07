@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { isOnlyPrefix, linkPrefix } from '../src/lib/links.ts'
-import { stripBullet } from '../src/lib/rows.ts'
+import { moveItem, stripBullet } from '../src/lib/rows.ts'
 
 /** Preenchimento do começo dos links e marcador dos tópicos do resumo. */
 
@@ -28,4 +28,16 @@ test('stripBullet: tira o marcador do começo, qualquer que seja, e não mexe no
   assert.equal(stripBullet('- Node.js e React'), 'Node.js e React')
   assert.equal(stripBullet('Dev com 5 anos'), 'Dev com 5 anos')
   assert.equal(stripBullet('-5% de custo'), '-5% de custo')
+})
+
+test('moveItem: o tópico 1 pode ir para a segunda posição, e os outros mantêm a ordem', () => {
+  assert.deepEqual(moveItem(['a', 'b', 'c'], 0, 1), ['b', 'a', 'c'])
+  assert.deepEqual(moveItem(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b'])
+  assert.deepEqual(moveItem(['a', 'b', 'c'], 1, 1), ['a', 'b', 'c'])
+})
+
+test('moveItem: não altera a lista original', () => {
+  const list = ['a', 'b', 'c']
+  moveItem(list, 0, 2)
+  assert.deepEqual(list, ['a', 'b', 'c'])
 })
