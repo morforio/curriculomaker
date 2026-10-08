@@ -18,6 +18,8 @@ const KNOWN: ApiErrorCode[] = [
   'not_configured',
   'llm_unavailable',
   'llm_busy',
+  'no_credits',
+  'credits_unavailable',
   'unauthorized',
   'auth_unavailable',
   'bad_llm_output',
