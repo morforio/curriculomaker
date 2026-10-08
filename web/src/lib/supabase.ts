@@ -9,14 +9,16 @@ export type SupabaseLoad = { client: SupabaseClient | null; failed: boolean }
 
 let pending: Promise<SupabaseLoad> | null = null
 let client: SupabaseClient | null = null
+let turnstileSiteKey: string | null = null
 
 async function create(): Promise<SupabaseLoad> {
   try {
     const res = await fetch('/api/config')
     if (!res.ok) return { client: null, failed: true }
-    const cfg = (await res.json()) as { supabaseUrl?: string; supabaseAnonKey?: string }
+    const cfg = (await res.json()) as { supabaseUrl?: string; supabaseAnonKey?: string; turnstileSiteKey?: string }
     if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return { client: null, failed: false }
     client = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey)
+    turnstileSiteKey = cfg.turnstileSiteKey?.trim() || null
     return { client, failed: false }
   } catch {
     return { client: null, failed: true }
@@ -35,4 +37,9 @@ export function loadSupabase(): Promise<SupabaseLoad> {
 /** O cliente já carregado (null antes de `loadSupabase` terminar ou sem login configurado). */
 export function getSupabase(): SupabaseClient | null {
   return client
+}
+
+/** Chave pública do captcha (Turnstile), ou null se o captcha não estiver configurado. */
+export function getTurnstileSiteKey(): string | null {
+  return turnstileSiteKey
 }
