@@ -8,6 +8,7 @@ import {
 import { createVerifier, type JevEnv, type Verifier } from './jev.ts'
 import { createProvider, DEFAULT_MODEL, LLMError, type LLMEnv, type LLMProvider } from './llm.ts'
 import { buildUserPrompt, SYSTEM_PROMPT } from './prompt.ts'
+import { bodyTooLarge } from './security.ts'
 import { extractJson, normalize, toBullets } from './text.ts'
 import { refineSummaries } from './verify.ts'
 
@@ -84,6 +85,7 @@ export async function handleAnalyze(request: Request, deps: AnalyzeDeps): Promis
   const origin = request.headers.get('Origin')
   if (origin && origin !== new URL(request.url).origin) return fail(403, 'forbidden_origin', 'Origem não permitida.')
 
+  if (bodyTooLarge(request, MAX_BODY_CHARS)) return fail(413, 'invalid_request', 'Requisição grande demais.')
   const bodyText = await request.text()
   if (bodyText.length > MAX_BODY_CHARS) return fail(400, 'invalid_request', 'Requisição grande demais.')
   let parsedBody: unknown

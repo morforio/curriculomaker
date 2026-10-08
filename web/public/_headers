@@ -1,0 +1,10 @@
+# Cabeçalhos de segurança dos arquivos do site (HTML, JS, CSS). Só os pedidos de /api/* passam pelo Worker;
+# o site é entregue direto pela Cloudflare, então estes valores vêm daqui. A API recebe os dela em worker/security.ts.
+# O teste tests/security.test.ts confere que a política (CSP) abaixo é a mesma de worker/security.ts, com o SUPABASE_URL do wrangler.jsonc.
+/*
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://challenges.cloudflare.com https://zxjfojugzayjzygvvnhn.supabase.co; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
