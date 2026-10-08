@@ -1,5 +1,6 @@
 import { handleAnalyze } from './analyze.ts'
-import { authenticate, authMode } from './auth.ts'
+import { authenticate } from './auth.ts'
+import { publicConfig } from './config.ts'
 import type { Limiter } from './limiter.ts'
 import { withSecurityHeaders } from './security.ts'
 import { handleTranslate } from './translate.ts'
@@ -24,6 +25,8 @@ interface Env {
   SUPABASE_ANON_KEY?: string
   /** "true" só para testar localmente sem login. Em produção NÃO existe: sem login configurado, a API recusa tudo. */
   AUTH_OPTIONAL?: string
+  /** Público: chave do SITE do captcha (Turnstile). A chave secreta fica só no painel do Supabase. */
+  TURNSTILE_SITE_KEY?: string
   RATE_PER_IP_HOUR?: string
   DAILY_CAP?: string
   TRANSLATE_PER_IP_HOUR?: string
@@ -44,10 +47,8 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   // Configuração pública do login. Sem ela, o site só abre se AUTH_OPTIONAL=true; senão o site mostra erro (a API também recusa).
   if (url.pathname === '/api/config') {
-    const mode = authMode(env)
-    if (mode === 'configured') return json(200, { supabaseUrl: env.SUPABASE_URL!.trim(), supabaseAnonKey: env.SUPABASE_ANON_KEY!.trim() })
-    if (mode === 'optional') return json(200, {})
-    return json(503, { error: 'auth_unavailable', message: 'O login não está configurado.' })
+    const { status, body } = publicConfig(env)
+    return json(status, body)
   }
 
   if (url.pathname === '/api/analyze' || url.pathname === '/api/translate') {

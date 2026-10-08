@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { getTurnstileSiteKey } from '../../lib/supabase'
 import { useAuthStore } from './authStore'
+import { Turnstile, type TurnstileHandle } from './Turnstile'
 
 /** Tela de entrada (e-mail e senha). O mesmo formulário cria a conta. */
 export function LoginScreen() {
@@ -12,13 +14,20 @@ export function LoginScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // Captcha (Turnstile): só aparece se a chave do site estiver configurada. Cada código vale para uma única tentativa.
+  const siteKey = getTurnstileSiteKey()
+  const [captcha, setCaptcha] = useState<string | null>(null)
+  const widget = useRef<TurnstileHandle>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (siteKey && !captcha) return
     setBusy(true)
     setError(null)
     setNotice(null)
-    const result = mode === 'signIn' ? await signIn(email.trim(), password) : await signUp(email.trim(), password)
+    const token = captcha ?? undefined
+    const result = mode === 'signIn' ? await signIn(email.trim(), password, token) : await signUp(email.trim(), password, token)
+    widget.current?.reset()
     setBusy(false)
     if (result === 'check-email') setNotice(t('auth.checkEmail'))
     else if (result) setError(t(`auth.err.${result}`))
@@ -65,9 +74,11 @@ export function LoginScreen() {
           </p>
         )}
 
+        {siteKey && <Turnstile ref={widget} siteKey={siteKey} onToken={setCaptcha} />}
+
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || (Boolean(siteKey) && !captcha)}
           className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {busy ? t('auth.wait') : mode === 'signIn' ? t('auth.signIn') : t('auth.signUp')}
