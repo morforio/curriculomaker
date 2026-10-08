@@ -60,7 +60,7 @@ export function LoginScreen() {
           </p>
         )}
         {notice && (
-          <p role="status" className="rounded border border-blue-200 bg-blue-50 p-2 text-sm text-blue-100">
+          <p role="status" className="rounded border border-blue-200 bg-blue-50 p-2 text-sm text-blue-300">
             {notice}
           </p>
         )}
