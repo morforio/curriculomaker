@@ -314,7 +314,7 @@ export function JobMatchPanel() {
               <h4 className="mb-1 text-sm font-semibold text-gray-900">{t('analysis.keywords')}</h4>
               <ul className="flex flex-wrap gap-1.5">
                 {analysis.keywords.map((k) => (
-                  <li key={k} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-100">
+                  <li key={k} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-300">
                     {k}
                   </li>
                 ))}
