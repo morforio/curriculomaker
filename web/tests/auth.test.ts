@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { authenticate } from '../worker/auth.ts'
+import { authenticate, authMode } from '../worker/auth.ts'
 
 /** Testes da conferência do login (worker/auth.ts), com o Supabase simulado. */
 
@@ -17,14 +17,29 @@ function mockFetch(handler: (url: string, init?: RequestInit) => Response | Prom
   return { calls, restore: () => (globalThis.fetch = original) }
 }
 
-test('sem Supabase configurado, o login não é exigido', async () => {
+test('sem Supabase configurado, a API falha fechada (503), sem chamar ninguém', async () => {
   const m = mockFetch(() => new Response('{}'))
   try {
-    assert.deepEqual(await authenticate(req(), {}), { ok: true, userId: null })
+    assert.deepEqual(await authenticate(req(), {}), { ok: false, status: 503, error: 'auth_unavailable' })
+    assert.deepEqual(await authenticate(req('tok'), { SUPABASE_URL: 'https://x.supabase.co' }), { ok: false, status: 503, error: 'auth_unavailable' })
+    assert.deepEqual(await authenticate(req('tok'), { SUPABASE_ANON_KEY: 'anon' }), { ok: false, status: 503, error: 'auth_unavailable' })
     assert.equal(m.calls.length, 0)
   } finally {
     m.restore()
   }
+})
+
+test('AUTH_OPTIONAL=true (só para testar localmente) libera o uso sem login', async () => {
+  assert.deepEqual(await authenticate(req(), { AUTH_OPTIONAL: 'true' }), { ok: true, userId: null })
+  assert.deepEqual(await authenticate(req(), { AUTH_OPTIONAL: 'TRUE ' }), { ok: true, userId: null })
+  assert.deepEqual(await authenticate(req(), { AUTH_OPTIONAL: 'false' }), { ok: false, status: 503, error: 'auth_unavailable' })
+})
+
+test('authMode: configurado, opcional ou quebrado', () => {
+  assert.equal(authMode(env), 'configured')
+  assert.equal(authMode({ ...env, AUTH_OPTIONAL: 'true' }), 'configured', 'com login configurado, o modo opcional é ignorado')
+  assert.equal(authMode({ AUTH_OPTIONAL: 'true' }), 'optional')
+  assert.equal(authMode({}), 'broken')
 })
 
 test('com Supabase configurado e sem token: 401', async () => {

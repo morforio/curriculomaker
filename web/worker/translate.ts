@@ -4,6 +4,7 @@ import { translateRequestSchema, type TranslateRequest } from '../src/lib/schema
 import { hashIp, type RateLimiter } from './analyze.ts'
 import { createProvider, LLMError, type LLMEnv, type LLMProvider } from './llm.ts'
 import { sanitize } from './prompt.ts'
+import { bodyTooLarge } from './security.ts'
 import { extractJson } from './text.ts'
 
 export type TranslateDeps = {
@@ -158,6 +159,7 @@ export async function handleTranslate(request: Request, deps: TranslateDeps): Pr
   const origin = request.headers.get('Origin')
   if (origin && origin !== new URL(request.url).origin) return fail(403, 'forbidden_origin', 'Origem não permitida.')
 
+  if (bodyTooLarge(request, MAX_BODY_CHARS)) return fail(413, 'invalid_request', 'Requisição grande demais.')
   const bodyText = await request.text()
   if (bodyText.length > MAX_BODY_CHARS) return fail(400, 'invalid_request', 'Requisição grande demais.')
   let body: unknown
