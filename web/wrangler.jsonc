@@ -26,9 +26,9 @@
     // Sem estas duas linhas, o site e a API recusam tudo (503): o login nunca fica desligado por engano.
     "SUPABASE_URL": "https://zxjfojugzayjzygvvnhn.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4amZvanVnemF5anp5Z3Z2bmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMjc3NTMsImV4cCI6MjEwNjkwMzc1M30.wy3kLvWNVHRij_qFtowiUKqYzCC9l8OM8o7o6jejjXo",
-    // Captcha do login (Turnstile, da Cloudflare): descomente depois de criar o widget. A chave do SITE é pública; a SECRETA fica só no
-    // painel do Supabase (Authentication > Attack Protection) e nunca entra aqui.
-    // "TURNSTILE_SITE_KEY": "",
+    // Captcha do login (Turnstile, da Cloudflare). Esta é a chave do SITE, que é pública. A SECRETA fica só no painel do Supabase
+    // (Authentication > Attack Protection) e nunca entra aqui.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFRbAb9egEfrwE0G",
     "RATE_PER_IP_HOUR": "20",
     "DAILY_CAP": "200"
   },
