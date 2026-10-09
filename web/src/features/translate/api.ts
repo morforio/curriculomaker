@@ -1,6 +1,7 @@
 import type { ApiErrorCode, Lang } from '../../lib/schemas/analysis'
 import { translateResponseSchema } from '../../lib/schemas/translate'
 import { authHeaders } from '../auth/token'
+import { useCreditsStore } from '../credits/creditsStore'
 import { ApiError } from '../job-match/api'
 import { useNoticeStore } from '../notice/noticeStore'
 
@@ -33,6 +34,7 @@ export async function requestTranslation(from: Lang, to: Lang, texts: string[], 
     throw new ApiError('network')
   }
 
+  void useCreditsStore.getState().refresh() // o saldo mudou (gastou, ou voltou se deu erro)
   const data = (await res.json().catch(() => null)) as { texts?: unknown; error?: string } | null
   if (!res.ok) throw new ApiError(KNOWN.find((c) => c === data?.error) ?? 'llm_unavailable')
   const parsed = translateResponseSchema.safeParse(data)

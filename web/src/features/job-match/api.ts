@@ -1,5 +1,6 @@
 import { analysisSchema, type Analysis, type AnalyzeRequest, type ApiErrorCode, type Verification } from '../../lib/schemas/analysis'
 import { authHeaders } from '../auth/token'
+import { useCreditsStore } from '../credits/creditsStore'
 import { useNoticeStore } from '../notice/noticeStore'
 
 export class ApiError extends Error {
@@ -40,6 +41,7 @@ export async function requestAnalysis(req: AnalyzeRequest, signal?: AbortSignal)
     throw new ApiError('network')
   }
 
+  void useCreditsStore.getState().refresh() // o saldo mudou (gastou, ou voltou se deu erro)
   const data = (await res.json().catch(() => null)) as { analysis?: unknown; meta?: AnalysisResult['meta']; error?: string } | null
   if (!res.ok) {
     const code = KNOWN.find((c) => c === data?.error)
