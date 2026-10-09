@@ -81,4 +81,6 @@ export type ApiErrorCode =
   | 'unauthorized'
   | 'auth_unavailable'
   | 'bad_llm_output'
+  | 'no_credits'
+  | 'credits_unavailable'
   | 'network'
