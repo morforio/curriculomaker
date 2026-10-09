@@ -129,6 +129,16 @@ const resources = {
           generic: 'Não foi possível concluir. Tente de novo.',
         },
       },
+      credits: {
+        count_zero: '{{count}} créditos',
+        count_one: '{{count}} crédito',
+        count_other: '{{count}} créditos',
+        planFree: 'Plano gratuito',
+        planPaid: 'Plano pago',
+        validUntil: 'Válidos até {{date}}',
+        paidUntil: 'Assinatura até {{date}}',
+        locked: 'Sem créditos: você só pode ver e editar os textos.',
+      },
       sync: {
         loading: 'Carregando o seu currículo…',
         loadError: 'Não foi possível carregar o seu currículo. Por segurança, nada foi alterado.',
@@ -386,6 +396,16 @@ const resources = {
           network: 'No connection to the server. Check your internet and try again.',
           generic: 'Could not complete this. Try again.',
         },
+      },
+      credits: {
+        count_zero: '{{count}} credits',
+        count_one: '{{count}} credit',
+        count_other: '{{count}} credits',
+        planFree: 'Free plan',
+        planPaid: 'Paid plan',
+        validUntil: 'Valid until {{date}}',
+        paidUntil: 'Subscription until {{date}}',
+        locked: 'No credits: you can only view and edit the text.',
       },
       sync: {
         loading: 'Loading your resume…',
