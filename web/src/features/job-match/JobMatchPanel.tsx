@@ -6,6 +6,7 @@ import { resumeToText, summaryTextOf } from '../../lib/resumeText'
 import { MAX_JOB_CHARS, MIN_JOB_CHARS, type Skill, type Verification } from '../../lib/schemas/analysis'
 import type { Row, Section } from '../../lib/schemas/resume'
 import { newSection, useResumeStore } from '../../store/resumeStore'
+import { useLocked } from '../credits/useLocked'
 import { ApiError, requestAnalysis, type AnalysisResult } from './api'
 
 type Result = AnalysisResult & { originalSummary: string; lang: Lang }
@@ -74,12 +75,13 @@ export function JobMatchPanel() {
   const [stored, setStored] = useState<Result | null>(null)
   const [applied, setApplied] = useState<Applied | null>(null)
   const [added, setAdded] = useState<Set<string>>(new Set())
+  const locked = useLocked()
 
   const resumeText = resumeToText(resume)
   const summary = summaryTextOf(resume)
   const jobLen = jobText.trim().length
   const resumeReady = resumeText.length >= 20
-  const canAnalyze = status !== 'loading' && resumeReady && jobLen >= MIN_JOB_CHARS && jobLen <= MAX_JOB_CHARS
+  const canAnalyze = !locked && status !== 'loading' && resumeReady && jobLen >= MIN_JOB_CHARS && jobLen <= MAX_JOB_CHARS
 
   // O resultado é no idioma da aba em que foi gerado: em outra aba, ele não é mostrado.
   const result = stored && stored.lang === lang ? stored : null
@@ -196,6 +198,7 @@ export function JobMatchPanel() {
         >
           {t('analysis.analyze')}
         </button>
+        {locked && <span className="text-xs text-amber-800">{t('lock.ai')}</span>}
         {status === 'loading' && (
           <span role="status" className="text-sm text-gray-600">
             {t('analysis.analyzing')}

@@ -98,7 +98,12 @@ const resources = {
         errNoText: 'Não foi possível ler texto neste PDF. Ele pode ser um documento escaneado (imagem). Preencha manualmente no editor.',
         errRead: 'Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido.',
       },
-      toolbar: { exportPdf: 'Exportar PDF', reset: 'Limpar tudo', confirmReset: 'Apagar todo o currículo desta aba?' },
+      toolbar: { exportPdf: 'Exportar PDF', exportCost: 'Exportar o PDF gasta 1 crédito na conta gratuita', reset: 'Limpar tudo', confirmReset: 'Apagar todo o currículo desta aba?' },
+      lock: {
+        banner: 'Seus créditos acabaram. Você ainda pode ver e editar os textos; reordenar, adicionar ou apagar blocos, importar PDF, trocar de idioma, usar a IA e exportar o PDF ficam bloqueados.',
+        tooltip: 'Bloqueado: seus créditos acabaram.',
+        ai: 'Sem créditos: a análise de vaga está bloqueada.',
+      },
       auth: {
         loading: 'Carregando…',
         configError: 'Não foi possível carregar a configuração do login.',
@@ -193,6 +198,9 @@ const resources = {
       },
       notice: {
         fallback: 'O primeiro modelo de IA está com muita demanda agora, então esta resposta foi feita por um segundo modelo.',
+        noCredits: 'Seus créditos acabaram. Exportar o PDF está bloqueado.',
+        creditsUnavailable: 'Não foi possível conferir os seus créditos agora. Tente exportar de novo em instantes.',
+        exportError: 'Não foi possível exportar o PDF agora. Tente de novo.',
         close: 'Fechar aviso',
       },
       tabs: {
@@ -367,7 +375,12 @@ const resources = {
         errNoText: 'No text could be read from this PDF. It may be a scanned document (image). Fill it in manually in the editor.',
         errRead: 'This PDF could not be read. It may be password-protected or corrupted.',
       },
-      toolbar: { exportPdf: 'Export PDF', reset: 'Clear all', confirmReset: 'Delete the whole resume in this tab?' },
+      toolbar: { exportPdf: 'Export PDF', exportCost: 'Exporting the PDF costs 1 credit on the free plan', reset: 'Clear all', confirmReset: 'Delete the whole resume in this tab?' },
+      lock: {
+        banner: 'You have run out of credits. You can still view and edit the text; reordering, adding or deleting blocks, importing a PDF, switching language, using the AI and exporting the PDF are blocked.',
+        tooltip: 'Blocked: you have run out of credits.',
+        ai: 'No credits: the job analysis is blocked.',
+      },
       auth: {
         loading: 'Loading…',
         configError: 'Could not load the sign-in configuration.',
@@ -462,6 +475,9 @@ const resources = {
       },
       notice: {
         fallback: 'The first AI model is under heavy demand right now, so this answer was produced by a second model.',
+        noCredits: 'You have run out of credits. Exporting the PDF is blocked.',
+        creditsUnavailable: 'We could not check your credits right now. Try exporting again in a moment.',
+        exportError: 'The PDF could not be exported right now. Try again.',
         close: 'Dismiss notice',
       },
       tabs: {

@@ -194,3 +194,8 @@ body {
     box-shadow: none;
   }
 }
+
+/* Impressão de conta travada (sem crédito): o currículo sai borrado. O filtro vira imagem no PDF, então o texto também não pode ser copiado nem lido por ATS. */
+@media print {
+  html.print-blur .cv-page { filter: blur(7px); }
+}

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconLanguages } from '../../components/Icons'
 import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { hasContent, useResumeStore } from '../../store/resumeStore'
+import { useLocked } from '../credits/useLocked'
 import { ApiError } from '../job-match/api'
 import { requestTranslation } from './api'
 import { planTranslation } from './resumeTranslation'
@@ -18,6 +19,7 @@ export function PullTranslationButton() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [errorCode, setErrorCode] = useState<string | null>(null)
+  const locked = useLocked()
 
   const other: Lang = lang === 'pt' ? 'en' : 'pt'
   const source = saved[other]
@@ -49,8 +51,8 @@ export function PullTranslationButton() {
     <>
       <button
         type="button"
-        disabled={!enabled}
-        title={enabled ? t('tabs.pull.hint', names) : t('tabs.pull.empty', names)}
+        disabled={!enabled || locked}
+        title={locked ? t('lock.tooltip') : enabled ? t('tabs.pull.hint', names) : t('tabs.pull.empty', names)}
         onClick={() => {
           setErrorCode(null)
           setOpen(true)

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Section } from '../../lib/schemas/resume'
 import { useResumeStore } from '../../store/resumeStore'
+import { useLocked } from '../credits/useLocked'
 import { SectionForm } from './SectionForms'
 
 const iconBtn =
@@ -13,8 +14,10 @@ export function SectionCard({ section, index, total }: { section: Section; index
   const { t } = useTranslation()
   const { updateSection, removeSection, moveSection } = useResumeStore()
   const [open, setOpen] = useState(true)
+  const locked = useLocked()
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
+    disabled: locked,
   })
 
   return (
@@ -27,9 +30,10 @@ export function SectionCard({ section, index, total }: { section: Section; index
         <button
           ref={setActivatorNodeRef}
           type="button"
-          className={`${iconBtn} cursor-grab touch-none active:cursor-grabbing`}
+          className={`${iconBtn} cursor-grab touch-none active:cursor-grabbing disabled:cursor-not-allowed`}
+          disabled={locked}
           aria-label={t('card.drag')}
-          title={t('card.drag')}
+          title={locked ? t('lock.tooltip') : t('card.drag')}
           {...attributes}
           {...listeners}
         >
@@ -41,16 +45,16 @@ export function SectionCard({ section, index, total }: { section: Section; index
           value={section.title}
           onChange={(e) => updateSection(section.id, { title: e.target.value })}
         />
-        <button type="button" className={iconBtn} disabled={index === 0} onClick={() => moveSection(index, index - 1)} aria-label={t('card.up')} title={t('card.up')}>
+        <button type="button" className={iconBtn} disabled={locked || index === 0} onClick={() => moveSection(index, index - 1)} aria-label={t('card.up')} title={t('card.up')}>
           ↑
         </button>
-        <button type="button" className={iconBtn} disabled={index === total - 1} onClick={() => moveSection(index, index + 1)} aria-label={t('card.down')} title={t('card.down')}>
+        <button type="button" className={iconBtn} disabled={locked || index === total - 1} onClick={() => moveSection(index, index + 1)} aria-label={t('card.down')} title={t('card.down')}>
           ↓
         </button>
         <button type="button" className={iconBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? t('card.collapse') : t('card.expand')} title={open ? t('card.collapse') : t('card.expand')}>
           {open ? '−' : '+'}
         </button>
-        <button type="button" className={`${iconBtn} hover:text-red-600`} onClick={() => removeSection(section.id)} aria-label={t('card.remove')} title={t('card.remove')}>
+        <button type="button" className={`${iconBtn} hover:text-red-600`} disabled={locked} onClick={() => removeSection(section.id)} aria-label={t('card.remove')} title={locked ? t('lock.tooltip') : t('card.remove')}>
           ✕
         </button>
       </div>

@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { moveItem } from '../../lib/rows'
 import type { Row } from '../../lib/schemas/resume'
 import { emptyRow } from '../../store/resumeStore'
+import { useLocked } from '../credits/useLocked'
 
 type RowArgs = {
   row: Row
@@ -27,14 +28,16 @@ type RowArgs = {
 
 function Item({ id, children }: { id: string; children: (handle: ReactNode) => ReactNode }) {
   const { t } = useTranslation()
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const locked = useLocked()
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: locked })
   const handle = (
     <button
       ref={setActivatorNodeRef}
       type="button"
-      className="flex h-7 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:cursor-grabbing"
+      className="flex h-7 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+      disabled={locked}
       aria-label={t('form.dragRow')}
-      title={t('form.dragRow')}
+      title={locked ? t('lock.tooltip') : t('form.dragRow')}
       {...attributes}
       {...listeners}
     >

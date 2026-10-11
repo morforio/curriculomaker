@@ -19,3 +19,21 @@ export function parseAccount(raw: unknown): Account | null {
   const date = (v: unknown) => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? v : null)
   return { plan: r.plan, paid: r.paid, credits: r.credits, locked: r.locked, credits_expire_at: date(r.credits_expire_at), paid_until: date(r.paid_until) }
 }
+
+/**
+ * O que fazer quando a impressão começa por um caminho que o site não controla (menu do navegador):
+ *  - "blur": conta travada, ou saldo desconhecido (falha fechada): sai borrada;
+ *  - "allow": conta paga: imprime à vontade;
+ *  - "charge": conta gratuita com crédito: cobra 1 crédito e imprime.
+ */
+export type PrintDecision = 'blur' | 'allow' | 'charge'
+
+export function printDecision(account: Account | null): PrintDecision {
+  if (!account || account.locked) return 'blur'
+  return account.paid ? 'allow' : 'charge'
+}
+
+/** Ctrl+P (ou Cmd+P, e a variante com Shift): o atalho de imprimir do navegador. */
+export function isPrintShortcut(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): boolean {
+  return (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'p'
+}

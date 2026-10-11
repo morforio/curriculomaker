@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SECTION_TYPES, type SectionType } from '../../lib/schemas/resume'
 import { isOnlyPrefix, linkPrefix } from '../../lib/links'
+import { useLocked } from '../credits/useLocked'
 import { JobMatchPanel } from '../job-match/JobMatchPanel'
 import { useResumeStore } from '../../store/resumeStore'
 import { TextField } from './fields'
@@ -22,6 +23,7 @@ export function Editor() {
   const { t } = useTranslation()
   const { resume, setHeader, addSection, moveSection } = useResumeStore()
   const [newType, setNewType] = useState<SectionType>('custom')
+  const locked = useLocked()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -101,7 +103,9 @@ export function Editor() {
           <div className="flex items-center gap-2">
             <select
               aria-label={t('sections.add')}
-              className="rounded border border-gray-300 bg-white/5 px-2 py-1.5 text-sm text-gray-900"
+              className="rounded border border-gray-300 bg-white/5 px-2 py-1.5 text-sm text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={locked}
+              title={locked ? t('lock.tooltip') : undefined}
               value={newType}
               onChange={(e) => setNewType(e.target.value as SectionType)}
             >
@@ -114,7 +118,9 @@ export function Editor() {
             <button
               type="button"
               onClick={() => addSection(newType)}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+              disabled={locked}
+              title={locked ? t('lock.tooltip') : undefined}
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t('sections.addButton')}
             </button>
