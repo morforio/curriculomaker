@@ -1,11 +1,8 @@
 import { Trans, useTranslation } from 'react-i18next'
 import { useLocked } from './useLocked'
 
-/**
- * Para onde vai o link "plano pro" do aviso. Ainda não existe página de pagamento: quando ela for criada (etapa de pagamento),
- * é só trocar este endereço.
- */
-export const PRO_PLAN_URL = '#plano-pro'
+/** Para onde vai o link "plano pro" do aviso: a página de planos. */
+export const PRO_PLAN_URL = '/planos'
 
 /** Aviso fixo (sem botão de fechar) enquanto a conta está travada: explica o que está bloqueado e convida ao plano pro. */
 export function LockedBanner() {

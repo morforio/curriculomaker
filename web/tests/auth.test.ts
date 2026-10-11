@@ -56,7 +56,7 @@ test('com Supabase configurado e sem token: 401', async () => {
 test('token válido: devolve o id do usuário e usa só a chave pública', async () => {
   const m = mockFetch(() => new Response(JSON.stringify({ id: 'user-1', email: 'a@b.c' }), { status: 200 }))
   try {
-    assert.deepEqual(await authenticate(req('tok'), env), { ok: true, userId: 'user-1' })
+    assert.deepEqual(await authenticate(req('tok'), env), { ok: true, userId: 'user-1', email: 'a@b.c' })
     assert.equal(m.calls[0].url, 'https://x.supabase.co/auth/v1/user')
     const h = m.calls[0].init?.headers as Record<string, string>
     assert.equal(h.apikey, 'anon')
