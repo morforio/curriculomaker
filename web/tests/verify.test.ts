@@ -30,7 +30,8 @@ function analysisWith(suggested: string, changes: Analysis['summary']['changes']
 }
 
 /**
- * Jev simulado. "liderei" reprova a consistência com o currículo; a adequação sobe quando o texto traz "APIs REST".
+ * Jev simulado. "liderei" reprova a consistência com o currículo (nota 0,1) e "coordenei" a deixa fraca (0,5);
+ * a adequação sobe quando o texto traz "APIs REST".
  * Guarda cada chamada para os testes inspecionarem.
  */
 function fakeVerifier() {
@@ -43,7 +44,7 @@ function fakeVerifier() {
       const out: Record<string, JevAnswer> = {}
       for (const id of Object.keys(questions)) {
         if (id === 'adequacy') out[id] = { type: 'score', score: /APIs REST/.test(text) ? 3 : 1 }
-        else if (id === 'consistent_with_resume') out[id] = { type: 'noul', noul: /liderei/.test(text) ? 0.1 : 0.97 }
+        else if (id === 'consistent_with_resume') out[id] = { type: 'noul', noul: /liderei/.test(text) ? 0.1 : /coordenei/.test(text) ? 0.5 : 0.97 }
         else out[id] = { type: 'noul', noul: 0.95 }
       }
       return out
@@ -74,6 +75,19 @@ test('passa de primeira: nenhuma refação', async () => {
   assert.equal(r.verification.state, 'checked')
   assert.equal(r.verification.version?.status, 'verified')
   assert.equal(r.verification.version?.redos, 0)
+  assert.equal(r.verification.version?.adequacy, 1, 'adequação 3 de 3 = 1 (100%)')
+})
+
+test('adequação baixa NÃO reprova nem refaz: só a fidelidade decide, e a adequação é apenas informada', async () => {
+  const { verifier } = fakeVerifier()
+  const fiel = 'Desenvolvedor com experiência em APIs Node.js e React.' // fiel, mas pouco ajustada à vaga (adequação 1 de 3)
+  const { provider, remaining } = fakeProvider([{ text: GOOD }])
+  const r = await refineSummaries({ analysis: analysisWith(fiel), req, provider, verifier })
+  assert.equal(r.verification.version?.status, 'verified', 'sem aviso por causa da adequação')
+  assert.equal(r.verification.version?.redos, 0, 'sem refação por causa da adequação')
+  assert.equal(remaining(), 1, 'o LLM não foi chamado de novo')
+  assert.equal(r.analysis.summary.suggested, fiel)
+  assert.ok(Math.abs((r.verification.version?.adequacy ?? 0) - 1 / 3) < 1e-9, 'a nota é informada como veio (1/3)')
 })
 
 test('texto reprovado é refeito e a versão refeita passa', async () => {
@@ -93,12 +107,13 @@ test('número inventado e habilidade ausente são barrados no código, sem chama
   assert.equal(calls.length, 0)
   assert.equal(r.verification.version?.status, 'best_effort')
   assert.equal(r.verification.version?.redos, MAX_REDOS)
+  assert.equal(r.verification.version?.adequacy, null, 'não medida: o texto foi barrado antes do Jev')
 })
 
 test('no máximo MAX_REDOS refações; sem aprovação, vale a tentativa de maior nota', async () => {
   const { verifier } = fakeVerifier()
-  const v1 = 'Desenvolvedor liderei APIs Node.js e React.' // exagera e não usa os termos da vaga
-  const v2 = 'Desenvolvedor com experiência em APIs Node.js e React.' // fiel, mas pouco ajustada (adequação 1/3)
+  const v1 = 'Desenvolvedor liderei APIs Node.js e React.' // exagera (fidelidade 0,1)
+  const v2 = 'Desenvolvedor coordenei APIs Node.js e React.' // ainda exagera, mas menos (fidelidade 0,5)
   const replies = [{ text: v2 }, { text: v2 }, { text: v2 }, { text: GOOD }]
   const { provider, remaining } = fakeProvider(replies)
   const r = await refineSummaries({ analysis: analysisWith(v1), req, provider, verifier })
