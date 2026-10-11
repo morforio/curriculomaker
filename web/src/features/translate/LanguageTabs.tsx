@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { LANGS } from '../../lib/schemas/analysis'
 import { hasContent, useResumeStore } from '../../store/resumeStore'
+import { useLocked } from '../credits/useLocked'
 import { ApiError } from '../job-match/api'
 import { requestTranslation } from './api'
 import { LANG_THEME, STRIPE_HEIGHT } from './langTheme'
@@ -18,9 +19,10 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
   const [target, setTarget] = useState<Lang | null>(null)
   const [busy, setBusy] = useState(false)
   const [errorCode, setErrorCode] = useState<string | null>(null)
+  const locked = useLocked()
 
   function select(next: Lang) {
-    if (next === lang) return
+    if (next === lang || locked) return
     // Aba já aberta antes, ou currículo ainda vazio: troca direto, sem perguntar.
     if (saved[next] || !hasContent(resume)) {
       switchLang(next)
@@ -70,10 +72,12 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => select(l)}
+                disabled={locked && !active}
+                title={locked && !active ? t('lock.tooltip') : undefined}
                 // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
                 style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
                 className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm ${
-                  active ? 'relative z-10 bg-[#0d1018] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  active ? 'relative z-10 bg-[#0d1018] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
                 }`}
               >
                 {LANG_NAMES[l]}

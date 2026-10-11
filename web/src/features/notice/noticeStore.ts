@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 
+export type Notice = 'fallback' | 'noCredits' | 'creditsUnavailable' | 'exportError'
+
 /** Avisos curtos ao usuário, vindos do que aconteceu no servidor (aparecem no topo até serem fechados). */
 type NoticeState = {
-  /** "fallback": o modelo de IA principal falhou e o reserva respondeu. */
-  notice: 'fallback' | null
-  show: (notice: 'fallback') => void
+  /** "fallback": o modelo de IA principal falhou e o reserva respondeu. As demais vêm da exportação do PDF. */
+  notice: Notice | null
+  show: (notice: Notice) => void
   clear: () => void
 }
 

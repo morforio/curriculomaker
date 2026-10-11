@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDownload, IconTrash, IconUpload } from './components/Icons'
 import { AccountBar } from './features/auth/AccountBar'
+import { LockedBanner } from './features/credits/LockedBanner'
+import { useCreditsStore } from './features/credits/creditsStore'
+import { useLocked } from './features/credits/useLocked'
 import { useAuthStore } from './features/auth/authStore'
 import { Editor } from './features/editor/Editor'
+import { exportPdf, usePrintGuard } from './features/export/exportPdf'
 import { NoticeBanner } from './features/notice/NoticeBanner'
 import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
@@ -16,12 +20,14 @@ import { useResumeStore } from './store/resumeStore'
 
 // Botões de ação do lado direito: tom azulado, para se distinguirem do botão Traduzir (cinza), que fica junto das abas de idioma.
 const btnAction =
-  'inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-blue-500/20'
+  'inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-500/10'
 
 function App() {
   const { t } = useTranslation()
   const { lang, resume, reset } = useResumeStore()
   const [importing, setImporting] = useState(false)
+  const locked = useLocked()
+  const account = useCreditsStore((s) => s.account)
 
   // A aba ativa define o idioma da interface.
   useEffect(() => setLang(lang), [lang])
@@ -39,6 +45,7 @@ function App() {
 
   // Com login, o currículo vem da conta antes de aparecer; se não carregar, nada é mostrado (nem gravado por cima).
   useResumeSync()
+  usePrintGuard()
   const signedIn = useAuthStore((s) => s.status === 'signedIn')
   const sync = useSyncStatus((s) => s.status)
   if (signedIn && (sync === 'idle' || sync === 'loading')) {
@@ -58,6 +65,7 @@ function App() {
   }
 
   function startImport() {
+    if (locked) return
     // Quem escolher a aba errada só descobre depois: avisa antes de abrir o envio do arquivo.
     if (window.confirm(t('import.langWarning', { lang: LANG_NAMES[lang] }))) setImporting(true)
   }
@@ -73,7 +81,7 @@ function App() {
               <LanguageTabs above={<PullTranslationButton />} />
             </div>
             <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-3 pb-2 lg:ml-auto lg:col-auto lg:row-auto">
-              <button type="button" className={btnAction} onClick={startImport}>
+              <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
                 <IconUpload />
                 {t('import.button')}
               </button>
@@ -89,8 +97,10 @@ function App() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
-                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-600"
+                onClick={() => void exportPdf()}
+                disabled={locked}
+                title={locked ? t('lock.tooltip') : account && !account.paid ? t('toolbar.exportCost') : undefined}
               >
                 <IconDownload />
                 {t('toolbar.exportPdf')}
@@ -101,6 +111,7 @@ function App() {
           <LanguageStripe />
         </header>
         <NoticeBanner />
+        <LockedBanner />
       </div>
 
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
