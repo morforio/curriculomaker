@@ -7,17 +7,19 @@ import { extractJson, normalize, toBullets } from './text.ts'
 
 /**
  * Conferência da introdução sugerida (um só texto, no idioma da aba ativa). O LLM escreve; o Jev dá duas notas (0 a 1):
- *  - fidelidade: sem informação falsa (nada que o currículo não sustente, nada exagerado); mudar muito o texto não conta contra;
- *  - adequação: quanto o texto está ajustado à vaga, usando só o que o currículo sustenta.
- * Se o texto não passa nas duas, é refeito pelo LLM (no máximo MAX_REDOS vezes). Se nenhuma tentativa passar,
- * vale a de maior nota.
+ *  - fidelidade: sem informação falsa (nada que o currículo sustente, nada exagerado); mudar muito o texto não conta contra.
+ *    Só ela decide se o texto é aprovado: se não passa, é refeito pelo LLM (no máximo MAX_REDOS vezes) e, se nenhuma tentativa
+ *    passar, vale a de maior nota;
+ *  - adequação: quanto o texto está ajustado à vaga, usando só o que o currículo sustenta. É só uma medida mostrada ao usuário:
+ *    ela depende do quanto o currículo combina com a vaga, não de erro da IA, então nunca reprova nem refaz o texto.
  */
 export const QUALITY_THRESHOLD = 0.8
 // Em produção, 3 refações dobravam o tempo (75 a 93 s) sem subir a nota; 1 basta para o MVP.
 export const MAX_REDOS = 1
 
 type Change = Analysis['summary']['changes'][number]
-type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number; issues: Issue[] }
+// adequacy é null quando não foi medida (o texto já foi barrado nas checagens em código).
+type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number | null; issues: Issue[] }
 type VersionState = { lang: Lang; attempts: Attempt[]; redos: number }
 
 const redoSchema = z.object({
@@ -70,8 +72,8 @@ const noulOf = (a: JevAnswer | undefined) => (a?.type === 'noul' ? a.noul : 0)
 const scoreOf = (a: JevAnswer | undefined) => (a?.type === 'score' ? a.score : 0)
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
-const quality = (a: Attempt) => Math.min(a.fidelity, a.adequacy)
-const passes = (a: Attempt) => a.issues.length === 0 && a.fidelity > QUALITY_THRESHOLD && a.adequacy > QUALITY_THRESHOLD
+const quality = (a: Attempt) => a.fidelity
+const passes = (a: Attempt) => a.issues.length === 0 && a.fidelity > QUALITY_THRESHOLD
 
 /** A de maior nota; em empate, a mais antiga. */
 function bestOf(attempts: Attempt[]): Attempt {
@@ -108,7 +110,7 @@ function localIssues(text: string, ctx: Context): Issue[] {
 
 async function assess(text: string, changes: Change[], ctx: Context): Promise<Attempt> {
   const local = localIssues(text, ctx)
-  if (local.length > 0) return { text, changes, fidelity: 0, adequacy: 0, issues: local }
+  if (local.length > 0) return { text, changes, fidelity: 0, adequacy: null, issues: local }
 
   // Só mede informação falsa e se a vaga foi bem abordada; quanto o texto mudou em relação ao original não conta.
   const { resumeText, jobText } = ctx.req
@@ -122,7 +124,6 @@ async function assess(text: string, changes: Change[], ctx: Context): Promise<At
   if (noulOf(fid.consistent_with_resume) <= QUALITY_THRESHOLD) issues.push({ kind: 'exaggeration' })
   const fidelity = Math.min(...Object.keys(FIDELITY_QUESTIONS).map((id) => clamp01(noulOf(fid[id]))))
   const adequacy = clamp01(scoreOf(ade.adequacy) / ADEQUACY_TOP_LEVEL)
-  if (adequacy <= QUALITY_THRESHOLD) issues.push({ kind: 'adequacy' })
   return { text, changes, fidelity, adequacy, issues }
 }
 

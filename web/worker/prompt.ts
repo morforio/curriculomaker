@@ -69,7 +69,7 @@ export function buildUserPrompt(req: AnalyzeRequest): string {
 
 /** Motivos pelos quais uma versão da introdução foi reprovada na conferência. */
 export type Issue = {
-  kind: 'invention' | 'exaggeration' | 'adequacy' | 'numbers' | 'skills'
+  kind: 'invention' | 'exaggeration' | 'numbers' | 'skills'
   detail?: string
 }
 
@@ -78,8 +78,6 @@ const ISSUE_TEXT: Record<Issue['kind'], string> = {
     'The previous attempt mentions facts that are not in the resume (skills, tools, technologies, numbers, employers, schools, degrees, certifications or responsibilities). Remove them or use only what the resume says.',
   exaggeration:
     'The previous attempt exaggerates or contradicts the resume (for example level of responsibility, seniority, duration or results). State only what the resume supports.',
-  adequacy:
-    "The previous attempt is not tailored enough to the job. Use the job's own terms and priorities wherever the resume supports them, without inventing anything.",
   numbers: 'The previous attempt contains numbers that are not in the resume. Remove them.',
   skills: 'The previous attempt mentions skills the resume does not have. Remove them.',
 }

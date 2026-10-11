@@ -41,7 +41,7 @@ function QualityBadge({ verification }: { verification: Verification | undefined
   if (verification.state === 'failed' || !q) {
     return <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.quality.failed')}</p>
   }
-  const scores = t('analysis.quality.scores', { fidelity: fmt(q.fidelity), adequacy: fmt(q.adequacy) })
+  const scores = t('analysis.quality.scores', { fidelity: fmt(q.fidelity) })
   const redone = q.redos > 0 ? ` ${t('analysis.quality.redone', { count: q.redos })}` : ''
   return q.status === 'verified' ? (
     <p className="rounded border border-green-200 bg-green-50 p-2 text-xs text-green-900">
@@ -156,6 +156,9 @@ export function JobMatchPanel() {
     : []
   const requiredSkills = skills.filter((s) => s.importance === 'required')
   const covered = requiredSkills.filter((s) => s.status !== 'missing').length
+  // Adequação à vaga em porcentagem (0 a 100). Só informa; não entra em nenhum aviso.
+  const fitScore = result?.meta.verification?.version?.adequacy
+  const fit = typeof fitScore === 'number' ? Math.round(fitScore * 100) : null
 
   return (
     <section className="glass rounded-lg border border-gray-200 p-4" aria-labelledby="job-title">
@@ -269,6 +272,7 @@ export function JobMatchPanel() {
             {result.meta.downgraded > 0 && (
               <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.downgraded', { count: result.meta.downgraded })}</p>
             )}
+            {fit !== null && <p className="text-sm font-medium text-gray-700">{t('analysis.fit', { percent: fit })}</p>}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[34rem] border-collapse text-left text-xs">
                 <thead>

@@ -53,12 +53,12 @@ export type Analysis = z.infer<typeof analysisSchema>
 
 /** Resultado da conferência da introdução sugerida (notas de 0 a 1). */
 export type VersionQuality = {
-  /** "verified": passou nas duas notas; "best_effort": melhor tentativa, mas ainda abaixo do limite. */
+  /** "verified": passou na fidelidade; "best_effort": melhor tentativa, mas a fidelidade ainda está abaixo do limite. */
   status: 'verified' | 'best_effort'
   /** Sem invenção, sem fato errado e sem alteração incompatível com o original. */
   fidelity: number
-  /** Quanto o texto está ajustado à vaga, usando só o que o currículo sustenta. */
-  adequacy: number
+  /** Quanto o texto está ajustado à vaga, usando só o que o currículo sustenta. Só informa: não entra na aprovação. Null se não foi medida. */
+  adequacy: number | null
   /** Quantas vezes o LLM refez esta versão (0 a 3). */
   redos: number
 }
