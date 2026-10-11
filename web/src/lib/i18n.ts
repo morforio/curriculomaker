@@ -100,7 +100,9 @@ const resources = {
       },
       toolbar: { exportPdf: 'Exportar PDF', exportCost: 'Exportar o PDF gasta 1 crédito na conta gratuita', reset: 'Limpar tudo', confirmReset: 'Apagar todo o currículo desta aba?' },
       lock: {
-        banner: 'Seus créditos acabaram. Você ainda pode ver e editar os textos; reordenar, adicionar ou apagar blocos, importar PDF, trocar de idioma, usar a IA e exportar o PDF ficam bloqueados.',
+        banner1: 'Seus créditos acabaram. Você ainda pode ver e editar os textos.',
+        banner2: 'Reordenar, adicionar ou apagar blocos, importar PDF, trocar de idioma, usar a IA e exportar o PDF ficam bloqueados.',
+        banner3: 'Clique aqui para investir no <plan>plano pro</plan>.',
         tooltip: 'Bloqueado: seus créditos acabaram.',
         ai: 'Sem créditos: a análise de vaga está bloqueada.',
       },
@@ -377,7 +379,9 @@ const resources = {
       },
       toolbar: { exportPdf: 'Export PDF', exportCost: 'Exporting the PDF costs 1 credit on the free plan', reset: 'Clear all', confirmReset: 'Delete the whole resume in this tab?' },
       lock: {
-        banner: 'You have run out of credits. You can still view and edit the text; reordering, adding or deleting blocks, importing a PDF, switching language, using the AI and exporting the PDF are blocked.',
+        banner1: 'You have run out of credits. You can still view and edit the text.',
+        banner2: 'Reordering, adding or deleting blocks, importing a PDF, switching language, using the AI and exporting the PDF are blocked.',
+        banner3: 'Click here to invest in the <plan>pro plan</plan>.',
         tooltip: 'Blocked: you have run out of credits.',
         ai: 'No credits: the job analysis is blocked.',
       },
