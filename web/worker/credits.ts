@@ -24,7 +24,8 @@ export type SpendResult = ({ ok: true; spent: number } | { ok: false; reason: 'n
 /** Não foi possível falar com o banco de créditos (chave ausente, rede, erro do Supabase). A API recusa em vez de liberar. */
 export class CreditsUnavailable extends Error {}
 
-async function rpc<T>(env: CreditEnv, fn: string, body: Record<string, unknown>): Promise<T> {
+/** Chama uma função SQL do banco com a chave de serviço. Também usada pela cobrança (worker/billing.ts). */
+export async function rpc<T>(env: CreditEnv, fn: string, body: Record<string, unknown>): Promise<T> {
   const base = env.SUPABASE_URL?.trim().replace(/\/+$/, '')
   const key = env.SUPABASE_SERVICE_KEY?.trim()
   if (!base || !key) {
@@ -48,7 +49,9 @@ async function rpc<T>(env: CreditEnv, fn: string, body: Record<string, unknown>)
     console.error(`Créditos (${fn}) responderam HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
     throw new CreditsUnavailable(`HTTP ${res.status}`)
   }
-  return (await res.json()) as T
+  // Função SQL sem retorno responde vazio (204): vira null.
+  const text = await res.text()
+  return (text ? JSON.parse(text) : null) as T
 }
 
 export function spendCredit(env: CreditEnv, userId: string, kind: CreditKind): Promise<SpendResult> {

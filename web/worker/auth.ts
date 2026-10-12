@@ -13,7 +13,7 @@ export function authMode(env: AuthEnv): 'configured' | 'optional' | 'broken' {
 }
 
 export type AuthResult =
-  | { ok: true; userId: string | null }
+  | { ok: true; userId: string | null; email?: string | null }
   | { ok: false; status: 401 | 503; error: 'unauthorized' | 'auth_unavailable' }
 
 export async function authenticate(request: Request, env: AuthEnv): Promise<AuthResult> {
@@ -41,7 +41,7 @@ export async function authenticate(request: Request, env: AuthEnv): Promise<Auth
     console.error(`Supabase Auth respondeu HTTP ${res.status}`)
     return { ok: false, status: 503, error: 'auth_unavailable' }
   }
-  const user = (await res.json().catch(() => null)) as { id?: unknown } | null
+  const user = (await res.json().catch(() => null)) as { id?: unknown; email?: unknown } | null
   if (typeof user?.id !== 'string' || !user.id) return { ok: false, status: 401, error: 'unauthorized' }
-  return { ok: true, userId: user.id }
+  return { ok: true, userId: user.id, email: typeof user.email === 'string' && user.email ? user.email : null }
 }

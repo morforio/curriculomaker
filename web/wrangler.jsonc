@@ -29,6 +29,8 @@
     // Captcha do login (Turnstile, da Cloudflare). Esta é a chave do SITE, que é pública. A SECRETA fica só no painel do Supabase
     // (Authentication > Attack Protection) e nunca entra aqui.
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFRbAb9egEfrwE0G",
+    // Pagamento (Asaas): conta real. O segredo ASAAS_API_KEY precisa ser a chave de produção. ("sandbox" = conta de teste do Asaas, separada.)
+    "ASAAS_ENV": "production",
     "RATE_PER_IP_HOUR": "20",
     "DAILY_CAP": "200"
   },

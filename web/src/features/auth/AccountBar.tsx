@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconUser } from '../../components/Icons'
+import { formatDate } from '../../lib/credits'
 import { useCreditsStore } from '../credits/creditsStore'
 import { useSyncStatus } from '../sync/syncStatus'
 import { useAuthStore } from './authStore'
-
-const formatDate = (iso: string, lang: string) => new Date(iso).toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 /** Conta no canto direito: estado do salvamento e um avatar que abre o e-mail e o botão Sair. Some sem login configurado. */
 export function AccountBar() {
@@ -97,6 +96,9 @@ export function AccountBar() {
               {account.locked && <p className="mt-1 text-red-700">{t('credits.locked')}</p>}
             </div>
           )}
+          <a role="menuitem" href="/planos" className="block w-full rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100">
+            {t('plans.menu')}
+          </a>
           <button
             type="button"
             role="menuitem"

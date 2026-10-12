@@ -37,3 +37,6 @@ export function printDecision(account: Account | null): PrintDecision {
 export function isPrintShortcut(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): boolean {
   return (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'p'
 }
+
+/** Data curta no idioma da interface (dd/mm/aaaa em português). */
+export const formatDate = (iso: string, lang: string): string => new Date(iso).toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' })

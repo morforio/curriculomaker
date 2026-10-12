@@ -1,5 +1,7 @@
 import { handleAnalyze } from './analyze.ts'
+import { hashIp } from './analyze.ts'
 import { authenticate } from './auth.ts'
+import { handleCancel, handleCheckout, handleWebhook, type BillingEnv } from './billing.ts'
 import { publicConfig } from './config.ts'
 import { withCredit } from './credits.ts'
 import type { Limiter } from './limiter.ts'
@@ -30,6 +32,13 @@ interface Env {
   SUPABASE_SERVICE_KEY?: string
   /** Público: chave do SITE do captcha (Turnstile). A chave secreta fica só no painel do Supabase. */
   TURNSTILE_SITE_KEY?: string
+  /** Pagamento (Asaas): ASAAS_API_KEY e ASAAS_WEBHOOK_TOKEN são secrets; ASAAS_ENV é público ("production" ou, por padrão, o teste). */
+  ASAAS_API_KEY?: string
+  ASAAS_WEBHOOK_TOKEN?: string
+  ASAAS_ENV?: string
+  ASAAS_BASE_URL?: string
+  /** Secret (opcional): e-mail que paga o preço de teste do plano pro. Remover depois de testar. */
+  BILLING_TEST_EMAIL?: string
   RATE_PER_IP_HOUR?: string
   DAILY_CAP?: string
   TRANSLATE_PER_IP_HOUR?: string
@@ -47,6 +56,9 @@ function json(status: number, body: unknown): Response {
 
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
+
+  // Aviso de pagamento do Asaas: não tem login de usuário; quem confere é o cabeçalho asaas-access-token (worker/billing.ts).
+  if (url.pathname === '/api/payment/webhook') return handleWebhook(request, env satisfies BillingEnv)
 
   // Configuração pública do login. Sem ela, o site só abre se AUTH_OPTIONAL=true; senão o site mostra erro (a API também recusa).
   if (url.pathname === '/api/config') {
@@ -80,6 +92,17 @@ async function route(request: Request, env: Env): Promise<Response> {
     const cap = number(env.TRANSLATE_DAILY_CAP, 200)
     const limiter = env.LIMITER.getByName('translate')
     return withCredit(env, auth.userId, 'translate', () => handleTranslate(request, { env, ip: who, limiter: { check: (key) => limiter.check(key, perIp, cap) } }))
+  }
+
+  // Pagamento: precisa de usuário logado (o Asaas cobra a conta de quem está logado). No máximo 5 tentativas por hora por usuário.
+  if (url.pathname === '/api/checkout' || url.pathname === '/api/billing/cancel') {
+    const auth = await authenticate(request, env)
+    if (!auth.ok) return json(auth.status, { error: auth.error, message: auth.status === 401 ? 'Entre na sua conta para continuar.' : 'Não foi possível conferir o login agora.' })
+    if (!auth.userId) return json(503, { error: 'payment_unavailable', message: 'O pagamento exige uma conta.' })
+    if (url.pathname === '/api/billing/cancel') return handleCancel(request, { env, userId: auth.userId })
+    const verdict = await env.LIMITER.getByName('checkout').check(await hashIp(auth.userId), 5, 200)
+    if (verdict !== 'ok') return json(429, { error: 'rate_limited_ip', message: 'Muitas tentativas. Tente de novo mais tarde.' })
+    return handleCheckout(request, { env, userId: auth.userId, email: auth.email ?? null })
   }
 
   if (url.pathname.startsWith('/api/')) {

@@ -83,4 +83,8 @@ export type ApiErrorCode =
   | 'bad_llm_output'
   | 'no_credits'
   | 'credits_unavailable'
+  | 'invalid_cpf'
+  | 'payment_unavailable'
+  | 'already_subscribed'
+  | 'no_subscription'
   | 'network'
