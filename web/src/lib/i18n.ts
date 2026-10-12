@@ -120,7 +120,7 @@ const resources = {
         },
         pro: {
           name: 'Pro',
-          badge: 'Recomendado',
+          badge: 'Escolha inteligente',
           credits: '{{count}} créditos por mês para a IA e a tradução',
           export: 'Exportar o PDF sem gastar crédito',
           unlocked: 'Tudo liberado: reordenar, adicionar e apagar blocos, importar PDF e trocar de idioma',
@@ -447,7 +447,7 @@ const resources = {
         },
         pro: {
           name: 'Pro',
-          badge: 'Recommended',
+          badge: 'Smart choice',
           credits: '{{count}} credits per month for the AI and translation',
           export: 'Export the PDF without spending credits',
           unlocked: 'Everything unlocked: reorder, add and delete blocks, import a PDF and switch language',
