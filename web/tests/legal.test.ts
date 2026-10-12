@@ -1,24 +1,48 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { FREE_CREDITS, FREE_DAYS, isValidCpf, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../src/lib/plans.ts'
-import { PRIVACY, TERMS, type Block, type LegalDoc } from '../src/legal/content.ts'
-import { SELLER } from '../src/legal/seller.ts'
+import { FREE_CREDITS, FREE_DAYS, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../src/lib/plans.ts'
+import { buildPrivacy, buildTerms, type Block, type LegalDoc } from '../src/legal/content.ts'
+import { parseSeller } from '../src/lib/seller.ts'
+import { sellerResponse } from '../worker/seller.ts'
 
-/** Termos de uso e Política de privacidade (src/legal/): dados do fornecedor completos e textos ligados às constantes do sistema. */
+/**
+ * Termos de uso e Política de privacidade (src/legal/): textos ligados às constantes do sistema e dados do fornecedor vindos dos
+ * segredos SELLER_* da Cloudflare (nunca do repositório, que é público). Os valores abaixo são fictícios (CPF de teste válido).
+ */
+const SELLER = { name: 'Maria de Souza Teste', cpf: '529.982.247-25', address: 'Rua das Flores, 100, Centro, Cidade Exemplo - MG, CEP 30000-000', email: 'contato@exemplo.com.br' }
+const TERMS = buildTerms(SELLER)
+const PRIVACY = buildPrivacy(SELLER)
 
 const text = (doc: LegalDoc) =>
   [...doc.intro, ...doc.sections.flatMap((s) => [s.title, ...s.blocks.flatMap((b: Block) => (typeof b === 'string' ? [b] : b.list))])].join('\n')
 
-test('dados do fornecedor completos: nome, CPF válido, endereço e e-mail (exigidos pela lei do comércio eletrônico)', () => {
-  assert.ok(SELLER.name.trim().length > 5, 'nome')
-  assert.ok(isValidCpf(SELLER.cpf), 'CPF vazio ou inválido em src/legal/seller.ts')
-  assert.ok(SELLER.address.trim().length >= 15, 'endereço completo em src/legal/seller.ts')
-  assert.match(SELLER.email, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'e-mail de contato em src/legal/seller.ts')
+test('os dados do fornecedor entram nos dois textos', () => {
+  for (const doc of [TERMS, PRIVACY]) {
+    const t = text(doc)
+    assert.ok(t.includes(SELLER.name) && t.includes(SELLER.cpf) && t.includes(SELLER.address) && t.includes(SELLER.email))
+  }
 })
 
-test('nenhum texto legal vai ao ar com marcador de campo a preencher', () => {
-  assert.ok(!text(TERMS).includes('[A PREENCHER]'))
-  assert.ok(!text(PRIVACY).includes('[A PREENCHER]'))
+test('o fornecedor só é aceito completo: nome, CPF válido, endereço completo e e-mail', () => {
+  assert.deepEqual(parseSeller({ ...SELLER, cpf: '52998224725', name: ' Maria de Souza Teste ' }), SELLER)
+  assert.equal(parseSeller(undefined), null)
+  for (const bad of [{ name: '' }, { cpf: '' }, { cpf: '529.982.247-24' }, { address: 'Rua A' }, { email: 'sem-arroba' }, { email: '' }]) {
+    assert.equal(parseSeller({ ...SELLER, ...bad }), null, JSON.stringify(bad))
+  }
+})
+
+test('/api/seller: 200 com os segredos SELLER_* completos; 503 se faltar algum campo ou o CPF for inválido', () => {
+  const env = { SELLER_NAME: SELLER.name, SELLER_CPF: '52998224725', SELLER_ADDRESS: SELLER.address, SELLER_EMAIL: SELLER.email }
+  assert.deepEqual(sellerResponse(env), { status: 200, body: { seller: SELLER } })
+  assert.equal(sellerResponse({}).status, 503)
+  assert.equal(sellerResponse({ ...env, SELLER_EMAIL: undefined }).status, 503)
+  assert.equal(sellerResponse({ ...env, SELLER_CPF: '11111111111' }).status, 503)
+  assert.equal((sellerResponse({}).body as { error: string }).error, 'seller_unavailable')
+})
+
+test('nenhum dado pessoal do fornecedor fica no código: o arquivo src/legal/seller.ts não existe mais (o repositório é público)', async () => {
+  const { existsSync } = await import('node:fs')
+  assert.ok(!existsSync(new URL('../src/legal/seller.ts', import.meta.url)))
 })
 
 test('os termos citam os mesmos preços, créditos e prazos do sistema (não desatualizam sozinhos)', () => {

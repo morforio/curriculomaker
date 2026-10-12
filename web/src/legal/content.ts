@@ -1,21 +1,26 @@
 import { FREE_CREDITS, FREE_DAYS, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../lib/plans.ts'
-import { LEGAL_UPDATED, SELLER } from './seller.ts'
+import type { Seller } from '../lib/seller.ts'
 
 /**
  * Textos dos Termos de uso e da Política de privacidade (só em português do Brasil).
  * Valores (preço, créditos, prazos) vêm das mesmas constantes que o resto do sistema usa (src/lib/plans.ts): o texto não desatualiza sozinho.
  * Se um fornecedor de serviço novo passar a receber dados do usuário, ele precisa entrar na seção 4 da Política.
+ * Os dados do fornecedor (nome, CPF, endereço e e-mail) NÃO ficam no código: o Worker os serve em /api/seller, lendo-os dos segredos
+ * SELLER_* da Cloudflare (worker/seller.ts). Por isso os textos são funções que recebem o fornecedor.
  */
+export const LEGAL_UPDATED = '12 de outubro de 2026'
+export const TERMS_TITLE = 'Termos de uso'
+export const PRIVACY_TITLE = 'Política de privacidade'
+
 export type Block = string | { list: string[] }
 export type LegalSection = { title: string; blocks: Block[] }
 export type LegalDoc = { title: string; updated: string; intro: string[]; sections: LegalSection[] }
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const need = (v: string) => v.trim() || '[A PREENCHER]'
-const identity = `${SELLER.name}, CPF ${need(SELLER.cpf)}, com endereço em ${need(SELLER.address)}, e-mail de contato ${need(SELLER.email)}`
+const identityOf = (seller: Seller) => `${seller.name}, CPF ${seller.cpf}, com endereço em ${seller.address}, e-mail de contato ${seller.email}`
 
-export const TERMS: LegalDoc = {
-  title: 'Termos de uso',
+export const buildTerms = (seller: Seller): LegalDoc => ({
+  title: TERMS_TITLE,
   updated: LEGAL_UPDATED,
   intro: [
     'Estes termos explicam como funciona o CurriMaker, o que você pode esperar dele e o que é de responsabilidade de cada parte. Ao criar uma conta ou contratar um plano, você concorda com eles. Se não concordar, não use o serviço.',
@@ -24,7 +29,7 @@ export const TERMS: LegalDoc = {
     {
       title: 'Quem oferece o serviço',
       blocks: [
-        `O CurriMaker é oferecido por ${identity} (“nós”). Estes são os dados do fornecedor exigidos pela legislação do comércio eletrônico. É por esse e-mail que você fala conosco sobre qualquer assunto destes termos.`,
+        `O CurriMaker é oferecido por ${identityOf(seller)} (“nós”). Estes são os dados do fornecedor exigidos pela legislação do comércio eletrônico. É por esse e-mail que você fala conosco sobre qualquer assunto destes termos.`,
       ],
     },
     {
@@ -79,7 +84,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         `Quem contrata pela internet pode desistir em até 7 dias corridos a contar da primeira contratação do plano Pro (art. 49 do Código de Defesa do Consumidor). Nesse prazo devolvemos o valor integral pago, sem perguntas e sem desconto, pelo mesmo meio de pagamento, em até 10 dias úteis após o seu pedido. O prazo para o valor aparecer na fatura do cartão depende da operadora.`,
         'Também devolvemos o valor de cobrança indevida ou duplicada. Se uma falha nossa o impedir de usar o plano por um período relevante, analisamos o caso e oferecemos reembolso proporcional ou crédito.',
-        `Para pedir reembolso, escreva para ${need(SELLER.email)} com o e-mail da sua conta e a data do pagamento. O reembolso encerra o plano Pro.`,
+        `Para pedir reembolso, escreva para ${seller.email} com o e-mail da sua conta e a data do pagamento. O reembolso encerra o plano Pro.`,
         'Fora desses casos, o cancelamento vale para as próximas cobranças e não gera reembolso do período já iniciado.',
       ],
     },
@@ -139,14 +144,14 @@ export const TERMS: LegalDoc = {
       title: 'Lei aplicável e contato',
       blocks: [
         'Estes termos seguem a lei brasileira. Fica eleito o foro do domicílio do consumidor para resolver qualquer conflito.',
-        `Dúvidas, reclamações, pedidos de reembolso ou de exclusão de conta: ${need(SELLER.email)}.`,
+        `Dúvidas, reclamações, pedidos de reembolso ou de exclusão de conta: ${seller.email}.`,
       ],
     },
   ],
-}
+})
 
-export const PRIVACY: LegalDoc = {
-  title: 'Política de privacidade',
+export const buildPrivacy = (seller: Seller): LegalDoc => ({
+  title: PRIVACY_TITLE,
   updated: LEGAL_UPDATED,
   intro: [
     'Esta política explica quais dados pessoais o CurriMaker trata, para quê, com quem compartilha e quais são os seus direitos, conforme a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).',
@@ -155,7 +160,7 @@ export const PRIVACY: LegalDoc = {
     {
       title: 'Quem é o responsável pelos dados',
       blocks: [
-        `O responsável (controlador) é ${identity}. É por esse e-mail que você exerce os seus direitos e tira dúvidas sobre privacidade. Esse também é o canal do encarregado pelo tratamento de dados.`,
+        `O responsável (controlador) é ${identityOf(seller)}. É por esse e-mail que você exerce os seus direitos e tira dúvidas sobre privacidade. Esse também é o canal do encarregado pelo tratamento de dados.`,
       ],
     },
     {
@@ -264,8 +269,8 @@ export const PRIVACY: LegalDoc = {
       title: 'Alterações e contato',
       blocks: [
         'Podemos atualizar esta política. A data da última atualização aparece no topo, e mudanças relevantes serão avisadas no site ou por e-mail.',
-        `Contato sobre privacidade: ${need(SELLER.email)}.`,
+        `Contato sobre privacidade: ${seller.email}.`,
       ],
     },
   ],
-}
+})

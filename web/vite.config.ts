@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { handleAnalyze } from './worker/analyze.ts'
+import { sellerResponse } from './worker/seller.ts'
 import { handleTranslate } from './worker/translate.ts'
 
 /**
@@ -19,6 +20,13 @@ function apiDev(env: Record<string, string>): Plugin {
         const on = Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY)
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify(on ? { supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY, ...(env.TURNSTILE_SITE_KEY ? { turnstileSiteKey: env.TURNSTILE_SITE_KEY } : {}) } : {}))
+      })
+      // Dados do fornecedor (SELLER_* do .env local) para as páginas /termos e /privacidade.
+      server.middlewares.use('/api/seller', (_req, res) => {
+        const { status, body } = sellerResponse({ SELLER_NAME: env.SELLER_NAME, SELLER_CPF: env.SELLER_CPF, SELLER_ADDRESS: env.SELLER_ADDRESS, SELLER_EMAIL: env.SELLER_EMAIL })
+        res.statusCode = status
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify(body))
       })
       for (const [name, handle] of Object.entries(handlers)) {
         server.middlewares.use(`/api/${name}`, async (req, res) => {
