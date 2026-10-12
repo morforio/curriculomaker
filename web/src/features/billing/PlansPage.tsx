@@ -1,9 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatDate } from '../../lib/credits'
-import { setLang } from '../../lib/i18n'
 import { formatCpf, FREE_CREDITS, FREE_DAYS, isValidCpf, PRO_CREDITS, PRO_PRICE_BRL } from '../../lib/plans'
-import { useResumeStore } from '../../store/resumeStore'
 import { AccountBar } from '../auth/AccountBar'
 import { useCreditsStore } from '../credits/creditsStore'
 import { ApiError } from '../job-match/api'
@@ -15,9 +13,13 @@ const GOLD = '#d4af37'
 const bullet = 'flex gap-2 text-sm text-gray-700 before:text-blue-300 before:content-["✔"]'
 const input = 'w-full rounded border border-gray-300 bg-white/5 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
 
-/** Página /planos: compara o plano gratuito com o pro e leva ao pagamento (fatura do Asaas). */
+/**
+ * Página /planos: compara o plano gratuito com o pro e leva ao pagamento (fatura do Asaas).
+ * Só em português (pt-BR): a aba de inglês do currículo serve para traduzir o conteúdo do currículo, não a interface de venda.
+ */
 export function PlansPage() {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
+  const t = useMemo(() => i18n.getFixedT('pt'), [i18n])
   const account = useCreditsStore((s) => s.account)
   const [formOpen, setFormOpen] = useState(false)
   const [name, setName] = useState('')
@@ -26,14 +28,17 @@ export function PlansPage() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
 
-  // Esta página fica fora do editor: usa o idioma da última aba aberta. (O saldo é lido pelo AccountBar, ao abrir e ao voltar do pagamento.)
-  useEffect(() => setLang(useResumeStore.getState().lang), [])
+  // O resto da tela (menu da conta) também fica em português aqui; o editor volta ao idioma da aba ao abrir. O saldo é lido pelo AccountBar.
+  useEffect(() => {
+    void i18n.changeLanguage('pt')
+    document.documentElement.lang = 'pt-BR'
+  }, [i18n])
   useEffect(() => {
     document.title = `${t('app.name')} - ${t('plans.title')}`
-  }, [t, i18n.language])
+  }, [t])
 
   const paid = account?.paid === true
-  const price = PRO_PRICE_BRL.toLocaleString(i18n.language, { style: 'currency', currency: 'BRL' })
+  const price = PRO_PRICE_BRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
   async function subscribe(e: FormEvent) {
     e.preventDefault()
@@ -55,7 +60,7 @@ export function PlansPage() {
     setBusy(true)
     try {
       await cancelSubscription()
-      setInfo(t('plans.canceled', { date: account?.paid_until ? formatDate(account.paid_until, i18n.language) : '' }))
+      setInfo(t('plans.canceled', { date: account?.paid_until ? formatDate(account.paid_until, 'pt-BR') : '' }))
     } catch (err) {
       setError(t(`plans.err.${err instanceof ApiError ? err.code : 'network'}`, { defaultValue: t('plans.err.payment_unavailable') }))
     } finally {
@@ -83,7 +88,7 @@ export function PlansPage() {
             </h2>
             {account && !paid && <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">{t('plans.current')}</span>}
           </div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{(0).toLocaleString(i18n.language, { style: 'currency', currency: 'BRL' })}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{(0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
           <ul className="mt-4 space-y-2">
             <li className={bullet}>{t('plans.free.credits', { count: FREE_CREDITS, days: FREE_DAYS })}</li>
             <li className={bullet}>{t('plans.free.cost')}</li>
@@ -115,7 +120,7 @@ export function PlansPage() {
           <div className="mt-5">
             {paid ? (
               <div className="space-y-2">
-                {account?.paid_until && <p className="text-sm text-gray-700">{t('plans.activeUntil', { date: formatDate(account.paid_until, i18n.language) })}</p>}
+                {account?.paid_until && <p className="text-sm text-gray-700">{t('plans.activeUntil', { date: formatDate(account.paid_until, 'pt-BR') })}</p>}
                 <button type="button" disabled={busy} onClick={() => void cancel()} className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-white/10 disabled:opacity-50">
                   {t('plans.cancelButton')}
                 </button>
