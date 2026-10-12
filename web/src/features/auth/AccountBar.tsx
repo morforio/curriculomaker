@@ -53,7 +53,8 @@ export function AccountBar() {
 
   const label = sync === 'saving' ? t('sync.saving') : sync === 'saved' ? t('sync.saved') : sync === 'saveError' ? t('sync.saveError') : ''
   return (
-    <div ref={box} className="relative flex items-center gap-2">
+    <div ref={box} className="relative flex flex-col items-stretch gap-1.5">
+      <div className="flex items-center justify-end gap-2">
       {label && (
         <span role="status" className={`hidden text-xs sm:inline ${sync === 'saveError' ? 'text-red-700' : 'text-gray-400'}`}>
           {label}
@@ -81,6 +82,7 @@ export function AccountBar() {
           </span>
         )}
       </div>
+      </div>
       {open && (
         <div role="menu" className="absolute right-0 top-10 z-30 w-64 glass-strong rounded-lg border border-gray-200 p-2 shadow-lg">
           <p className="px-2 pt-1 text-xs text-gray-500">{t('auth.signedInAs')}</p>
@@ -96,9 +98,6 @@ export function AccountBar() {
               {account.locked && <p className="mt-1 text-red-700">{t('credits.locked')}</p>}
             </div>
           )}
-          <a role="menuitem" href="/planos" className="block w-full rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100">
-            {t('plans.menu', { lng: 'pt' })}
-          </a>
           <button
             type="button"
             role="menuitem"
@@ -111,6 +110,14 @@ export function AccountBar() {
             {t('auth.signOut')}
           </button>
         </div>
+      )}
+      {window.location.pathname !== '/planos' && (
+        <a
+          href="/planos"
+          className="block whitespace-nowrap rounded-md bg-[#d4af37] px-3 py-1 text-center text-xs font-bold text-[#1a1405] shadow-sm hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
+        >
+          {t('plans.menu', { lng: 'pt' })}
+        </a>
       )}
     </div>
   )
