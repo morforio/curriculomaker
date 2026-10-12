@@ -7,12 +7,12 @@ import { Turnstile, type TurnstileHandle } from './Turnstile'
 /** Tela de entrada (e-mail e senha). O mesmo formulário cria a conta. */
 export function LoginScreen() {
   const { t } = useTranslation()
-  const { signIn, signUp } = useAuthStore()
-  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn')
+  const { signIn, signUp, requestPasswordReset, linkError } = useAuthStore()
+  const [mode, setMode] = useState<'signIn' | 'signUp' | 'forgot'>('signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => (linkError ? t('auth.err.linkInvalid') : null))
   const [notice, setNotice] = useState<string | null>(null)
   // Captcha (Turnstile): só aparece se a chave do site estiver configurada. Cada código vale para uma única tentativa.
   const siteKey = getTurnstileSiteKey()
@@ -26,6 +26,14 @@ export function LoginScreen() {
     setError(null)
     setNotice(null)
     const token = captcha ?? undefined
+    if (mode === 'forgot') {
+      const failed = await requestPasswordReset(email.trim(), token)
+      widget.current?.reset()
+      setBusy(false)
+      if (failed) setError(t(`auth.err.${failed}`))
+      else setNotice(t('auth.resetSent'))
+      return
+    }
     const result = mode === 'signIn' ? await signIn(email.trim(), password, token) : await signUp(email.trim(), password, token)
     widget.current?.reset()
     setBusy(false)
@@ -42,13 +50,14 @@ export function LoginScreen() {
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm glass space-y-4 rounded-lg border border-gray-200 p-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
-          <p className="mt-1 text-sm text-gray-600">{mode === 'signIn' ? t('auth.signInIntro') : t('auth.signUpIntro')}</p>
+          <p className="mt-1 text-sm text-gray-600">{mode === 'signIn' ? t('auth.signInIntro') : mode === 'signUp' ? t('auth.signUpIntro') : t('auth.forgotIntro')}</p>
         </div>
 
         <label className="block">
           <span className="mb-0.5 block text-xs font-medium text-gray-600">{t('auth.email')}</span>
           <input className={input} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
+        {mode !== 'forgot' && (
         <label className="block">
           <span className="mb-0.5 block text-xs font-medium text-gray-600">{t('auth.password')}</span>
           <input
@@ -61,7 +70,21 @@ export function LoginScreen() {
             onChange={(e) => setPassword(e.target.value)}
           />
           {mode === 'signUp' && <span className="mt-0.5 block text-xs text-gray-500">{t('auth.passwordHint')}</span>}
+          {mode === 'signIn' && (
+            <button
+              type="button"
+              className="mt-1 text-xs text-blue-300 hover:underline"
+              onClick={() => {
+                setMode('forgot')
+                setError(null)
+                setNotice(null)
+              }}
+            >
+              {t('auth.forgot')}
+            </button>
+          )}
         </label>
+        )}
 
         {error && (
           <p role="alert" className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
@@ -81,7 +104,7 @@ export function LoginScreen() {
           disabled={busy || (Boolean(siteKey) && !captcha)}
           className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
-          {busy ? t('auth.wait') : mode === 'signIn' ? t('auth.signIn') : t('auth.signUp')}
+          {busy ? t('auth.wait') : mode === 'signIn' ? t('auth.signIn') : mode === 'signUp' ? t('auth.signUp') : t('auth.sendLink')}
         </button>
 
         <button
@@ -93,7 +116,7 @@ export function LoginScreen() {
             setNotice(null)
           }}
         >
-          {mode === 'signIn' ? t('auth.toSignUp') : t('auth.toSignIn')}
+          {mode === 'signIn' ? t('auth.toSignUp') : mode === 'signUp' ? t('auth.toSignIn') : t('auth.backToSignIn')}
         </button>
       </form>
     </div>
