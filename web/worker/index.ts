@@ -32,13 +32,10 @@ interface Env {
   SUPABASE_SERVICE_KEY?: string
   /** Público: chave do SITE do captcha (Turnstile). A chave secreta fica só no painel do Supabase. */
   TURNSTILE_SITE_KEY?: string
-  /** Pagamento (Asaas): ASAAS_API_KEY e ASAAS_WEBHOOK_TOKEN são secrets; ASAAS_ENV é público ("production" ou, por padrão, o teste). */
+  /** Pagamento (Asaas): ASAAS_API_KEY e ASAAS_WEBHOOK_TOKEN são secrets. A chave de teste ($aact_hmlg_...) usa a conta de teste; a de produção, a real. */
   ASAAS_API_KEY?: string
   ASAAS_WEBHOOK_TOKEN?: string
-  ASAAS_ENV?: string
   ASAAS_BASE_URL?: string
-  /** Secret (opcional): e-mail que paga o preço de teste do plano pro. Remover depois de testar. */
-  BILLING_TEST_EMAIL?: string
   RATE_PER_IP_HOUR?: string
   DAILY_CAP?: string
   TRANSLATE_PER_IP_HOUR?: string

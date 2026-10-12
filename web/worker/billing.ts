@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidCpf, onlyDigits, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL, PRO_TEST_PRICE_BRL } from '../src/lib/plans.ts'
+import { isValidCpf, onlyDigits, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../src/lib/plans.ts'
 import { rpc, type CreditEnv } from './credits.ts'
 import { bodyTooLarge } from './security.ts'
 
@@ -16,10 +16,6 @@ export type BillingEnv = CreditEnv & {
   ASAAS_API_KEY?: string
   /** Secret: senha que o Asaas envia no cabeçalho asaas-access-token do aviso de pagamento (32 a 255 caracteres, sem espaços). */
   ASAAS_WEBHOOK_TOKEN?: string
-  /** Secret (opcional): e-mail da pessoa que testa o pagamento. Só ela paga o preço de teste (R$ 5,00); os demais pagam o preço normal. Sem ele, não existe preço de teste. */
-  BILLING_TEST_EMAIL?: string
-  /** "production" usa a conta real; qualquer outro valor (ou vazio) usa a de teste (sandbox). */
-  ASAAS_ENV?: string
   /** Só para testes locais: endereço alternativo da API do Asaas. */
   ASAAS_BASE_URL?: string
 }
@@ -48,10 +44,14 @@ function fail(status: number, error: BillingErrorCode, message: string): Respons
 
 const unavailable = () => fail(503, 'payment_unavailable', 'O pagamento não está disponível agora. Tente de novo em instantes.')
 
+/** Chaves de API do Asaas começam com $aact_hmlg_ (conta de teste, sandbox) ou $aact_prod_ (conta real). */
+const SANDBOX_KEY_PREFIX = '$aact_hmlg_'
+
+/** A conta (teste ou real) é a da própria chave: não há variável para errar. Misturar chave e endereço dá erro 401 no Asaas. */
 function baseUrl(env: BillingEnv): string {
   const override = env.ASAAS_BASE_URL?.trim().replace(/\/+$/, '')
   if (override) return override
-  return env.ASAAS_ENV?.trim().toLowerCase() === 'production' ? PRODUCTION_URL : SANDBOX_URL
+  return env.ASAAS_API_KEY?.trim().startsWith(SANDBOX_KEY_PREFIX) ? SANDBOX_URL : PRODUCTION_URL
 }
 
 /** Chamada à API do Asaas. Falhas de rede e erros 5xx viram PaymentUnavailable; 4xx viram AsaasRejected (o pedido foi recusado). */
@@ -96,12 +96,6 @@ async function openInvoiceUrl(env: BillingEnv, subscriptionId: string, attempts:
     if (i < attempts - 1) await sleep(1000) // a primeira cobrança pode levar um instante para existir
   }
   return null
-}
-
-/** Preço da assinatura: o de teste só para o e-mail de teste (se configurado); o normal para todo mundo. */
-export function priceFor(env: BillingEnv, email: string | null): number {
-  const tester = env.BILLING_TEST_EMAIL?.trim().toLowerCase()
-  return tester && email && email.trim().toLowerCase() === tester ? PRO_TEST_PRICE_BRL : PRO_PRICE_BRL
 }
 
 const checkoutSchema = z.object({ name: z.string().trim().min(3).max(120), cpf: z.string().max(20) })
@@ -154,7 +148,7 @@ export async function handleCheckout(request: Request, { env, userId, email }: C
     const subscription = await asaas<{ id: string }>(env, 'POST', '/subscriptions', {
       customer: billing.customer_id,
       billingType: 'UNDEFINED', // a pessoa escolhe Pix, cartão ou boleto na fatura
-      value: priceFor(env, email),
+      value: PRO_PRICE_BRL,
       nextDueDate: new Date().toISOString().slice(0, 10),
       cycle: 'MONTHLY',
       description: `CurriMaker: plano pro (${PRO_CREDITS} créditos por mês)`,

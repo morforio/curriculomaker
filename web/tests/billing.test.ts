@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { formatCpf, isValidCpf, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL, PRO_TEST_PRICE_BRL } from '../src/lib/plans.ts'
-import { handleCancel, handleCheckout, handleWebhook, priceFor, type BillingEnv } from '../worker/billing.ts'
+import { formatCpf, isValidCpf, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../src/lib/plans.ts'
+import { handleCancel, handleCheckout, handleWebhook, type BillingEnv } from '../worker/billing.ts'
 
 /** Pagamento do plano pro (worker/billing.ts), com o Asaas e o banco simulados. */
 
@@ -13,7 +13,7 @@ const env: BillingEnv = {
 }
 const CPF = '529.982.247-25'
 
-type Call = { kind: 'rpc' | 'asaas'; name: string; method: string; body: Record<string, unknown> | null; headers: Record<string, string> }
+type Call = { kind: 'rpc' | 'asaas'; url: string; name: string; method: string; body: Record<string, unknown> | null; headers: Record<string, string> }
 
 /**
  * Mundo simulado: o banco (funções rpc) e o Asaas. `db` e `asaas` recebem o pedido e devolvem o corpo (ou uma Response pronta).
@@ -29,15 +29,15 @@ function world(handlers: { db?: Record<string, (body: Record<string, unknown>) =
     const headers = (init?.headers ?? {}) as Record<string, string>
     const rpcName = u.match(/\/rest\/v1\/rpc\/(\w+)$/)?.[1]
     if (rpcName) {
-      calls.push({ kind: 'rpc', name: rpcName, method, body, headers })
+      calls.push({ kind: 'rpc', url: u, name: rpcName, method, body, headers })
       const h = handlers.db?.[rpcName]
       if (!h) return new Response('null', { status: 200 })
       const out = h(body ?? {})
       return out instanceof Response ? out : new Response(JSON.stringify(out), { status: 200 })
     }
-    const path = u.replace(/^https:\/\/api-sandbox\.asaas\.com\/v3/, '')
+    const path = u.replace(/^https:\/\/api(-sandbox)?\.asaas\.com\/v3/, '')
     const key = `${method} ${path.replace(/\/(cus|sub)_\w+/g, '/$1_X')}`
-    calls.push({ kind: 'asaas', name: key, method, body, headers })
+    calls.push({ kind: 'asaas', url: u, name: key, method, body, headers })
     const h = handlers.asaas?.[key]
     if (!h) throw new Error(`Asaas simulado sem resposta para ${key}`)
     const out = h(body)
@@ -413,32 +413,29 @@ test('aviso: se o banco falhar, responde 500 (o Asaas tenta de novo); aviso fora
   }
 })
 
-// ---------------------------------------------------------------- plano fantasma (preço de teste só para um e-mail)
+// ---------------------------------------------------------------- conta de teste x conta real (escolhida pela chave)
 
-test('preço de teste: só o e-mail configurado paga R$ 5,00 (sem diferenciar maiúsculas); todos os outros pagam o preço normal', () => {
-  const e = { ...env, BILLING_TEST_EMAIL: ' Eu@Exemplo.com ' }
-  assert.equal(priceFor(e, 'eu@exemplo.com'), PRO_TEST_PRICE_BRL)
-  assert.equal(priceFor(e, 'EU@EXEMPLO.COM'), PRO_TEST_PRICE_BRL)
-  assert.equal(priceFor(e, 'outra@exemplo.com'), PRO_PRICE_BRL)
-  assert.equal(priceFor(e, null), PRO_PRICE_BRL)
-})
-
-test('preço de teste: sem BILLING_TEST_EMAIL (ou vazio), o preço de teste não existe para ninguém', () => {
-  assert.equal(priceFor(env, 'eu@exemplo.com'), PRO_PRICE_BRL)
-  assert.equal(priceFor({ ...env, BILLING_TEST_EMAIL: '' }, ''), PRO_PRICE_BRL)
-  assert.equal(priceFor({ ...env, BILLING_TEST_EMAIL: '   ' }, '   '), PRO_PRICE_BRL)
-})
-
-test('preço de teste: o checkout do e-mail de teste cria a assinatura de R$ 5,00; o de outro e-mail, a de R$ 39,90', async () => {
-  const run = async (email: string) => {
+test('a conta é escolhida pela chave: $aact_hmlg_ usa o sandbox (teste); $aact_prod_ e qualquer outra, a conta real', async () => {
+  const urlFor = async (key: string) => {
     const w = newCustomerWorld()
     try {
-      await handleCheckout(post('/api/checkout', { name: 'Maria Silva', cpf: CPF }), { env: { ...env, BILLING_TEST_EMAIL: 'eu@exemplo.com' }, userId: 'user-1', email })
-      return w.calls.find((c) => c.name === 'POST /subscriptions')?.body?.value
+      await handleCheckout(post('/api/checkout', { name: 'Maria Silva', cpf: CPF }), { env: { ...env, ASAAS_API_KEY: key }, userId: 'user-1', email: 'maria@x.com' })
+      return w.calls.find((c) => c.name === 'POST /customers')?.url
     } finally {
       w.restore()
     }
   }
-  assert.equal(await run('eu@exemplo.com'), 5)
-  assert.equal(await run('maria@x.com'), 39.9)
+  assert.equal(await urlFor('$aact_hmlg_abc123'), 'https://api-sandbox.asaas.com/v3/customers')
+  assert.equal(await urlFor('$aact_prod_abc123'), 'https://api.asaas.com/v3/customers')
+  assert.equal(await urlFor('qualquer-outra-coisa'), 'https://api.asaas.com/v3/customers')
+})
+
+test('o preço do plano pro é o mesmo para todo mundo (não existe preço especial por e-mail)', async () => {
+  const w = newCustomerWorld()
+  try {
+    await handleCheckout(post('/api/checkout', { name: 'Maria Silva', cpf: CPF }), { env, userId: 'user-1', email: 'qualquer@x.com' })
+    assert.equal(w.calls.find((c) => c.name === 'POST /subscriptions')?.body?.value, PRO_PRICE_BRL)
+  } finally {
+    w.restore()
+  }
 })
