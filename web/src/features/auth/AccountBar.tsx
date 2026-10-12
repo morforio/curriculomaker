@@ -97,7 +97,7 @@ export function AccountBar() {
             </div>
           )}
           <a role="menuitem" href="/planos" className="block w-full rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100">
-            {t('plans.menu')}
+            {t('plans.menu', { lng: 'pt' })}
           </a>
           <button
             type="button"
