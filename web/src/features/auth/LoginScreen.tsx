@@ -118,6 +118,19 @@ export function LoginScreen() {
         >
           {mode === 'signIn' ? t('auth.toSignUp') : mode === 'signUp' ? t('auth.toSignIn') : t('auth.backToSignIn')}
         </button>
+
+        <p className="text-center text-xs text-gray-500">
+          {mode === 'signUp' && 'Ao criar a conta, você concorda com os '}
+          {mode !== 'signUp' && 'Veja os '}
+          <a href="/termos" target="_blank" rel="noopener" className="text-blue-300 hover:underline">
+            Termos de uso
+          </a>{' '}
+          e a{' '}
+          <a href="/privacidade" target="_blank" rel="noopener" className="text-blue-300 hover:underline">
+            Política de privacidade
+          </a>
+          .
+        </p>
       </form>
     </div>
   )
