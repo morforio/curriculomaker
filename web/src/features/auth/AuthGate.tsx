@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LoginScreen } from './LoginScreen'
+import { ResetPasswordScreen } from './ResetPasswordScreen'
 import { useAuthStore } from './authStore'
 
 function Centered({ children }: { children: ReactNode }) {
@@ -30,5 +31,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </Centered>
     )
   if (status === 'signedOut') return <LoginScreen />
+  if (status === 'recovery') return <ResetPasswordScreen />
   return <>{children}</>
 }
