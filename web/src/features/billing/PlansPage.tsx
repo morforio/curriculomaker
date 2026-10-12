@@ -24,6 +24,7 @@ export function PlansPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [name, setName] = useState('')
   const [cpf, setCpf] = useState('')
+  const [agreed, setAgreed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -45,6 +46,7 @@ export function PlansPage() {
     setError(null)
     if (name.trim().length < 3) return setError(t('plans.err.invalid_name'))
     if (!isValidCpf(cpf)) return setError(t('plans.err.invalid_cpf'))
+    if (!agreed) return setError('Marque que leu e concorda com os Termos de uso e a Política de privacidade.')
     setBusy(true)
     try {
       window.location.assign(await startCheckout(name.trim(), cpf)) // vai para a fatura do Asaas
@@ -140,7 +142,21 @@ export function PlansPage() {
                   <input className={input} inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" required value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} />
                 </label>
                 <p className="text-xs text-gray-500">{t('plans.form.privacy')}</p>
-                <button type="submit" disabled={busy} className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <label className="flex items-start gap-2 text-xs text-gray-600">
+                  <input type="checkbox" className="mt-0.5" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                  <span>
+                    Li e concordo com os{' '}
+                    <a href="/termos" target="_blank" rel="noopener" className="text-blue-300 hover:underline">
+                      Termos de uso
+                    </a>{' '}
+                    (incluindo o reembolso em até 7 dias) e a{' '}
+                    <a href="/privacidade" target="_blank" rel="noopener" className="text-blue-300 hover:underline">
+                      Política de privacidade
+                    </a>
+                    .
+                  </span>
+                </label>
+                <button type="submit" disabled={busy || !agreed} className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                   {busy ? t('plans.form.wait') : t('plans.form.submit')}
                 </button>
               </form>
@@ -160,6 +176,15 @@ export function PlansPage() {
       </div>
 
       <p className="mt-6 text-xs text-gray-500">{t('plans.afterPay')}</p>
+      <p className="mt-2 text-xs text-gray-500">
+        <a href="/termos" className="text-blue-300 hover:underline">
+          Termos de uso
+        </a>{' '}
+        ·{' '}
+        <a href="/privacidade" className="text-blue-300 hover:underline">
+          Política de privacidade
+        </a>
+      </p>
     </div>
   )
 }
