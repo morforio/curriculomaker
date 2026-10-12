@@ -7,11 +7,11 @@
 export const SELLER = {
   name: 'Lucas Teixeira de Andrade Morforio da Cruz',
   /** Só números ou com pontuação; o teste confere os dígitos verificadores. */
-  cpf: '',
+  cpf: '106.569.696-52',
   /** Endereço completo (rua, número, bairro, cidade, UF e CEP). */
-  address: '',
+  address: 'Rua Julio Silva, 121, apto 101, bairro Tupã, Visconde do Rio Branco - MG, CEP 36520-000',
   /** Caixa de e-mail que existe e é lida: é por ela que o cliente pede reembolso, exclusão de conta e atendimento. */
-  email: '',
+  email: 'lucasmorforio.niuai@gmail.com',
 }
 
 /** Data da última atualização dos textos legais. */
