@@ -10,7 +10,7 @@ Aplicação web (depois app) para criar um **currículo-base** e adaptá-lo a ca
 2. **Blocos reordenáveis**: cada seção (Introdução, Formação, Experiência…) é um bloco arrastável na vertical.
 3. **Adequação à vaga (LLM)**: o usuário cola a descrição da vaga e recebe (a) uma introdução ajustada de forma pontual e (b) uma tabela comparando habilidades exigidas × habilidades do usuário.
 
-Supabase guarda autenticação e os currículos de cada usuário.
+Supabase guarda autenticação, os currículos e o saldo de créditos de cada usuário. O uso da IA, da tradução e da exportação em PDF gasta **créditos**: a conta gratuita ganha alguns por mês e o **plano pro** (assinatura mensal paga pelo Asaas) traz mais (seção 4.4).
 
 ## 2. Stack
 
@@ -24,8 +24,11 @@ Supabase guarda autenticação e os currículos de cada usuário.
 | Idiomas (pt-BR/en) | react-i18next | Interface bilíngue; o idioma da interface segue a aba de idioma ativa do currículo (seção 5.4) |
 | Hospedagem | Cloudflare **Workers** (um só projeto: o site estático e a API em `/api/*`) | CDN global; já ligado ao repositório e ao domínio; o Worker é código sob demanda, sem servidor para cuidar |
 | Backend | Supabase (Auth, Postgres, Storage, Edge Functions) | Já decidido |
-| LLM | **Gemini 3.1 Flash-Lite** (API do Google AI Studio) por uma camada plugável, hoje num Worker da Cloudflare (Edge Function do Supabase quando houver login) | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front (seção 6.4) |
+| LLM | **gpt-oss-20b pela OpenRouter**, com o **gpt-oss-120b** de modelo reserva, por uma camada plugável num Worker da Cloudflare | Chave de API nunca vai ao navegador; troca de provedor sem mexer no front (seção 6.4) |
 | Conferência da introdução | **Jev** (TypeSafe), chamado pelo Worker | Mede se a sugestão inventa algo e se aborda a vaga (seção 6.6) |
+| Pagamento | **Asaas** (assinatura mensal: cartão, Pix ou boleto na página do próprio Asaas) | O cartão nunca passa pelo nosso servidor; o CPF não é guardado (seção 4.5) |
+| Captcha e e-mail | Turnstile (Cloudflare) no login; Resend como SMTP do Supabase | Barra robôs no cadastro; e-mails de confirmação e de nova senha |
+| Testes e CI | `node --test` (140 testes), oxlint, `tsc -b`, GitHub Actions | Roda a cada PR (seção 12) |
 | Leitura de PDF | `pdfjs-dist` no navegador, só extração de texto (sem LLM) | Grátis, não inventa conteúdo, não sobe o arquivo para servidor |
 | Exportar PDF | Impressão com CSS `@media print` na v1; `@react-pdf/renderer` se precisar de mais controle | Ver seção 8 (ATS) |
 
@@ -33,37 +36,40 @@ Supabase guarda autenticação e os currículos de cada usuário.
 
 ```
 ┌────────────────────────── Navegador (React) ──────────────────────────┐
-│  Editor de blocos ── Wizard de perguntas ── Import PDF ── Tela "Vaga" │
-│        │ (Zustand)                │ pdf.js extrai texto      │        │
-│        │                          │ e separa em blocos       │        │
-└────────┼──────────────────────────┼──────────────────────────┼────────┘
-         │ supabase-js (RLS)        │ (tudo local, sem LLM)    │ invoke()
-         ▼                                                     ▼
-┌──────────────── Supabase ───────────────────────────────────────────┐
-│ Auth │ Postgres (resumes, job_analyses) │ Edge Function:            │
-│                                          └ analyze-job              │
-│                                                   │                 │
-│                                          LLMProvider (interface)    │
-│                                          └ OpenAICompatibleProvider │
-│                                            (NVIDIA, Baseten, Groq…) │
-└─────────────────────────────────────────────────────────────────────┘
+│  Editor de blocos ── Import PDF ── Tela "Vaga" ── Planos ── Termos    │
+│        │ (Zustand)         │ pdf.js extrai texto        │              │
+└────────┼───────────────────┼────────────────────────────┼──────────────┘
+         │ supabase-js (RLS) │ (tudo local, sem LLM)      │ /api/*
+         ▼                                                ▼
+┌─── Supabase ────────────────────┐        ┌─── Worker da Cloudflare ────────────────┐
+│ Auth (e-mail+senha, captcha)    │◄───────┤ confere o login (token do usuário)      │
+│ Postgres, com RLS:              │ chave  │ cobra o crédito (spend_credit)          │
+│  resumes, credit_accounts,      │service │ chama o LLM (OpenRouter) e o Jev        │
+│  billing_customers,             │ _role  │ cria a assinatura no Asaas              │
+│  credit_payments                │        │ recebe o aviso de pagamento (webhook)   │
+└─────────────────────────────────┘        └───────┬─────────────────────────────────┘
+                                                   ▼
+                                  OpenRouter (LLM) · Jev (TypeSafe) · Asaas (pagamento)
 ```
 
 Regras:
-- O navegador **só** fala com o Supabase. Nunca com o provedor de LLM.
-- Edge Functions validam o JWT do usuário, aplicam limite de uso e só então chamam o LLM.
-- Provedor escolhido por variáveis de ambiente (`LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`) nos *secrets* da função. A chave de API fica só nos secrets (e num `.env` local que não vai para o Git).
+- O navegador fala com o **Supabase** (login e currículos, protegidos por RLS) e com o **Worker** (`/api/*`). Nunca com o provedor de LLM, com o Jev nem com o Asaas.
+- O Worker valida o login do usuário, cobra o crédito no banco e só então chama o LLM. A chave `service_role` do Supabase só existe no Worker.
+- Provedor do LLM escolhido por variáveis do Worker (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`). A chave de API fica só nos *secrets* da Cloudflare (e num `.env` local que não vai para o Git).
+- A API **falha fechada**: sem login configurado, sem chave do banco de créditos ou com o banco fora do ar, ela recusa em vez de liberar.
 
-**Situação atual (etapa 3, análise de vaga).** O login e o banco entram na fase 2 (seção 4.3); a análise continua num **Worker da Cloudflare**, no mesmo projeto e domínio do site, e não numa Edge Function. O desenho do diagrama acima continua valendo para quando o Supabase entrar; o código do LLM (`web/worker/`) é portável.
-- `web/worker/index.ts`: roteia `/api/analyze` e `/api/translate` e entrega o site (arquivos estáticos, modo SPA) para o resto.
-- `web/worker/analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; a introdução volta num só idioma, o da aba ativa; uma nova tentativa se a resposta vier fora do formato).
-- `web/worker/translate.ts`: tradução dos textos do currículo ao trocar de aba de idioma (seções 5.4 e 6.5). Usa os contadores do Durable Object em outra instância (`translate`), para traduzir não gastar as análises de vaga: 20 por hora por IP e 200 por dia (variáveis `TRANSLATE_PER_IP_HOUR` e `TRANSLATE_DAILY_CAP`).
-- `web/worker/verify.ts`, `jev.ts`, `text.ts`: conferência da introdução sugerida com o Jev (seção 6.6).
-- `web/worker/limiter.ts`: Durable Object (SQLite) com o limite por IP (20 por hora na fase de teste, IP guardado só como hash) e o teto diário total (200). Valores em `wrangler.jsonc` (`RATE_PER_IP_HOUR` e `DAILY_CAP`).
-- Segurança: só aceita pedidos do próprio site (cabeçalho `Origin`); o texto da vaga é tratado como dado; o currículo enviado não leva nome, e-mail, telefone nem links.
-- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (chave do Google AI Studio) e `TYPESAFE_API_KEY` (Jev). Variáveis em `wrangler.jsonc`: `LLM_BASE_URL` (`https://generativelanguage.googleapis.com/v1beta/openai/`), `LLM_MODEL` (`gemini-3.1-flash-lite`) e `LLM_REASONING_EFFORT` (`minimal`, o nível mais baixo de "pensamento" do Gemini 3.x). Se o provedor recusar o `reasoning_effort` (HTTP 400), o código repete a chamada sem ele. Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
-- **Logs**: o Workers Logs está ligado (bloco `observability` do `wrangler.jsonc`). Cada chamada ao LLM registra o tempo, o modelo e os tokens de entrada, de saída e de raciocínio; falhas registram a causa (tempo esgotado, rede ou HTTP). Horários no painel aparecem em BRT.
-- Em desenvolvimento (`npm run dev`), o Vite atende `/api/analyze` com o mesmo código, lendo `LLM_API_KEY` do `.env` local, sem limite de uso.
+**Situação atual.** Tudo roda num **Worker da Cloudflare**, no mesmo projeto e domínio do site (`web/worker/`). Só os caminhos `/api/*` passam pelo Worker; o resto é o site estático (modo SPA: `/planos`, `/termos` e `/privacidade` devolvem o mesmo `index.html`).
+- `index.ts`: roteador. Rotas: `/api/config`, `/api/analyze`, `/api/translate`, `/api/export`, `/api/checkout`, `/api/billing/cancel` e `/api/payment/webhook`.
+- `analyze.ts`, `prompt.ts`, `llm.ts`: validação, prompt, chamada OpenAI-compatível e regras do servidor (evidência de habilidade precisa existir no currículo; a introdução volta num só idioma, o da aba ativa; uma nova tentativa se a resposta vier fora do formato). O `llm.ts` usa o modelo reserva quando o principal recusa por excesso de demanda ou não responde, e volta ao principal depois de 60 s.
+- `translate.ts`: tradução dos textos do currículo (seções 5.4 e 6.5), com contadores próprios do Durable Object (instância `translate`): 20 por hora por usuário e 200 por dia (`TRANSLATE_PER_IP_HOUR`, `TRANSLATE_DAILY_CAP`).
+- `verify.ts`, `jev.ts`, `text.ts`: conferência da introdução sugerida com o Jev (seção 6.6).
+- `limiter.ts`: Durable Object (SQLite) com o limite de uso por usuário (20 por hora e teto diário total de 200, `RATE_PER_IP_HOUR` e `DAILY_CAP`; a chave é guardada só como hash) e o limite de 5 tentativas de pagamento por hora por usuário.
+- `auth.ts`: confere o token da sessão no Supabase (`/auth/v1/user`, só com a chave pública).
+- `credits.ts`: cobra e devolve créditos pelas funções SQL do banco (seção 4.4). `billing.ts`: assinatura, cancelamento e aviso de pagamento do Asaas (seção 4.5).
+- `security.ts` e `public/_headers`: cabeçalhos de segurança (HSTS, CSP sem `unsafe-inline` em scripts, `frame-ancestors 'none'` etc.). O site estático recebe os cabeçalhos do `_headers`, a API recebe os do Worker; o teste `tests/security.test.ts` confere que os dois são iguais.
+- Segredos no painel da Cloudflare, tipo "Segredo": `LLM_API_KEY` (OpenRouter), `TYPESAFE_API_KEY` (Jev), `SUPABASE_SERVICE_KEY` (créditos e pagamento), `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN`. Variáveis públicas em `wrangler.jsonc`: `LLM_BASE_URL` (`https://openrouter.ai/api/v1`), `LLM_MODEL` (`openai/gpt-oss-20b`), `LLM_FALLBACK_MODEL` (`openai/gpt-oss-120b`), `LLM_REASONING_EFFORT` (`low`), `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `TURNSTILE_SITE_KEY` (as três são públicas por desenho). Os padrões do código (NVIDIA e `openai/gpt-oss-120b`) só valem se as variáveis faltarem.
+- **Logs**: o Workers Logs está ligado (bloco `observability` do `wrangler.jsonc`). Cada chamada ao LLM registra o tempo, o modelo e os tokens; falhas registram a causa. Horários no painel aparecem em BRT.
+- Em desenvolvimento (`npm run dev`), o Vite atende a API com o mesmo código, lendo as chaves do `.env` local.
 
 ## 4. Modelo de dados
 
@@ -103,7 +109,8 @@ Blocos vindos da importação de PDF (seção 5.2) mantêm o tipo quando é Resu
 ### 4.2 Tabelas (SQL, com RLS)
 
 ```sql
--- Implementada em supabase/migrations/20261006000000_resumes.sql (resumo):
+-- Só `resumes` foi implementada (supabase/migrations/20261006000000_resumes.sql, resumo abaixo).
+-- `job_analyses` continua só no plano (fase 6: histórico de análises). Os créditos e o pagamento estão nas seções 4.4 e 4.5.
 create table public.resumes (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
@@ -134,14 +141,49 @@ create policy "own analyses" on public.job_analyses
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
 
-Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para limite diário (a cota por plano, gratuito ou pago, será definida depois).
+Também: gatilho `updated_at`. O limite de uso por plano não usa mais a tabela `llm_usage` do plano antigo: é o sistema de créditos da seção 4.4.
 
 ### 4.3 Login e sincronização (fase 2)
 - **Decisões (06/10):** login por **e-mail e senha** (Google fica para depois); **login obrigatório** para usar o site; no banco fica **só o currículo base**, um por idioma (histórico de análises e variantes por vaga ficam para a fase 6).
+- **Cadastro:** a confirmação de e-mail está ligada e o captcha **Turnstile** protege o login e o cadastro (chave do site no `wrangler.jsonc`; a chave secreta fica só no painel do Supabase). Os e-mails saem pelo SMTP do Supabase com o **Resend**. Os modelos de e-mail do Supabase ainda estão no texto padrão, em inglês.
+- **Esqueci minha senha:** link na tela de entrada; pede o e-mail e o captcha e manda o link de nova senha. A resposta é sempre a mesma, exista ou não a conta (não revela quem tem cadastro). O link abre a tela "Nova senha" (`ResetPasswordScreen`); link vencido mostra o erro e volta ao login.
 - **Banco:** `supabase/migrations/20261006000000_resumes.sql` (tabela `resumes` com uma linha por usuário e idioma, RLS por usuário, gatilho `updated_at`). Roda-se uma vez no SQL Editor do Supabase.
 - **Configuração pública:** `SUPABASE_URL` e `SUPABASE_ANON_KEY` ficam em `wrangler.jsonc` (a chave "anon" é pública por desenho; quem protege os dados é o RLS). O Worker as serve em `/api/config` e o site cria o cliente com elas. **Sem elas, o site abre sem login.** A chave `service_role`, a chave "secret" e a senha do banco nunca entram no site nem no repositório.
 - **Entrada:** `AuthGate` mostra a tela de e-mail e senha. Ao entrar, o currículo da conta carrega antes de aparecer; conta sem currículo começa em branco, e o que havia no navegador é sempre descartado (a conta é a fonte da verdade e nenhum dado passa de uma conta para outra). Salva sozinho 1 s depois da última alteração e ao esconder a aba, e mostra "Salvando…/Salvo". Ao sair, grava o que estava pendente e limpa o currículo do navegador.
-- **API protegida:** com o login configurado, `/api/analyze` e `/api/translate` exigem o token da sessão (o Worker confere com o Supabase em `/auth/v1/user`, só com a chave pública) e o limite de uso passa a ser **por usuário**, não por IP.
+- **API protegida:** com o login configurado, `/api/analyze`, `/api/translate`, `/api/export`, `/api/checkout` e `/api/billing/cancel` exigem o token da sessão (o Worker confere com o Supabase em `/auth/v1/user`, só com a chave pública) e o limite de uso passa a ser **por usuário**, não por IP.
+
+### 4.4 Créditos e planos
+Valores em `web/src/lib/plans.ts` (usados pelo site e pelo Worker, para nunca divergirem). Banco: `supabase/migrations/20261008000000_credits.sql`, tabela `credit_accounts` fechada ao público (RLS sem política): só o Worker, com a `service_role`, mexe no saldo, pelas funções SQL `spend_credit` e `refund_credit`; o site só lê o próprio saldo por `get_my_account()`.
+
+| | Gratuito | Pro |
+|---|---|---|
+| Preço | R$ 0 | **R$ 39,90 por mês** (`PRO_PRICE_BRL`) |
+| Créditos | **5**, válidos por **30 dias** (`FREE_CREDITS`, `FREE_DAYS`) | **60** por pagamento (`PRO_CREDITS`); substituem o saldo, não somam |
+| Acesso | enquanto houver crédito válido | **31 dias** por pagamento (`PRO_ACCESS_DAYS`; o dia a mais dá folga para o pagamento seguinte) |
+| Análise com IA e tradução | 1 crédito cada | 1 crédito cada |
+| Exportar PDF | 1 crédito | **não gasta crédito** |
+
+- **Conta travada** = não paga e sem crédito válido. A API devolve 402 (`no_credits`). Se o serviço falhar (IA fora do ar etc.), o crédito é **devolvido** (`refund_credit`).
+- **No site** (`features/credits/`): o contador de créditos fica em cima do avatar; o aviso da conta travada (3 linhas, com link "plano pro" para `/planos`) aparece no editor. Com a conta travada ficam bloqueados: reordenar ou apagar blocos, adicionar bloco, importar PDF, trocar de aba de idioma, Traduzir, a análise com IA e o Exportar. Seguem livres: editar texto, adicionar e remover linhas, tamanho da fonte e "Limpar tudo".
+- **Exportar e Ctrl+P:** o botão Exportar chama `/api/export` e só imprime se a resposta for 200 (gasta 1 crédito no plano gratuito). O Ctrl+P e o menu Imprimir do navegador seguem a mesma regra: na conta paga imprimem; na gratuita cobram 1 crédito; com a conta travada ou o estado desconhecido, a página sai **borrada** (`html.print-blur`), e o PDF não tem texto extraível (verificado com Edge e pdf.js: 0 caracteres).
+- **Botão "Planos"** dourado, sempre à vista sob o "Salvo" e o avatar (some na própria página de planos).
+
+### 4.5 Pagamento (Asaas)
+Banco: `supabase/migrations/20261012000000_billing.sql` (tabelas `billing_customers` e `credit_payments`, também fechadas ao público, e as funções `grant_paid_plan`, `revoke_paid_plan`, `billing_*`). Código: `web/worker/billing.ts`, `web/src/features/billing/` (`PlansPage.tsx`, `api.ts`).
+- **Página `/planos`** só em português (os usuários são brasileiros). Pede nome e CPF, exige marcar "Li e concordo com os Termos de uso (incluindo o reembolso em até 7 dias) e a Política de privacidade" e leva o cliente à página de pagamento do Asaas. O card do Pro tem borda dourada e o selo "Melhor custo-benefício".
+- **Fluxo:** `/api/checkout` cria o cliente no Asaas (nome, CPF, `externalReference` = id do usuário) e uma assinatura mensal (`billingType: UNDEFINED`, o cliente escolhe cartão, Pix ou boleto lá) e devolve o link da primeira cobrança. Limite de 5 tentativas por hora por usuário. `/api/billing/cancel` cancela a assinatura.
+- **Aviso de pagamento** (`/api/payment/webhook`, versão v3 da API, envio sequencial): autenticado pelo cabeçalho `asaas-access-token` (comparação em tempo constante com `ASAAS_WEBHOOK_TOKEN`). `PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED` liberam o plano **uma vez por id de pagamento** (idempotente); `PAYMENT_REFUNDED` e `CHARGEBACK_REQUESTED` revogam o plano, a não ser que exista um pagamento mais novo válido.
+- **Ambiente escolhido pela chave:** chave de teste (`$aact_hmlg_...`) usa a conta de teste (sandbox, `api-sandbox.asaas.com`); chave de produção (`$aact_prod_...`) usa a conta real (`api.asaas.com`). Validado na conta de teste (23 testes com Asaas simulado, 10 cenários de SQL e teste manual ponta a ponta).
+- **Dados sensíveis:** o **CPF não é guardado** por nós (vai direto ao Asaas) e o **cartão nunca passa** pelo nosso servidor.
+- **Pix Automático** exige conta de pessoa jurídica (CNPJ com 6 meses ou mais); como pessoa física não existe. A cobrança recorrente funciona com os boletos/Pix/cartão da assinatura normal. Alternativa pesquisada: **Appmax** (taxas menores), adiada.
+- **Responsabilidade:** o Asaas mostra ao pagador o nome e o CPF do vendedor (você). Os termos do Asaas tratam o vendedor como responsável pelo serviço, permitem reter valores por até 120 dias em disputa e bloquear a conta por suspeita ou chargeback acima de 1%. Por isso a política de reembolso (seção 4.6) é clara e o atendimento precisa responder rápido.
+
+### 4.6 Termos de uso, privacidade e reembolso
+Páginas `/termos` e `/privacidade` (`web/src/legal/`), **abertas sem login** e só em português, com link na tela de entrada e na página de planos; criar conta e assinar exigem concordância. Os textos usam as mesmas constantes de `plans.ts`, então preço, créditos e prazos não desatualizam sozinhos.
+- **Dados do fornecedor** (nome, CPF, endereço e e-mail, exigidos pelo Decreto 7.962/2013) ficam em `src/legal/seller.ts`; o teste `tests/legal.test.ts` falha se algum campo estiver vazio ou o CPF for inválido.
+- **Compromissos assumidos:** reembolso integral em até 7 dias corridos (art. 49 do CDC), pago em até 10 dias úteis; reembolso proporcional se o serviço falhar por culpa nossa; devolução proporcional se encerrarmos a conta do cliente; aviso de 30 dias para mudanças relevantes; limite de responsabilidade igual ao valor pago nos últimos 12 meses; exclusão de conta e dados a pedido, por e-mail.
+- **Prestadores citados na política:** Supabase, Cloudflare, OpenRouter, TypeSafe (Jev), Resend e Asaas.
+- São um modelo, não aconselhamento jurídico. Reembolsos são feitos **à mão** pelo painel do Asaas (o aviso `PAYMENT_REFUNDED` revoga o plano sozinho).
 
 ## 5. Funcionalidades do front-end
 
@@ -153,8 +195,8 @@ Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para li
 - Autosave com *debounce* (~1 s) para `resumes.content`.
 
 ### 5.2 Criação do modelo base (3 caminhos)
-1. **Manual**: começa com seções padrão vazias e o usuário preenche.
-2. **Guia de perguntas (wizard)**: passos curtos (dados pessoais → objetivo → formação → experiências → habilidades → idiomas). Cada resposta preenche diretamente uma seção. Sem LLM. **Feito:** botão "Montar por perguntas" na barra superior; só entra o que foi preenchido, no idioma da aba ativa; habilidades e idiomas usam o formato `Grupo: item, item`; pede confirmação antes de substituir uma aba que já tem conteúdo.
+1. **Manual**: começa com seções padrão vazias e o usuário preenche. As linhas de cada bloco são arrastáveis para reordenar.
+2. **Guia de perguntas (wizard)**: **removido** (PR #30). O botão "Montar por perguntas" saiu da barra superior e as dicas de preenchimento foram para dentro dos blocos do editor (`GuidedRows`, `LabeledRows`). O formato `Grupo: item, item` de habilidades e idiomas continua.
 3. **Importar PDF** (sem LLM, sem reescrever nada):
    - `pdfjs-dist` extrai o texto no navegador.
    - O código procura títulos de seção conhecidos em português e inglês ("Experiência", "Formação", "Habilidades", "Experience", "Education"…) e corta o texto em blocos. O conteúdo é copiado exatamente como está.
@@ -166,7 +208,8 @@ Também: gatilho `updated_at`, e tabela `llm_usage(user_id, day, calls)` para li
 
 ### 5.3 Adequação à vaga
 Tela com caixa de texto da vaga → botão "Analisar" → resultado em duas abas. O idioma da introdução sugerida é **sempre o da aba de idioma ativa** (seção 5.4); não há escolha de idioma nesta tela e a IA não precisa descobrir o idioma. Se a vaga estiver em outro idioma que o da aba, não há aviso: o texto sai no idioma da aba.
-- **Introdução sugerida**: um só texto. Mostra o original × sugerido com **diff destacado** (para evidenciar que a mudança é pontual) e botões *Aplicar* / *Desfazer*. Aplicar cria uma **variante** (`parent_id` = base), sem sobrescrever o base. O resultado só aparece na aba em que foi gerado.
+- **Introdução sugerida**: um texto em tópicos curtos (cada tópico vira uma linha do bloco ao aplicar). Mostra o original × sugerido com **diff destacado** (para evidenciar que a mudança é pontual) e botões *Aplicar* / *Desfazer*. Em cima do texto vai a **nota de fidelidade**: selo verde "Conferida" quando passa, ou aviso âmbar de possível informação falsa quando não passa. Aplicar cria uma **variante** (`parent_id` = base), sem sobrescrever o base (variantes por vaga ainda não existem: hoje aplicar substitui a introdução da aba). O resultado só aparece na aba em que foi gerado.
+- **Adequação à vaga** aparece como porcentagem (0 a 100%), neutra, **acima da tabela de habilidades** ("Adequação à vaga: N%"); não gera aviso nem decide se a resposta é boa (seção 6.6).
 - **Habilidades**: tabela (seção 6.2). Botão "Adicionar ao meu currículo" em cada habilidade faltante, para o caso de o usuário a possuir e não ter informado.
 
 ### 5.4 Abas de idioma
@@ -178,13 +221,16 @@ Nenhum texto fica em dois idiomas. O site tem duas abas no topo, **Português (B
 - Dados no navegador (`localStorage`, versão 3): `lang` (aba ativa), `resume` (aba ativa) e `saved` (a outra aba). O currículo salvo no formato antigo vai para a aba do idioma que a interface estava usando. Isto é provisório: com login, cada usuário terá os currículos no seu banco (Supabase).
 - "Limpar tudo" limpa só a aba ativa.
 - **Barra superior:** as abas ficam à esquerda, com a legenda "Idioma do currículo a ser gerado:" ao lado, e os botões (Montar por perguntas, Importar PDF, Limpar tudo, Exportar PDF) à direita, pequenos e com ícone. A aba ativa "abre" para uma **faixa colorida** que corre sob a barra, como uma aba de navegador: português em verde com tracejado azul; English em azul, branco e vermelho. Em telas menores, logo e botões ficam em cima e as abas na linha de baixo, sempre encostadas na faixa.
-- **Conta:** um avatar genérico redondo no canto direito abre o e-mail logado e o botão Sair; o estado "Salvando/Salvo" fica ao lado dele.
+- **Conta:** no canto direito, o "Salvo/Salvando…" e um avatar genérico redondo (o menu mostra o e-mail logado e o botão Sair), com o **contador de créditos** em cima e o botão dourado **Planos** embaixo (seção 4.4).
 
 ### 5.5 Prévia em páginas A4 e tamanho da fonte
 - A prévia mostra **uma folha A4 por página**, com "Página N de M" e a contagem de páginas no título. O conteúdo é medido fora da tela com a largura real do A4 (174 mm) e cada folha mostra a sua janela; em colunas estreitas a folha é reduzida para caber, sem rolagem horizontal.
 - A quebra imita a impressão: a página fecha antes do primeiro bloco que não cabe (parágrafo, item de lista) e título de bloco ou cargo não fica sozinho no fim da página. É uma **estimativa**: o navegador faz a paginação real ao gerar o PDF e pode diferir em uma linha perto da borda.
 - Tamanho da fonte escolhido na prévia: 8, 9, 10, 11 ou 12 pt (padrão 10 pt), gravado em `settings.fontSize` e usado também no PDF.
 - A impressão usa o documento corrido (sem as folhas da prévia), então o texto do PDF continua contínuo para os extratores de ATS.
+
+### 5.6 Visual do site
+Tema escuro com fundo de constelação e blocos flutuantes sutis (`features/motion/`), com botão para reduzir o movimento. A interface (menus, botões) é bilíngue e segue a aba de idioma; as telas de planos, termos e privacidade são só em português. O título da aba é "CurriMaker" (e "CurriMaker - Nome" com o currículo aberto).
 
 ## 6. Camada de LLM
 
@@ -242,32 +288,35 @@ type JobAnalysis = {
 - São traduzidos: cargo/título, local, títulos dos blocos, tópicos e textos, cargos, períodos (ex.: "Presente" ↔ "Present") e cursos.
 
 ### 6.4 Modelo escolhido
-**Gemini 3.1 Flash-Lite** (id `gemini-3.1-flash-lite`), pela API do Google AI Studio no modo compatível com OpenAI: endereço `https://generativelanguage.googleapis.com/v1beta/openai/` e chave no cabeçalho `Authorization: Bearer`.
-- **Por que mudou da Groq:** em 06/10 a Groq deixou de aceitar novas assinaturas, e o plano atual recusava pedidos por limite de tokens por minuto (HTTP 429 e 413). O código é o mesmo; só trocaram as variáveis e o segredo.
-- **Por que o 3.1 e não o 2.5 nem o 3.5:** em 06/10 a chave recusou o `gemini-2.5-flash-lite` com HTTP 404 ("no longer available to new users"): o Google limita os modelos 2.5 a quem já os usou. O `gemini-3.5-flash-lite` existe, mas custa bem mais (US$ 0,30 por milhão de entrada e US$ 2,50 de saída). Escolha: `gemini-3.1-flash-lite` no plano gratuito.
-
-- **Por que mudou:** o plano partia do gpt-oss-120b. Em produção, o endpoint gratuito de teste da NVIDIA gerava só de **15 a 40 tokens por segundo**: a análise levava de 11 a 93 s e uma tradução pequena, 16 s. Os logs mostraram que o tempo era quase todo espera pelo provedor (Worker, limite de uso e Jev somavam cerca de 0,6 s). Trocando só o provedor, com o mesmo modelo, a análise caiu para **1,2 a 1,8 s** e a tradução para **1,5 s**.
-- **Custo (preços do Google consultados em outubro de 2026):** o plano gratuito não cobra. No plano pago, US$ 0,25 por milhão de tokens de entrada e US$ 1,50 por milhão de saída; com ~5.000 tokens de entrada e ~1.000 de saída por análise, cerca de **US$ 0,0028 por análise** (US$ 2,75 por 1.000), mais caro que o gpt-oss. Há plano gratuito, mas o Google usa o conteúdo do plano gratuito para melhorar os produtos dele; os limites por minuto e por dia aparecem em `aistudio.google.com/rate-limit`. Base de comparação anterior: `comparacao-llms-curriculo.md`.
-- **Esforço de raciocínio:** `LLM_REASONING_EFFORT` (hoje `minimal`). Modelos que "pensam" gastam tokens antes de responder: menos esforço é mais rápido e gasta menos do limite por minuto. O Gemini 3.1 Flash-Lite aceita `minimal`, `low`, `medium` e `high`; se o modelo recusar o valor, o código repete a chamada sem ele.
-- **Troca de provedor** = mudar `LLM_BASE_URL`, `LLM_MODEL` e o segredo `LLM_API_KEY`; nenhum código muda.
+**gpt-oss-20b** (id `openai/gpt-oss-20b`) pela **OpenRouter**, no formato compatível com OpenAI: endereço `https://openrouter.ai/api/v1` e chave no cabeçalho `Authorization: Bearer` (segredo `LLM_API_KEY`). Modelo **reserva**: `openai/gpt-oss-120b`, na mesma chave. Esforço de raciocínio `low` (`LLM_REASONING_EFFORT`; o gpt-oss aceita `low`, `medium` e `high`).
+- **Modelo reserva:** se o principal recusa por excesso de demanda ou não responde, o `llm.ts` usa o reserva por 60 s e volta ao principal. Quando isso acontece, o usuário vê um aviso neutro na tela.
+- **Por que a OpenRouter:** o mesmo modelo, uma só chave e vários provedores por trás. O código não mudou: só trocaram as variáveis e o segredo.
+- **Histórico de provedores:** (1) NVIDIA gratuita com o gpt-oss-120b: gerava só de 15 a 40 tokens por segundo (análise de 11 a 93 s); (2) Groq com o gpt-oss-20b: rápida (análise de 1,2 a 1,8 s), mas em 06/10 deixou de aceitar novas assinaturas e o plano recusava pedidos por limite de tokens por minuto (HTTP 429 e 413); (3) Google AI Studio com o Gemini 3.1 Flash-Lite e, como reserva, o Gemini 3.5 Flash; (4) OpenRouter com o gpt-oss, a escolha atual. As chaves dos provedores antigos não estão no código nem no histórico do Git.
+- **Custo:** consultar os preços na OpenRouter antes de fixar o preço do plano; o plano pro dá 60 créditos por R$ 39,90, e cada análise, tradução ou exportação gratuita gasta 1 crédito (seção 4.4). A conta de custo por análise deve ser refeita com os preços e os tokens medidos nos logs.
+- **Troca de provedor** = mudar `LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL` e o segredo `LLM_API_KEY`; nenhum código muda.
 - **Desenvolvimento local:** `.env` com a chave (ver `web/.env.example`).
 - Validar o modelo com ~15 pares reais currículo+vaga (pt e en), medindo: JSON válido, fatos inventados, evidências corretas, qualidade do texto. **Ainda não feito**; os testes até agora foram com poucos exemplos.
 
 ### 6.6 Conferência da introdução com o Jev
 O LLM escreve a introdução sugerida e o **Jev** (TypeSafe) a confere antes de ela chegar à tela. Sem a chave `TYPESAFE_API_KEY`, a conferência é pulada e a análise funciona como antes.
-- **Duas notas de 0 a 1**: *fidelidade* (sem informação falsa: nada que o currículo não sustente e nada exagerado) e *adequação* (quanto o texto aborda o que a vaga pede, usando só o que o currículo tem). Limite de aprovação: **0,80**.
+- **Duas notas de 0 a 1**: *fidelidade* (sem informação falsa: nada que o currículo não sustente e nada exagerado) e *adequação* (quanto o texto aborda o que a vaga pede, usando só o que o currículo tem). **Só a fidelidade decide** se o texto é aprovado ou refeito, com limite de **0,80**. A adequação é só informação: aparece como porcentagem na tela e não reprova nem refaz o texto (decisão do dono do projeto: adequação baixa não indica "resposta ruim da IA").
 - **Mudar muito o texto não conta contra.** Foi retirada a pergunta que comparava com o original, porque punia justamente a adaptação à vaga.
 - **Checagens de código antes do Jev**: números e habilidades "não possui" que não existem no currículo reprovam o texto sem chamar o Jev.
-- **Refação**: se o texto não passa nas duas notas, o LLM o refaz **no máximo 1 vez** (`MAX_REDOS`); sem aprovação, vale a tentativa de maior nota. Eram 3 refações, mas não subiam a nota e dobravam o tempo.
-- **Tela**: selo "Conferida" (verde) ou "Melhor versão encontrada, abaixo do limite" (âmbar), com as duas notas. Se o Jev falhar, a análise segue com um aviso.
-- **Medido em produção com gpt-oss-20b na Groq** (a medir de novo com o Gemini): análise completa em **1,2 a 1,8 s**, com fidelidade de 0,82 a 0,96 e adequação de 0,89 a 0,96, sem refações.
+- **Refação**: se o texto não passa na fidelidade, o LLM o refaz **no máximo 1 vez** (`MAX_REDOS`); sem aprovação, vale a tentativa de maior fidelidade. Eram 3 refações, mas não subiam a nota e dobravam o tempo.
+- **Tela**: a nota de fidelidade fica em cima do texto sugerido (selo verde quando passa; aviso âmbar quando não passa); a adequação à vaga aparece em porcentagem acima da tabela de habilidades. Se o Jev falhar, a análise segue com um aviso.
+- **Medido em produção com gpt-oss-20b na Groq** (a medir de novo com a OpenRouter): análise completa em **1,2 a 1,8 s**, com fidelidade de 0,82 a 0,96 e adequação de 0,89 a 0,96, sem refações.
 - **Em aberto:** calibrar o limite de 0,80 e as perguntas com ~15 pares reais; o Jev é do agente `JEV/<tarefa>` (seção 12).
 
 ## 7. Segurança e custo
-- **RLS** em todas as tabelas; nada de `service_role` no cliente.
-- Política de privacidade e exclusão de conta que apaga tudo (`on delete cascade`).
-- **Limites**: tamanho máximo do texto da vaga (~15 mil caracteres) e do PDF; cota diária de análises por usuário; CORS restrito ao domínio do app.
-- **Segredos**: chaves só em `supabase secrets`; `.env` local fora do Git (`.gitignore` desde o primeiro commit).
+- **RLS** em todas as tabelas; nada de `service_role` no navegador. As tabelas de créditos e de pagamento não têm política pública: só o Worker, com a `service_role`, chega nelas.
+- **API que falha fechada:** sem login configurado, sem a chave do banco de créditos ou com o banco fora do ar, recusa (401, 402 ou 503) em vez de liberar. Corpo dos pedidos com tamanho máximo.
+- **Cabeçalhos e CSP** em todo o site e na API (seção 3): scripts só do próprio site e do Turnstile; o site só conversa com ele mesmo, o Supabase e o Turnstile; nenhum outro site pode embuti-lo.
+- **Captcha** (Turnstile) no login, no cadastro e no "Esqueci minha senha"; confirmação de e-mail ligada.
+- **Limites**: tamanho máximo do texto da vaga (~15 mil caracteres) e do PDF; limite por usuário (20 por hora) e teto diário total; 5 tentativas de pagamento por hora por usuário; só aceita pedidos do próprio site (cabeçalho `Origin`).
+- **Pagamento:** CPF não guardado, cartão fora do nosso servidor, aviso de pagamento autenticado por token (comparação em tempo constante) e processado uma vez por pagamento.
+- **Privacidade:** política de privacidade publicada (seção 4.6); exclusão de conta que apaga tudo (`on delete cascade`).
+- **Segredos**: chaves só como "Segredo" no painel da Cloudflare ou nos secrets do Supabase; `.env` local fora do Git (`.gitignore` desde o primeiro commit). Em 12/10/2026 foi feita uma varredura nos arquivos versionados e nos 106 commits do histórico: nenhuma chave de API ou senha. As únicas credenciais no código são as públicas por desenho (a chave `anon` do Supabase e a chave do site do Turnstile). O repositório é **público**: os dados do vendedor em `src/legal/seller.ts` (nome, CPF, endereço e e-mail) também estão visíveis no histórico do Git, além de aparecerem nas páginas de termos.
+- **CI endurecido:** token do fluxo só de leitura e ações do GitHub fixadas pelo código (SHA). O Dependabot do GitHub abre PRs de atualização de dependências.
 - Sanitizar qualquer texto renderizado (nada de `dangerouslySetInnerHTML` sem sanitização).
 
 ## 8. Exportação e triagem por ATS
@@ -353,7 +402,7 @@ Testar com dados **fictícios** realistas. Ferramentas: `pdftotext` (xpdf/popple
 
 Lacunas conhecidas: não validado o diálogo de impressão do Chrome (a pesquisa usou o Edge em modo headless), nem Firefox e Safari; WOFF2 de fonte web remota não testado; `hyphens: auto` inconclusivo; nenhum ATS real testado.
 
-## 9. Estrutura de pastas proposta
+## 9. Estrutura de pastas
 
 A raiz é o repositório `curriculomaker`.
 
@@ -361,22 +410,21 @@ A raiz é o repositório `curriculomaker`.
 curriculomaker/
 ├─ PLANO.md
 ├─ comparacao-llms-curriculo.md
-├─ web/                          # app React (Vite)
+├─ .github/workflows/ci.yml        # lint + testes + build a cada PR
+├─ web/                            # site (Vite) e Worker (um só projeto da Cloudflare)
 │  ├─ src/
-│  │  ├─ features/
-│  │  │  ├─ editor/              # blocos, dnd, preview
-│  │  │  ├─ wizard/              # guia de perguntas
-│  │  │  ├─ import-pdf/          # extração de texto + separação em blocos
-│  │  │  ├─ job-match/           # tela da vaga, diff, tabela de skills
-│  │  │  └─ auth/
-│  │  ├─ lib/ (supabase.ts, schemas/ (zod), pdf.ts)
+│  │  ├─ features/                 # auth, billing, credits, editor, export, import-pdf,
+│  │  │                            # job-match, motion, notice, preview, sync, translate
+│  │  ├─ legal/                    # termos de uso e política de privacidade (+ seller.ts)
+│  │  ├─ lib/                      # schemas (zod), plans.ts, credits.ts, i18n, supabase…
 │  │  └─ store/
+│  ├─ worker/                      # API em /api/* (seção 3)
+│  ├─ tests/                       # 140 testes (node --test)
+│  ├─ public/_headers              # cabeçalhos de segurança do site estático
+│  ├─ wrangler.jsonc               # configuração do Worker e variáveis públicas
 │  └─ .env.example
 └─ supabase/
-   ├─ migrations/                # SQL da seção 4.2
-   └─ functions/
-      ├─ _shared/llm/            # interface + provedor
-      └─ analyze-job/
+   └─ migrations/                  # resumes, credits, billing (rodar no SQL Editor, em ordem)
 ```
 
 ## 10. Roadmap
@@ -387,11 +435,14 @@ curriculomaker/
 | 1 | Schemas Zod do currículo + editor manual com blocos arrastáveis + preview + export PDF ATS (dados em `localStorage`) + i18n pt/en | Reordenar blocos muda o PDF |
 | 2 | **Feito, ligado em produção (aguarda teste manual).** Supabase: projeto, migrations, Auth (e-mail e senha), salvar/carregar currículos com RLS | Dois usuários não veem dados um do outro |
 | 3 | **Feito, em produção.** Adequação à vaga: Worker `/api/analyze`, provedor plugável (Gemini 3.1 Flash-Lite), conferência com o Jev, tela com diff + tabela, no idioma da aba ativa. Falta validar com ~15 pares reais | Saída validada; nada inventado nos testes |
-| 4 | **Feito.** Wizard de perguntas ("Montar por perguntas") | Base criado só respondendo perguntas |
+| 4 | **Feito e depois removido** (PR #30): o wizard "Montar por perguntas" saiu; as dicas foram para os blocos do editor | Dicas dentro dos blocos |
 | 5 | **Feito.** Importar PDF (extração de texto e separação em blocos, sem LLM) | PDFs reais de teste separados em blocos, sem alterar texto |
 | 5.1 | **Feito, em produção.** Abas de idioma pt-BR/en, um currículo por aba, tradução ao trocar de aba e aviso na importação de PDF (seção 5.4) | Trocar de aba muda currículo, interface, introdução sugerida e PDF |
 | 5.2 | **Feito, em produção.** Prévia em páginas A4 com contagem de páginas e tamanho da fonte de 8 a 12 pt (seção 5.5) | A prévia mostra quantas páginas o PDF terá |
-| 6 | Variantes por vaga, histórico de análises, limites de uso, planos gratuito/pago | — |
+| 5.3 | **Feito, em produção.** Segurança: cabeçalhos e CSP, API que falha fechada, captcha (Turnstile), CI com testes | Testes e CI verdes |
+| 5.4 | **Feito, em produção.** Créditos no servidor (5 gratuitos por 30 dias), contador, travas da conta sem crédito, cobrança no Exportar PDF e no Ctrl+P (seção 4.4) | Sem crédito: edição de texto livre; IA, tradução e exportação travadas |
+| 5.5 | **Feito, em produção na conta de teste.** Planos e pagamento do plano pro pelo Asaas, esqueci minha senha, termos de uso, privacidade e reembolso de 7 dias (seções 4.3 a 4.6) | Pagamento de teste libera 60 créditos; reembolso revoga |
+| 6 | **Falta:** variantes por vaga e histórico de análises. **Feito:** planos gratuito/pago e limites de uso | — |
 | 7 | App com Capacitor. **Só inicia com ordem explícita do dono do projeto**, depois de o site estar pronto e testado | Reaproveita schemas e camada de dados |
 
 A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem depender de infraestrutura.
@@ -401,30 +452,36 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 **Tomadas**
 - Idiomas: português e inglês (interface e currículo), por **abas de idioma** (seção 5.4). Um texto nunca fica em dois idiomas: não existe mais a opção de gerar a introdução nos dois idiomas, e a IA não precisa detectar o idioma.
 - Idioma de saída do LLM: o da aba ativa. O PDF sai no idioma da aba. A tradução do currículo acontece ao trocar de aba, se o usuário aceitar, mantendo os termos técnicos em inglês sem traduzir (seção 6.5).
-- Planos: gratuito e pago; a cota e a cobrança ficam para depois.
+- Planos (outubro/2026): **gratuito** com 5 créditos por 30 dias e **pro** a R$ 39,90 por mês com 60 créditos e exportação livre; cobrança pelo **Asaas**, como pessoa física (CPF), com assinatura mensal por cartão, Pix ou boleto. Appmax fica como alternativa futura (taxas menores). Pix Automático está fora (exige CNPJ).
 - App: Capacitor, somente após o web estar pronto e com ordem explícita.
 - Hospedagem: Cloudflare **Workers** (site e API no mesmo projeto), domínio `currimaker.niuai.com.br`, repositório GitHub `curriculomaker`. A VPS Hetzner e o Swarm não entram no início.
-- LLM: **Gemini 3.1 Flash-Lite** (Google AI Studio), com pensamento mínimo (`LLM_REASONING_EFFORT` = `minimal`), no plano gratuito (seção 6.4). A NVIDIA gratuita foi abandonada por ser lenta (15 a 40 tokens por segundo).
-- Conferência da introdução com o Jev: mede só informação falsa e adequação à vaga; mudar muito o texto não é falha (seção 6.6).
+- LLM: **gpt-oss-20b pela OpenRouter**, com o gpt-oss-120b de reserva e esforço de raciocínio `low` (seção 6.4). Passou por NVIDIA, Groq e Google antes.
+- Conferência da introdução com o Jev: mede informação falsa (decide) e adequação à vaga (só informa, em porcentagem); mudar muito o texto não é falha (seção 6.6).
+- Interface em português para o fluxo de pagamento e os textos legais; a aba English serve para o **conteúdo** do currículo, não para a interface de cobrança.
 - Template: um único, ATS-friendly.
 - Importação de PDF: só reconhecimento de texto, sem LLM e sem reescrever; o que não for reconhecido o usuário adiciona à mão.
 
-- Backend da análise de vaga: Worker da Cloudflare, com limite por IP (20 por hora na fase de teste, para não estourar num possível laço) e teto diário (200) por Durable Object; a tradução tem contadores próprios. Migrar para o Supabase quando houver login.
-- Login e banco (06/10): e-mail e senha, login obrigatório, só o currículo base (seção 4.3). Em seguida: planos gratuito/pago e a limpeza de CI e testes.
+- Backend (análise, tradução, exportação, créditos e pagamento): Worker da Cloudflare, com limite por usuário (20 por hora) e teto diário (200) por Durable Object; a tradução tem contadores próprios.
+- Login e banco (06/10): e-mail e senha, login obrigatório, só o currículo base (seção 4.3). Créditos, planos e pagamento vieram em seguida (seções 4.4 e 4.5).
 
 **Em aberto**
-0. Antes de abrir ao público: religar a confirmação de e-mail e configurar o envio de e-mails do Supabase; login com Google é um acréscimo futuro. O projeto Supabase (`zxjfojugzayjzygvvnhn`, região São Paulo) já existe e a migração já foi aplicada.
-1. Limites e termos do Google AI Studio para uso comercial e em escala (plano gratuito x pago, uso do conteúdo para treino no plano gratuito). Histórico da Groq: Em 06/10, às 19:39 (GMT-3), o plano atual recusou pedidos com HTTP 429 (limite de pedidos/tokens por minuto) e HTTP 413 (pedido grande demais), porque o código pedia `max_tokens` de 6.000 e a Groq reserva esse valor no limite por minuto. O padrão caiu para 4.000 e o Worker espera e repete uma vez no 429. Confirmar o plano da chave do Gemini antes de abrir para usuários reais.
-2. Validar a qualidade com cerca de 15 pares de currículo e vaga (pt e en): JSON válido, fatos inventados, evidências corretas, qualidade do texto.
-3. Calibrar o limite de 0,80 e as perguntas do Jev com esses mesmos pares.
-4. CI: hoje roda só lint e build; falta rodar os testes (`npm test`, 25 testes) e decidir o que mais entra.
-5. A mensagem de espera da análise na tela ainda diz "até 1 minuto", o que deixou de ser verdade com um provedor rápido.
+0. **Antes de vender de verdade:** trocar `ASAAS_API_KEY` pela chave de produção (`$aact_prod_...`) e recadastrar o aviso de pagamento (webhook) na conta real do Asaas, com o mesmo `ASAAS_WEBHOOK_TOKEN`; fazer uma compra real de valor baixo e um reembolso de teste; conferir se o Site URL do Supabase é `https://currimaker.niuai.com.br`.
+1. Revisão dos termos e da política por um advogado quando o negócio crescer; o texto atual é um modelo. Decidir se o repositório continua **público**, já que `src/legal/seller.ts` traz CPF e endereço residencial (seção 7).
+2. Validar a qualidade com cerca de 15 pares de currículo e vaga (pt e en): JSON válido, fatos inventados, evidências corretas, qualidade do texto, agora com o gpt-oss pela OpenRouter.
+3. Calibrar o limite de 0,80 da fidelidade e as perguntas do Jev com esses mesmos pares.
+4. Conta de custo por análise com os preços da OpenRouter e os tokens dos logs (seção 6.4).
+5. A mensagem de espera da análise e da tradução na tela ainda diz "até 1 minuto", o que deixou de ser verdade com um provedor rápido.
+6. Traduzir os e-mails do Supabase (confirmação e nova senha) para o português; hoje saem em inglês.
+7. Limpeza de padrões antigos: o código e o `.env.example` ainda citam a NVIDIA como padrão do `llm.ts` (só valem se as variáveis faltarem), e as telas de bloqueio, créditos, exportação e "esqueci minha senha" ainda têm texto em inglês que ninguém vê (a interface de cobrança é só em português).
+8. Reembolso é manual (painel do Asaas); definir um fluxo e um prazo de resposta de atendimento.
+9. CI: roda lint, testes e build. Falta rodar os testes de SQL (PGlite) no CI. No Windows, o teste que compara `public/_headers` com `worker/security.ts` falha por causa do fim de linha (CRLF); no CI passa.
+10. Fase 7 (app com Capacitor): **só com ordem explícita do dono do projeto**.
 
 ## 12. Fluxo de trabalho no Git
 Vários agentes (sessões do Claude) trabalham no mesmo repositório, então o fluxo é o de equipes de software:
 - **Um branch por tarefa**, curto, criado a partir da `origin/main` atualizada, com PR, CI e **apagado depois do merge** (o GitHub apaga sozinho). Nunca reutilizar um branch já mesclado.
 - **Nomes:** `pilot/<tarefa>` para o Claude principal (ex.: `pilot/abas-de-idioma`) e `JEV/<tarefa>` para o agente que cuida da conferência com o Jev (ex.: `JEV/ajustar-fidelidade`).
 - **Uma pasta de trabalho (worktree) por agente**, para um não sobrescrever os arquivos do outro: `curriculo-pilot` (Claude principal) e `curriculo-jev`.
-- **`main` protegida** pelo ruleset `proteger-main`: só recebe código por PR, com o check `build` do CI passando (lint e build), sem push forçado e sem apagar o branch. A lista de exceções (bypass) está vazia. Merge por *squash*.
+- **`main` protegida** pelo ruleset `proteger-main`: só recebe código por PR, com o check `build` do CI passando (lint, testes e build), sem push forçado e sem apagar o branch. A lista de exceções (bypass) está vazia. Merge por *squash*, feito pelo dono do projeto.
 - **Cada agente só mexe nos próprios arquivos**; quando uma mudança atravessa os arquivos do outro, avisa antes e combina a divisão.
-- **Cloudflare:** a `main` vai a produção pelo Workers Builds; cada branch ganha um preview (`wrangler preview`, o bloco `previews` do `wrangler.jsonc`). Segredos (chaves de API) ficam como tipo "Segredo" no painel, nunca em arquivo.
+- **Cloudflare:** a `main` vai a produção pelo Workers Builds; cada branch ganha um preview (`wrangler preview`, o bloco `previews` do `wrangler.jsonc`); o check `Workers Builds: currimaker` também aparece em cada PR. Segredos (chaves de API) ficam como tipo "Segredo" no painel, nunca em arquivo.
