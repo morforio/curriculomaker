@@ -37,6 +37,8 @@ interface Env {
   ASAAS_WEBHOOK_TOKEN?: string
   ASAAS_ENV?: string
   ASAAS_BASE_URL?: string
+  /** Secret (opcional): e-mail que paga o preço de teste do plano pro. Remover depois de testar. */
+  BILLING_TEST_EMAIL?: string
   RATE_PER_IP_HOUR?: string
   DAILY_CAP?: string
   TRANSLATE_PER_IP_HOUR?: string

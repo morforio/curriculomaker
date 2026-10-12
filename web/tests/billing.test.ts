@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { formatCpf, isValidCpf, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../src/lib/plans.ts'
-import { handleCancel, handleCheckout, handleWebhook, type BillingEnv } from '../worker/billing.ts'
+import { formatCpf, isValidCpf, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL, PRO_TEST_PRICE_BRL } from '../src/lib/plans.ts'
+import { handleCancel, handleCheckout, handleWebhook, priceFor, type BillingEnv } from '../worker/billing.ts'
 
 /** Pagamento do plano pro (worker/billing.ts), com o Asaas e o banco simulados. */
 
@@ -411,4 +411,34 @@ test('aviso: se o banco falhar, responde 500 (o Asaas tenta de novo); aviso fora
   } finally {
     w.restore()
   }
+})
+
+// ---------------------------------------------------------------- plano fantasma (preço de teste só para um e-mail)
+
+test('preço de teste: só o e-mail configurado paga R$ 5,00 (sem diferenciar maiúsculas); todos os outros pagam o preço normal', () => {
+  const e = { ...env, BILLING_TEST_EMAIL: ' Eu@Exemplo.com ' }
+  assert.equal(priceFor(e, 'eu@exemplo.com'), PRO_TEST_PRICE_BRL)
+  assert.equal(priceFor(e, 'EU@EXEMPLO.COM'), PRO_TEST_PRICE_BRL)
+  assert.equal(priceFor(e, 'outra@exemplo.com'), PRO_PRICE_BRL)
+  assert.equal(priceFor(e, null), PRO_PRICE_BRL)
+})
+
+test('preço de teste: sem BILLING_TEST_EMAIL (ou vazio), o preço de teste não existe para ninguém', () => {
+  assert.equal(priceFor(env, 'eu@exemplo.com'), PRO_PRICE_BRL)
+  assert.equal(priceFor({ ...env, BILLING_TEST_EMAIL: '' }, ''), PRO_PRICE_BRL)
+  assert.equal(priceFor({ ...env, BILLING_TEST_EMAIL: '   ' }, '   '), PRO_PRICE_BRL)
+})
+
+test('preço de teste: o checkout do e-mail de teste cria a assinatura de R$ 5,00; o de outro e-mail, a de R$ 39,90', async () => {
+  const run = async (email: string) => {
+    const w = newCustomerWorld()
+    try {
+      await handleCheckout(post('/api/checkout', { name: 'Maria Silva', cpf: CPF }), { env: { ...env, BILLING_TEST_EMAIL: 'eu@exemplo.com' }, userId: 'user-1', email })
+      return w.calls.find((c) => c.name === 'POST /subscriptions')?.body?.value
+    } finally {
+      w.restore()
+    }
+  }
+  assert.equal(await run('eu@exemplo.com'), 5)
+  assert.equal(await run('maria@x.com'), 39.9)
 })

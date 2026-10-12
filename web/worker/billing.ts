@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidCpf, onlyDigits, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL } from '../src/lib/plans.ts'
+import { isValidCpf, onlyDigits, PRO_ACCESS_DAYS, PRO_CREDITS, PRO_PRICE_BRL, PRO_TEST_PRICE_BRL } from '../src/lib/plans.ts'
 import { rpc, type CreditEnv } from './credits.ts'
 import { bodyTooLarge } from './security.ts'
 
@@ -16,6 +16,8 @@ export type BillingEnv = CreditEnv & {
   ASAAS_API_KEY?: string
   /** Secret: senha que o Asaas envia no cabeçalho asaas-access-token do aviso de pagamento (32 a 255 caracteres, sem espaços). */
   ASAAS_WEBHOOK_TOKEN?: string
+  /** Secret (opcional): e-mail da pessoa que testa o pagamento. Só ela paga o preço de teste (R$ 5,00); os demais pagam o preço normal. Sem ele, não existe preço de teste. */
+  BILLING_TEST_EMAIL?: string
   /** "production" usa a conta real; qualquer outro valor (ou vazio) usa a de teste (sandbox). */
   ASAAS_ENV?: string
   /** Só para testes locais: endereço alternativo da API do Asaas. */
@@ -96,6 +98,12 @@ async function openInvoiceUrl(env: BillingEnv, subscriptionId: string, attempts:
   return null
 }
 
+/** Preço da assinatura: o de teste só para o e-mail de teste (se configurado); o normal para todo mundo. */
+export function priceFor(env: BillingEnv, email: string | null): number {
+  const tester = env.BILLING_TEST_EMAIL?.trim().toLowerCase()
+  return tester && email && email.trim().toLowerCase() === tester ? PRO_TEST_PRICE_BRL : PRO_PRICE_BRL
+}
+
 const checkoutSchema = z.object({ name: z.string().trim().min(3).max(120), cpf: z.string().max(20) })
 
 export type CheckoutDeps = { env: BillingEnv; userId: string; email: string | null }
@@ -146,7 +154,7 @@ export async function handleCheckout(request: Request, { env, userId, email }: C
     const subscription = await asaas<{ id: string }>(env, 'POST', '/subscriptions', {
       customer: billing.customer_id,
       billingType: 'UNDEFINED', // a pessoa escolhe Pix, cartão ou boleto na fatura
-      value: PRO_PRICE_BRL,
+      value: priceFor(env, email),
       nextDueDate: new Date().toISOString().slice(0, 10),
       cycle: 'MONTHLY',
       description: `CurriMaker: plano pro (${PRO_CREDITS} créditos por mês)`,

@@ -7,6 +7,9 @@ export const FREE_CREDITS = 5
 export const FREE_DAYS = 30
 
 export const PRO_PRICE_BRL = 39.9
+/** Preço do "plano fantasma" de teste (só para o e-mail configurado em BILLING_TEST_EMAIL). R$ 5,00 é o mínimo por cobrança do Asaas. */
+export const PRO_TEST_PRICE_BRL = 5
+
 /** Créditos de IA e tradução por pagamento mensal (exportar o PDF não gasta crédito no plano pro). */
 export const PRO_CREDITS = 60
 /** Dias de acesso por pagamento: 31 (e não 30) para o pagamento do mês seguinte ter folga de um dia antes de a conta travar. */
