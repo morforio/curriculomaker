@@ -7,7 +7,7 @@ import { useMotionEnabled } from './motionStore'
  * acompanha o mouse com atraso. Também publica a posição do mouse em --mx e --my (de -1 a 1, suavizada) na raiz da página,
  * que move de leve os blocos flutuantes (.float-block e .float-sheet no CSS). Desligado, desenha um quadro parado.
  */
-const ACC = '91,140,255'
+const ACC = '116,192,255'
 
 // Valores aprovados na maquete "B3, ainda mais sutil".
 const LINK = 140 // distância máxima entre partículas ligadas, em px

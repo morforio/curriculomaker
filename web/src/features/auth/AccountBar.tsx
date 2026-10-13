@@ -76,7 +76,7 @@ export function AccountBar() {
             role="status"
             title={t('credits.count', { count: account.credits })}
             aria-label={t('credits.count', { count: account.credits })}
-            className={`pointer-events-none absolute -top-2.5 left-1/2 min-w-5 -translate-x-1/2 rounded-full px-1.5 text-center text-[11px] font-bold leading-4 text-white ring-2 ring-[#07080c] ${account.locked ? 'bg-red-600' : account.paid ? 'bg-blue-600' : 'bg-amber-600'}`}
+            className={`pointer-events-none absolute -top-2.5 left-1/2 min-w-5 -translate-x-1/2 rounded-full px-1.5 text-center text-[11px] font-bold leading-4 text-white ring-2 ring-[#07102a] ${account.locked ? 'bg-red-600' : account.paid ? 'bg-blue-600' : 'bg-amber-600'}`}
           >
             {account.credits}
           </span>
@@ -114,7 +114,7 @@ export function AccountBar() {
       {window.location.pathname !== '/planos' && (
         <a
           href="/planos"
-          className="block whitespace-nowrap rounded-md bg-[#d4af37] px-3 py-1 text-center text-xs font-bold text-[#1a1405] shadow-sm hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
+          className="block whitespace-nowrap rounded-md btn-gold px-3 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
         >
           {t('plans.menu', { lng: 'pt' })}
         </a>

@@ -77,7 +77,7 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
                 // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
                 style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
                 className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm ${
-                  active ? 'relative z-10 bg-[#0d1018] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
+                  active ? 'relative z-10 bg-[#0b1636] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
                 }`}
               >
                 {LANG_NAMES[l]}
@@ -107,7 +107,7 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
               <button type="button" disabled={busy} className={`${btn} border border-gray-300 text-gray-700 hover:bg-gray-100`} onClick={answerNo}>
                 {t('tabs.no')}
               </button>
-              <button type="button" disabled={busy} className={`${btn} bg-blue-600 text-white hover:bg-blue-700`} onClick={() => void answerYes()}>
+              <button type="button" disabled={busy} className={`${btn} btn-prism`} onClick={() => void answerYes()}>
                 {t('tabs.yes')}
               </button>
             </div>

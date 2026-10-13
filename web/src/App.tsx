@@ -20,7 +20,7 @@ import { useResumeStore } from './store/resumeStore'
 
 // Botões de ação do lado direito: tom azulado, para se distinguirem do botão Traduzir (cinza), que fica junto das abas de idioma.
 const btnAction =
-  'inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-500/10'
+  'inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 transition duration-200 hover:-translate-y-0.5 hover:border-blue-300/70 hover:bg-blue-500/20 hover:shadow-[0_6px_20px_rgba(100,170,255,0.3)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-blue-500/10 disabled:hover:shadow-none'
 
 function App() {
   const { t } = useTranslation()
@@ -73,10 +73,19 @@ function App() {
   return (
     <div className="min-h-screen">
       <div className="print:hidden">
-        <header className="sticky top-0 z-20 bg-[#07080c]/70 backdrop-blur-md">
+        <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
           {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
           <div className="grid grid-cols-[auto_1fr] items-end gap-x-8 gap-y-3 px-5 pt-3 lg:flex lg:gap-x-12">
-            <h1 className="col-start-1 row-start-1 pb-2 text-lg font-bold text-gray-900">{t('app.name')}</h1>
+            <h1 className="col-start-1 row-start-1 flex items-center gap-2.5 pb-2 text-gray-900" aria-label={t('app.name')}>
+              <span aria-hidden="true" className="emblem" />
+              <span aria-hidden="true" className="block leading-none">
+                <span className="block text-xl tracking-wide">
+                  <span className="font-light">Curri</span>
+                  <span className="font-semibold">Maker</span>
+                </span>
+                <span className="mt-1 block text-[9px] uppercase tracking-[0.22em] text-gray-500">Career intelligence</span>
+              </span>
+            </h1>
             <div className="col-span-2 row-start-2 lg:col-auto lg:row-auto">
               <LanguageTabs above={<PullTranslationButton />} />
             </div>
@@ -97,7 +106,7 @@ function App() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-600"
+                className="inline-flex items-center gap-1.5 rounded-md btn-prism px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => void exportPdf()}
                 disabled={locked}
                 title={locked ? t('lock.tooltip') : account && !account.paid ? t('toolbar.exportCost') : undefined}

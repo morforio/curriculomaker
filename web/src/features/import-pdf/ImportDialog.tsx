@@ -96,7 +96,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 {state.message}
               </p>
             )}
-            <button type="button" className={`${btn} bg-blue-600 text-white hover:bg-blue-700`} onClick={() => inputRef.current?.click()}>
+            <button type="button" className={`${btn} btn-prism`} onClick={() => inputRef.current?.click()}>
               {t('import.choose')}
             </button>
           </div>
@@ -175,7 +175,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
               <button type="button" className={`${btn} border border-gray-300 text-gray-700 hover:bg-gray-100`} onClick={onClose}>
                 {t('import.cancel')}
               </button>
-              <button type="button" className={`${btn} bg-blue-600 text-white hover:bg-blue-700`} onClick={() => confirmImport(state.parsed)}>
+              <button type="button" className={`${btn} btn-prism`} onClick={() => confirmImport(state.parsed)}>
                 {t('import.confirm')}
               </button>
             </div>

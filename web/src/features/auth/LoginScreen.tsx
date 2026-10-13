@@ -48,8 +48,9 @@ export function LoginScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm glass space-y-4 rounded-lg border border-gray-200 p-6">
+        <img src="/logo.jpg" alt="" width={160} height={160} className="login-logo mx-auto -mt-3 -mb-4 h-40 w-40" />
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
+          <h1 className="sr-only">{t('app.name')}</h1>
           <p className="mt-1 text-sm text-gray-600">{mode === 'signIn' ? t('auth.signInIntro') : mode === 'signUp' ? t('auth.signUpIntro') : t('auth.forgotIntro')}</p>
         </div>
 
@@ -102,7 +103,7 @@ export function LoginScreen() {
         <button
           type="submit"
           disabled={busy || (Boolean(siteKey) && !captcha)}
-          className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="w-full rounded btn-prism px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {busy ? t('auth.wait') : mode === 'signIn' ? t('auth.signIn') : mode === 'signUp' ? t('auth.signUp') : t('auth.sendLink')}
         </button>

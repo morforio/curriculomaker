@@ -194,7 +194,7 @@ export function JobMatchPanel() {
           type="button"
           disabled={!canAnalyze}
           onClick={() => void analyze()}
-          className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="rounded btn-prism px-4 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
           {t('analysis.analyze')}
         </button>
@@ -235,7 +235,7 @@ export function JobMatchPanel() {
                     </button>
                   )}
                   {!applied && (
-                    <button type="button" onClick={() => applySummary(suggested)} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                    <button type="button" onClick={() => applySummary(suggested)} className="rounded btn-prism px-3 py-1 text-xs font-medium">
                       {t('analysis.apply')}
                     </button>
                   )}
