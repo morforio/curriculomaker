@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { LANGS } from '../../lib/schemas/analysis'
@@ -11,9 +11,10 @@ import { planTranslation } from './resumeTranslation'
 
 /**
  * Abas de idioma do currículo (como no LinkedIn). Trocar de aba muda o currículo e a interface.
- * `above` (o botão Traduzir) fica acima da legenda "Idioma do currículo a ser gerado", à esquerda das abas.
+ * `before` (o botão Traduzir) fica à esquerda das abas, na mesma linha delas. A legenda "Idioma do currículo a ser gerado" não fica na barra
+ * (para ela ter uma só linha): é o LanguageCaption, no corpo da página, logo abaixo das abas e antes do primeiro bloco.
  */
-export function LanguageTabs({ above }: { above?: ReactNode }) {
+export function LanguageTabs({ before }: { before?: ReactNode }) {
   const { t } = useTranslation()
   const { lang, resume, saved, switchLang } = useResumeStore()
   const [target, setTarget] = useState<Lang | null>(null)
@@ -58,11 +59,8 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
   return (
     <>
       <div className="flex items-end gap-4">
-        <div className="flex flex-col items-start gap-3 pb-2.5">
-          {above}
-          <span className="hidden text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
-        </div>
-        <div role="tablist" aria-label={t('tabs.label')} className="flex items-end gap-1">
+        {before && <div className="flex h-[37px] items-center">{before}</div>}
+        <div id="lang-tabs" role="tablist" aria-label={t('tabs.label')} className="flex items-end gap-1">
           {LANGS.map((l) => {
             const active = l === lang
             return (
@@ -121,5 +119,48 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
 /** Faixa colorida sob a barra superior, na cor do idioma ativo (a aba ativa a atravessa). */
 export function LanguageStripe() {
   const lang = useResumeStore((s) => s.lang)
-  return <div aria-hidden="true" className="w-full" style={{ height: STRIPE_HEIGHT, background: LANG_THEME[lang].stripe }} />
+  const theme = LANG_THEME[lang]
+  return <div aria-hidden="true" className="w-full" style={{ height: STRIPE_HEIGHT, background: theme.line, boxShadow: theme.glow }} />
+}
+
+/**
+ * Legenda das abas: uma aba invertida (pendurada na linha colorida), no corpo da página (rola junto com o conteúdo), com a largura das abas juntas.
+ * A posição e a largura vêm das próprias abas (medidas no navegador), então a legenda acompanha o espaço que sobra: se faltar, corta com reticências.
+ */
+export function LanguageCaption() {
+  const { t } = useTranslation()
+  const lang = useResumeStore((s) => s.lang)
+  const theme = LANG_THEME[lang]
+  const [box, setBox] = useState<{ left: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const tabs = document.getElementById('lang-tabs')
+    if (!tabs) return
+    const measure = () => {
+      const r = tabs.getBoundingClientRect()
+      setBox((old) => (old && Math.abs(old.left - r.left) < 0.5 && Math.abs(old.width - r.width) < 0.5 ? old : { left: r.left, width: r.width }))
+    }
+    measure()
+    // As abas mudam de lugar quando a barra quebra em duas linhas, quando o emblema da logo termina de carregar ou quando o botão Traduzir muda
+    // de largura: observa a página e cada grupo da barra (logo, abas, ações), e mede de novo quando as fontes e imagens terminam de carregar.
+    const ro = new ResizeObserver(measure)
+    ro.observe(tabs)
+    ro.observe(document.documentElement)
+    tabs.closest('header')?.querySelectorAll(':scope > div > *').forEach((group) => ro.observe(group))
+    window.addEventListener('load', measure)
+    void document.fonts?.ready.then(measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('load', measure)
+    }
+  }, [])
+
+  return (
+    <p
+      style={{ ...(box ? { marginLeft: box.left, width: box.width } : {}), borderColor: theme.capBorder, background: theme.capBg }}
+      className="truncate rounded-b-lg border-x-2 border-b-2 px-3 pb-1 pt-1 text-center text-xs text-gray-700 backdrop-blur-sm"
+    >
+      {t('tabs.caption')}
+    </p>
+  )
 }
