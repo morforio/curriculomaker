@@ -120,7 +120,7 @@ export function Editor() {
               onClick={() => addSection(newType)}
               disabled={locked}
               title={locked ? t('lock.tooltip') : undefined}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded btn-prism px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t('sections.addButton')}
             </button>

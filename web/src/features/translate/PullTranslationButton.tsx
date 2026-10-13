@@ -84,7 +84,7 @@ export function PullTranslationButton() {
               <button type="button" disabled={busy} className={`${btn} border border-gray-300 text-gray-700 hover:bg-gray-100`} onClick={() => setOpen(false)}>
                 {t('tabs.no')}
               </button>
-              <button type="button" disabled={busy} className={`${btn} bg-blue-600 text-white hover:bg-blue-700`} onClick={() => void confirm()}>
+              <button type="button" disabled={busy} className={`${btn} btn-prism`} onClick={() => void confirm()}>
                 {t('tabs.yes')}
               </button>
             </div>

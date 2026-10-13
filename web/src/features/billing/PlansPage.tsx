@@ -128,7 +128,7 @@ export function PlansPage() {
                 </button>
               </div>
             ) : !formOpen ? (
-              <button type="button" onClick={() => setFormOpen(true)} className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              <button type="button" onClick={() => setFormOpen(true)} className="w-full rounded btn-prism px-4 py-2 text-sm font-medium">
                 {t('plans.subscribe')}
               </button>
             ) : (
@@ -156,7 +156,7 @@ export function PlansPage() {
                     .
                   </span>
                 </label>
-                <button type="submit" disabled={busy || !agreed} className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="submit" disabled={busy || !agreed} className="w-full rounded btn-prism px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">
                   {busy ? t('plans.form.wait') : t('plans.form.submit')}
                 </button>
               </form>

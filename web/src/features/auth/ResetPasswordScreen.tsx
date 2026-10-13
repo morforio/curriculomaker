@@ -56,7 +56,7 @@ export function ResetPasswordScreen() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="w-full rounded btn-prism px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {busy ? t('auth.wait') : t('auth.saveNewPassword')}
         </button>
