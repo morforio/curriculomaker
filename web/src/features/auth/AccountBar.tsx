@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconUser } from '../../components/Icons'
 import { formatDate } from '../../lib/credits'
@@ -6,8 +6,11 @@ import { useCreditsStore } from '../credits/creditsStore'
 import { useSyncStatus } from '../sync/syncStatus'
 import { useAuthStore } from './authStore'
 
-/** Conta no canto direito: estado do salvamento e um avatar que abre o e-mail e o botão Sair. Some sem login configurado. */
-export function AccountBar() {
+/**
+ * Conta no canto direito, numa só fileira: aviso "Salvo", os botões de ação (`children`), o botão Planos e o avatar (que abre o e-mail e o
+ * botão Sair). Sem login configurado, só os `children` aparecem.
+ */
+export function AccountBar({ children }: { children?: ReactNode }) {
   const { t, i18n } = useTranslation()
   const status = useAuthStore((s) => s.status)
   const email = useAuthStore((s) => s.email)
@@ -49,18 +52,26 @@ export function AccountBar() {
     }
   }, [status])
 
-  if (status !== 'signedIn') return null
+  if (status !== 'signedIn') return <>{children}</>
 
   const label = sync === 'saving' ? t('sync.saving') : sync === 'saved' ? t('sync.saved') : sync === 'saveError' ? t('sync.saveError') : ''
   return (
-    <div ref={box} className="relative flex flex-col items-stretch gap-1 lg:mb-1.5">
-      <div className="flex items-center justify-end gap-2">
+    <>
       {label && (
         <span role="status" className={`hidden text-xs sm:inline ${sync === 'saveError' ? 'text-red-700' : 'text-gray-400'}`}>
           {label}
         </span>
       )}
-      <div className="relative">
+      {children}
+      {window.location.pathname !== '/planos' && (
+        <a
+          href="/planos"
+          className="btn-gold block whitespace-nowrap px-3 py-1.5 text-center text-xs focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
+        >
+          {t('plans.menu', { lng: 'pt' })}
+        </a>
+      )}
+      <div ref={box} className="relative">
         <button
           type="button"
           aria-label={t('auth.account')}
@@ -81,44 +92,35 @@ export function AccountBar() {
             {account.credits}
           </span>
         )}
+        {open && (
+          <div role="menu" className="absolute right-0 top-10 z-30 w-64 glass-strong rounded-lg border border-gray-200 p-2 shadow-lg">
+            <p className="px-2 pt-1 text-xs text-gray-500">{t('auth.signedInAs')}</p>
+            <p className="truncate px-2 pb-2 text-sm font-medium text-gray-900" title={email ?? ''}>
+              {email}
+            </p>
+            {account && (
+              <div className="mb-2 border-t border-gray-200 px-2 py-2 text-xs text-gray-500">
+                <p className={`text-sm font-medium ${account.locked ? 'text-red-700' : 'text-gray-900'}`}>{account.paid ? t('credits.planPaid') : t('credits.planFree')}</p>
+                <p>{t('credits.count', { count: account.credits })}</p>
+                {account.credits > 0 && account.credits_expire_at && <p>{t('credits.validUntil', { date: formatDate(account.credits_expire_at, i18n.language) })}</p>}
+                {account.paid && account.paid_until && <p>{t('credits.paidUntil', { date: formatDate(account.paid_until, i18n.language) })}</p>}
+                {account.locked && <p className="mt-1 text-red-700">{t('credits.locked')}</p>}
+              </div>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => {
+                setOpen(false)
+                void signOut()
+              }}
+            >
+              {t('auth.signOut')}
+            </button>
+          </div>
+        )}
       </div>
-      </div>
-      {open && (
-        <div role="menu" className="absolute right-0 top-10 z-30 w-64 glass-strong rounded-lg border border-gray-200 p-2 shadow-lg">
-          <p className="px-2 pt-1 text-xs text-gray-500">{t('auth.signedInAs')}</p>
-          <p className="truncate px-2 pb-2 text-sm font-medium text-gray-900" title={email ?? ''}>
-            {email}
-          </p>
-          {account && (
-            <div className="mb-2 border-t border-gray-200 px-2 py-2 text-xs text-gray-500">
-              <p className={`text-sm font-medium ${account.locked ? 'text-red-700' : 'text-gray-900'}`}>{account.paid ? t('credits.planPaid') : t('credits.planFree')}</p>
-              <p>{t('credits.count', { count: account.credits })}</p>
-              {account.credits > 0 && account.credits_expire_at && <p>{t('credits.validUntil', { date: formatDate(account.credits_expire_at, i18n.language) })}</p>}
-              {account.paid && account.paid_until && <p>{t('credits.paidUntil', { date: formatDate(account.paid_until, i18n.language) })}</p>}
-              {account.locked && <p className="mt-1 text-red-700">{t('credits.locked')}</p>}
-            </div>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            className="w-full rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
-            onClick={() => {
-              setOpen(false)
-              void signOut()
-            }}
-          >
-            {t('auth.signOut')}
-          </button>
-        </div>
-      )}
-      {window.location.pathname !== '/planos' && (
-        <a
-          href="/planos"
-          className="block whitespace-nowrap rounded-md btn-gold px-3 py-1 text-center text-xs focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
-        >
-          {t('plans.menu', { lng: 'pt' })}
-        </a>
-      )}
-    </div>
+    </>
   )
 }

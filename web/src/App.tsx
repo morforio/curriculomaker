@@ -13,7 +13,7 @@ import { ImportDialog } from './features/import-pdf/ImportDialog'
 import { ResumePreview } from './features/preview/ResumePreview'
 import { useSyncStatus } from './features/sync/syncStatus'
 import { useResumeSync } from './features/sync/useResumeSync'
-import { LanguageStripe, LanguageTabs } from './features/translate/LanguageTabs'
+import { LanguageCaption, LanguageStripe, LanguageTabs } from './features/translate/LanguageTabs'
 import { PullTranslationButton } from './features/translate/PullTranslationButton'
 import { LANG_NAMES, setLang } from './lib/i18n'
 import { useResumeStore } from './store/resumeStore'
@@ -74,9 +74,10 @@ function App() {
     <div className="min-h-screen">
       <div className="print:hidden">
         <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
-          {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
-          <div className="grid grid-cols-[auto_1fr] items-center gap-x-8 gap-y-3 px-5 pt-3 lg:flex lg:items-end lg:gap-x-12">
-            <h1 className="col-start-1 row-start-1 flex items-center gap-2.5 pb-2 text-gray-900 lg:mb-[3px] lg:pb-0" aria-label={t('app.name')}>
+          {/* Uma só linha no computador: logo, Traduzir, abas e, à direita, Salvo, ações, Planos e avatar.
+              Cada grupo tem 37 px de altura (a das abas) e encosta embaixo, então todos ficam centralizados na mesma linha. Em telas menores quebra em duas. */}
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-5 pt-2.5 xl:gap-x-10">
+            <h1 className="order-1 flex h-[37px] items-center gap-2.5 text-gray-900" aria-label={t('app.name')}>
               <img src="/emblem.png" alt="" aria-hidden="true" className="emblem" />
               <span aria-hidden="true" className="block leading-none">
                 <span className="block text-[17px] tracking-wide">
@@ -86,12 +87,11 @@ function App() {
                 <span className="mt-0.5 block text-[8px] uppercase tracking-[0.22em] text-gray-500">Career intelligence</span>
               </span>
             </h1>
-            <div className="col-span-2 row-start-2 lg:col-auto lg:row-auto">
-              <LanguageTabs above={<PullTranslationButton />} />
+            <div className="order-3 w-full xl:order-2 xl:w-auto">
+              <LanguageTabs before={<PullTranslationButton />} />
             </div>
-            <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-3 pb-2 lg:ml-auto lg:col-auto lg:row-auto lg:items-end lg:pb-0">
-              {/* No computador, logo, abas, estes botões e o botão Planos ficam na mesma linha horizontal (o centro das abas); Traduzir e Salvo ficam na linha de cima. */}
-              <div className="flex flex-wrap items-center justify-end gap-3 lg:mb-[3px] lg:flex-nowrap">
+            <div className="order-2 ml-auto flex flex-wrap items-center justify-end gap-3 xl:order-3 xl:h-[37px] xl:flex-nowrap">
+              <AccountBar>
                 <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
                   <IconUpload />
                   {t('import.button')}
@@ -116,14 +116,15 @@ function App() {
                   <IconDownload />
                   {t('toolbar.exportPdf')}
                 </button>
-              </div>
-              <AccountBar />
+              </AccountBar>
             </div>
           </div>
           <LanguageStripe />
         </header>
         <NoticeBanner />
         <LockedBanner />
+        {/* Legenda das abas: no corpo da página, abaixo das abas e antes do primeiro bloco (e não na barra, que fica com uma só linha). */}
+        <LanguageCaption />
       </div>
 
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
