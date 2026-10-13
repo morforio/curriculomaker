@@ -84,6 +84,11 @@ body {
 }
 @keyframes ring-spin { to { --ang: 360deg; } }
 @keyframes prism-slide { to { background-position: 200% 0; } }
+/* Brilho externo dos blocos ao passar o mouse: sutil, pulsa devagar (5,5 s por ciclo). */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 10px 0 rgba(130, 170, 255, 0.14), 0 0 26px 2px rgba(150, 125, 255, 0.07); }
+  50% { box-shadow: 0 0 16px 1px rgba(130, 170, 255, 0.32), 0 0 38px 5px rgba(150, 125, 255, 0.16); }
+}
 @keyframes glint {
   0%, 100% { filter: brightness(1) saturate(1); }
   45% { filter: brightness(1.45) saturate(1.5); }
@@ -134,6 +139,20 @@ body {
   .glass-strong:hover::before {
     opacity: 0.9;
     animation: ring-spin 9s linear infinite;
+  }
+  /* Brilho externo pulsante (só fora do bloco: a sombra externa não é desenhada por dentro da caixa). */
+  .glass::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .glass:hover::after {
+    opacity: 1;
+    animation: glow-pulse 5.5s ease-in-out infinite;
   }
 
   /* Botão principal: degradê de prisma (ciano, azul, violeta) com reflexo que varre ao passar o mouse. */
@@ -211,7 +230,7 @@ html[data-motion='off'] *,
 html[data-motion='off'] *::before,
 html[data-motion='off'] *::after { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .emblem, header.sticky::before, .glass:hover::before, .glass-strong:hover::before { animation: none; }
+  .emblem, header.sticky::before, .glass:hover::before, .glass-strong:hover::before, .glass:hover::after { animation: none; }
   .btn-prism, .btn-gold { transition: none; }
 }
 
