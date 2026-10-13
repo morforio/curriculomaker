@@ -182,21 +182,13 @@ body {
   .btn-gold:hover { transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 8px 24px rgba(255, 190, 90, 0.55); }
   .btn-gold:active { transform: scale(0.97); }
 
-  /* Emblema do cristal (recortado de /logo.jpg); o modo "screen" apaga o fundo escuro da imagem. */
+  /* Emblema do cristal: PNG com fundo transparente (public/emblem.png). */
   .emblem {
     flex: none;
-    width: 24px;
-    height: 45px;
-    margin: -5px 0;
-    background: url(/logo.jpg) -36px -17.25px / 96px 96px no-repeat;
-    mix-blend-mode: screen;
+    display: block;
+    height: 40px;
+    width: auto;
     animation: glint 6s ease-in-out infinite;
-  }
-  /* A imagem tem fundo próprio: a máscara radial dissolve as bordas e o modo screen apaga o resto. */
-  .login-logo {
-    mix-blend-mode: screen;
-    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 42%, transparent 72%);
-    mask-image: radial-gradient(circle at 50% 50%, #000 42%, transparent 72%);
   }
 }
 

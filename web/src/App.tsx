@@ -75,9 +75,9 @@ function App() {
       <div className="print:hidden">
         <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
           {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
-          <div className="grid grid-cols-[auto_1fr] items-end gap-x-8 gap-y-3 px-5 pt-3 lg:flex lg:gap-x-12">
-            <h1 className="col-start-1 row-start-1 flex items-center gap-2.5 pb-2 text-gray-900" aria-label={t('app.name')}>
-              <span aria-hidden="true" className="emblem" />
+          <div className="grid grid-cols-[auto_1fr] items-center gap-x-8 gap-y-3 px-5 pt-3 lg:flex lg:items-end lg:gap-x-12">
+            <h1 className="col-start-1 row-start-1 flex items-center gap-2.5 pb-2 text-gray-900 lg:-mb-0.5 lg:pb-0" aria-label={t('app.name')}>
+              <img src="/emblem.png" alt="" aria-hidden="true" className="emblem" />
               <span aria-hidden="true" className="block leading-none">
                 <span className="block text-xl tracking-wide">
                   <span className="font-light">Curri</span>
@@ -89,31 +89,34 @@ function App() {
             <div className="col-span-2 row-start-2 lg:col-auto lg:row-auto">
               <LanguageTabs above={<PullTranslationButton />} />
             </div>
-            <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-3 pb-2 lg:ml-auto lg:col-auto lg:row-auto">
-              <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
-                <IconUpload />
-                {t('import.button')}
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  if (window.confirm(t('toolbar.confirmReset'))) reset()
-                }}
-              >
-                <IconTrash />
-                {t('toolbar.reset')}
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-md btn-prism px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => void exportPdf()}
-                disabled={locked}
-                title={locked ? t('lock.tooltip') : account && !account.paid ? t('toolbar.exportCost') : undefined}
-              >
-                <IconDownload />
-                {t('toolbar.exportPdf')}
-              </button>
+            <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-3 pb-2 lg:ml-auto lg:col-auto lg:row-auto lg:items-end lg:pb-0">
+              {/* No computador, logo, abas, estes botões e o botão Planos ficam na mesma linha horizontal (o centro das abas); Traduzir e Salvo ficam na linha de cima. */}
+              <div className="flex flex-wrap items-center justify-end gap-3 lg:mb-[3px] lg:flex-nowrap">
+                <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
+                  <IconUpload />
+                  {t('import.button')}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => {
+                    if (window.confirm(t('toolbar.confirmReset'))) reset()
+                  }}
+                >
+                  <IconTrash />
+                  {t('toolbar.reset')}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-md btn-prism px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => void exportPdf()}
+                  disabled={locked}
+                  title={locked ? t('lock.tooltip') : account && !account.paid ? t('toolbar.exportCost') : undefined}
+                >
+                  <IconDownload />
+                  {t('toolbar.exportPdf')}
+                </button>
+              </div>
               <AccountBar />
             </div>
           </div>

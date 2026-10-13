@@ -58,7 +58,7 @@ export function LanguageTabs({ above }: { above?: ReactNode }) {
   return (
     <>
       <div className="flex items-end gap-4">
-        <div className="flex flex-col items-start gap-1.5 pb-2">
+        <div className="flex flex-col items-start gap-1.5 pb-2.5">
           {above}
           <span className="hidden text-xs text-gray-500 md:block">{t('tabs.caption')}</span>
         </div>
