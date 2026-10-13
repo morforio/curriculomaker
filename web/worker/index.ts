@@ -6,6 +6,7 @@ import { publicConfig } from './config.ts'
 import { withCredit } from './credits.ts'
 import type { Limiter } from './limiter.ts'
 import { withSecurityHeaders } from './security.ts'
+import { sellerResponse, type SellerEnv } from './seller.ts'
 import { handleTranslate } from './translate.ts'
 
 export { Limiter } from './limiter.ts'
@@ -36,6 +37,11 @@ interface Env {
   ASAAS_API_KEY?: string
   ASAAS_WEBHOOK_TOKEN?: string
   ASAAS_BASE_URL?: string
+  /** Secrets: dados do fornecedor (nome, CPF, endereço e e-mail) mostrados nos termos e na política. Não ficam no repositório, que é público. */
+  SELLER_NAME?: string
+  SELLER_CPF?: string
+  SELLER_ADDRESS?: string
+  SELLER_EMAIL?: string
   RATE_PER_IP_HOUR?: string
   DAILY_CAP?: string
   TRANSLATE_PER_IP_HOUR?: string
@@ -60,6 +66,12 @@ async function route(request: Request, env: Env): Promise<Response> {
   // Configuração pública do login. Sem ela, o site só abre se AUTH_OPTIONAL=true; senão o site mostra erro (a API também recusa).
   if (url.pathname === '/api/config') {
     const { status, body } = publicConfig(env)
+    return json(status, body)
+  }
+
+  // Dados do fornecedor para /termos e /privacidade (abrem sem login). Vêm dos segredos SELLER_* (worker/seller.ts).
+  if (url.pathname === '/api/seller') {
+    const { status, body } = sellerResponse(env satisfies SellerEnv)
     return json(status, body)
   }
 
