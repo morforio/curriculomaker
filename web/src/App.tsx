@@ -76,14 +76,14 @@ function App() {
         <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
           {/* Telas menores: logo e botões em cima, abas na linha de baixo (sempre encostadas na faixa). A partir de lg, tudo numa linha só. */}
           <div className="grid grid-cols-[auto_1fr] items-center gap-x-8 gap-y-3 px-5 pt-3 lg:flex lg:items-end lg:gap-x-12">
-            <h1 className="col-start-1 row-start-1 flex items-center gap-2.5 pb-2 text-gray-900 lg:-mb-0.5 lg:pb-0" aria-label={t('app.name')}>
+            <h1 className="col-start-1 row-start-1 flex items-center gap-2.5 pb-2 text-gray-900 lg:mb-[3px] lg:pb-0" aria-label={t('app.name')}>
               <img src="/emblem.png" alt="" aria-hidden="true" className="emblem" />
               <span aria-hidden="true" className="block leading-none">
-                <span className="block text-xl tracking-wide">
+                <span className="block text-[17px] tracking-wide">
                   <span className="font-light">Curri</span>
                   <span className="font-semibold">Maker</span>
                 </span>
-                <span className="mt-1 block text-[9px] uppercase tracking-[0.22em] text-gray-500">Career intelligence</span>
+                <span className="mt-0.5 block text-[8px] uppercase tracking-[0.22em] text-gray-500">Career intelligence</span>
               </span>
             </h1>
             <div className="col-span-2 row-start-2 lg:col-auto lg:row-auto">
