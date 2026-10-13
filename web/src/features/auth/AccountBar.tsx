@@ -53,7 +53,7 @@ export function AccountBar() {
 
   const label = sync === 'saving' ? t('sync.saving') : sync === 'saved' ? t('sync.saved') : sync === 'saveError' ? t('sync.saveError') : ''
   return (
-    <div ref={box} className="relative flex flex-col items-stretch gap-1.5 lg:mb-1.5">
+    <div ref={box} className="relative flex flex-col items-stretch gap-1 lg:mb-1.5">
       <div className="flex items-center justify-end gap-2">
       {label && (
         <span role="status" className={`hidden text-xs sm:inline ${sync === 'saveError' ? 'text-red-700' : 'text-gray-400'}`}>
