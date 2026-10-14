@@ -41,7 +41,7 @@ export function Editor() {
 
   return (
     <div className="space-y-6">
-      <section className="glass rounded-lg border border-gray-200 p-4">
+      <section className="glass rounded-lg border border-gray-200 p-4" data-focus-key="header">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">{t('header.title')}</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <TextField label={t('header.fullName')} value={header.fullName} onChange={(fullName) => setHeader({ fullName })} />
