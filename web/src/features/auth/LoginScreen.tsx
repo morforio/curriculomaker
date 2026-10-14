@@ -48,7 +48,7 @@ export function LoginScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm glass space-y-4 rounded-lg border border-gray-200 p-6">
-        <img src="/logo.png" alt="" width={210} height={216} className="mx-auto -mt-2 mb-1 h-[216px] w-[210px] max-w-full" />
+        <img src="/logo.png" alt="" width={210} height={216} className="login-logo mx-auto -mt-2 mb-1 h-[216px] w-[210px] max-w-full" />
         <div>
           <h1 className="sr-only">{t('app.name')}</h1>
           <p className="mt-1 text-sm text-gray-600">{mode === 'signIn' ? t('auth.signInIntro') : mode === 'signUp' ? t('auth.signUpIntro') : t('auth.forgotIntro')}</p>

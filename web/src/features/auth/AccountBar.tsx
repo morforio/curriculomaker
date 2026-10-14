@@ -87,7 +87,7 @@ export function AccountBar({ children }: { children?: ReactNode }) {
             role="status"
             title={t('credits.count', { count: account.credits })}
             aria-label={t('credits.count', { count: account.credits })}
-            className={`pointer-events-none absolute -top-2.5 left-1/2 min-w-5 -translate-x-1/2 rounded-full px-1.5 text-center text-[11px] font-bold leading-4 text-white ring-2 ring-[#07102a] ${account.locked ? 'bg-red-600' : account.paid ? 'bg-blue-600' : 'bg-amber-600'}`}
+            className={`pointer-events-none absolute -top-2.5 left-1/2 min-w-5 -translate-x-1/2 rounded-full px-1.5 text-center text-[11px] font-bold leading-4 text-[#fff] ring-2 ring-[var(--pill-ring)] ${account.locked ? 'bg-red-600' : account.paid ? 'bg-blue-600' : 'bg-amber-600'}`}
           >
             {account.credits}
           </span>

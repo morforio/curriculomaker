@@ -69,6 +69,60 @@ body {
   --color-blue-50: #0b1d44;
   --color-blue-100: #102a5c;
   --color-blue-200: #1d4286;
+  /* Variáveis que mudam com o tema (cabeçalho, aba ativa, anel do selo de créditos). */
+  --header-bg: rgba(7, 16, 42, 0.7);
+  --tab-bg: #0b1636;
+  --pill-ring: #07102a;
+}
+
+/* ---------- Tema claro ----------
+   Mesmos detalhes do escuro (cartões de vidro, borda de prisma, botão principal), só que em branco. Troca as mesmas escalas do Tailwind
+   por valores claros; --color-white vira o azul-marinho, porque o site usa bg-white/5 e bg-white/10 como "véu" sobre o fundo. */
+html[data-theme='light'] {
+  color-scheme: light;
+  --color-gray-50: #f4f7fc;
+  --color-gray-100: #e9eff9;
+  --color-gray-200: #d3dcee;
+  --color-gray-300: #bccadf;
+  --color-gray-400: #8a9ab8;
+  --color-gray-500: #647592;
+  --color-gray-600: #4a5a78;
+  --color-gray-700: #34435f;
+  --color-gray-800: #1f2b45;
+  --color-gray-900: #0f1a33;
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #991b1b;
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+  --color-green-900: #14532d;
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #1d4ed8;
+  --color-white: #0f1a33;
+  --header-bg: rgba(255, 255, 255, 0.78);
+  --tab-bg: #ffffff;
+  --pill-ring: #ffffff;
+}
+html[data-theme='light'] body {
+  background:
+    radial-gradient(1100px 520px at 18% -10%, #dbe8fb 0%, rgba(219, 232, 251, 0) 60%) fixed,
+    radial-gradient(900px 500px at 105% 10%, #e8e0fb 0%, rgba(232, 224, 251, 0) 55%) fixed,
+    #f3f6fb;
+  color: #0f1a33;
 }
 
 /* O conteúdo fica acima do fundo animado (um canvas fixo, criado em BackgroundFx). */
@@ -233,6 +287,33 @@ html[data-motion='off'] *::after { animation: none !important; }
   .emblem, header.sticky::before, .glass:hover::before, .glass-strong:hover::before, .glass:hover::after { animation: none; }
   .btn-prism, .btn-gold { transition: none; }
 }
+
+/* Tema claro: cartões de vidro branco (sem layer: valem mais que o .glass do tema escuro). */
+html[data-theme='light'] .glass,
+html[data-theme='light'] .glass-strong {
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 30%),
+    radial-gradient(240px 120px at 100% 0%, rgba(150, 120, 255, 0.07), transparent 70%),
+    var(--glass-bg);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.9),
+    inset -1px -1px 0 rgba(120, 130, 200, 0.16),
+    0 10px 34px rgba(40, 70, 130, 0.12),
+    0 2px 6px rgba(40, 70, 130, 0.06);
+}
+html[data-theme='light'] .glass-strong { --glass-bg: rgba(255, 255, 255, 0.97); }
+html[data-theme='light'] .glass:hover,
+html[data-theme='light'] .glass-strong:hover {
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.95),
+    inset -1px -1px 0 rgba(120, 130, 200, 0.24),
+    0 14px 40px rgba(40, 70, 130, 0.18),
+    0 2px 6px rgba(40, 70, 130, 0.08);
+}
+/* A logo e o emblema foram feitos para fundo escuro (cristal claro, nome prateado): no claro, o filtro inverte o brilho e mantém as cores. */
+html[data-theme='light'] .emblem { animation: none; filter: invert(1) hue-rotate(180deg) saturate(1.3) contrast(1.05); }
+html[data-theme='light'] .login-logo { filter: invert(1) hue-rotate(180deg) saturate(1.3) contrast(1.05); }
 
 /* Blocos flutuantes: andam muito pouco com o mouse (--mx e --my vêm de BackgroundFx). Valores da maquete aprovada. */
 .float-block {
