@@ -16,6 +16,7 @@ import { moveItem } from '../../lib/rows'
 import type { Row } from '../../lib/schemas/resume'
 import { emptyRow } from '../../store/resumeStore'
 import { useLocked } from '../credits/useLocked'
+import { useFocusScope } from '../focus/focusScope'
 
 type RowArgs = {
   row: Row
@@ -26,8 +27,9 @@ type RowArgs = {
   remove: () => void
 }
 
-function Item({ id, children }: { id: string; children: (handle: ReactNode) => ReactNode }) {
+function Item({ id, index, children }: { id: string; index: number; children: (handle: ReactNode) => ReactNode }) {
   const { t } = useTranslation()
+  const scope = useFocusScope()
   const locked = useLocked()
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: locked })
   const handle = (
@@ -48,6 +50,7 @@ function Item({ id, children }: { id: string; children: (handle: ReactNode) => R
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      data-focus-key={scope ? `${scope}#${index}` : undefined}
       className={isDragging ? 'relative z-10 rounded shadow-lg ring-1 ring-blue-500' : undefined}
     >
       {children(handle)}
@@ -97,7 +100,7 @@ export function SortableList({ rows, onChange, renderRow }: { rows: Row[]; onCha
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
           {rows.map((row, i) => (
-            <Item key={ids[i]} id={ids[i]}>
+            <Item key={ids[i]} id={ids[i]} index={i}>
               {(handle) => renderRow({ row, index: i, handle, remove: () => remove(i) })}
             </Item>
           ))}

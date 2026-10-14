@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDownload, IconTrash, IconUpload } from './components/Icons'
 import { AccountBar } from './features/auth/AccountBar'
@@ -29,6 +29,16 @@ function App() {
   const [importing, setImporting] = useState(false)
   const locked = useLocked()
   const account = useCreditsStore((s) => s.account)
+  // A altura do cabeçalho (que muda com a largura da tela) vai para --header-h: a coluna da prévia fica fixa logo abaixo dele.
+  const headerObserver = useRef<ResizeObserver | null>(null)
+  const headerRef = useCallback((el: HTMLElement | null) => {
+    headerObserver.current?.disconnect()
+    if (!el) return
+    const set = () => document.documentElement.style.setProperty('--header-h', `${el.getBoundingClientRect().height}px`)
+    set()
+    headerObserver.current = new ResizeObserver(set)
+    headerObserver.current.observe(el)
+  }, [])
 
   // A aba ativa define o idioma da interface.
   useEffect(() => setLang(lang), [lang])
@@ -73,8 +83,9 @@ function App() {
 
   return (
     <div className="min-h-screen">
-      <div className="print:hidden">
-        <header className="sticky top-0 z-20 bg-[var(--header-bg)] backdrop-blur-md">
+      {/* "contents": o cabeçalho passa a ser filho direto da página, e assim o sticky dele vale a página inteira (antes ele só colava dentro desta caixa e saía da tela ao rolar). */}
+      <div className="contents print:hidden">
+        <header ref={headerRef} className="sticky top-0 z-20 bg-[var(--header-bg)] backdrop-blur-md">
           {/* Uma só linha no computador: logo, Traduzir, abas e, à direita, Salvo, ações, Planos e avatar. A logo é o item mais alto e define a altura
               da linha; todo o resto (nome, Traduzir, abas, botões, Planos e avatar) fica com o centro no centro da logo. Em telas menores quebra em duas. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 pb-[3px] pt-1.5 xl:gap-x-10">

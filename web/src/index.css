@@ -265,6 +265,13 @@ html[data-theme='light'] body {
   }
 }
 
+/* Trecho do currículo em edição (marcado por usePreviewFollow na prévia da tela): faixa verde translúcida com uma barra na lateral, enquanto o campo está em uso. */
+.cv-sheet .mark {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.22), rgba(52, 211, 153, 0) 85%);
+  box-shadow: inset 3px 0 0 #34d399;
+  border-radius: 2px;
+}
+
 /* Linha de prisma no topo do cabeçalho (acima da faixa de idioma). */
 header.sticky::before {
   content: '';

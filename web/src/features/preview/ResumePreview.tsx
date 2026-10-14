@@ -2,6 +2,7 @@ import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'rea
 import { useTranslation } from 'react-i18next'
 import { FONT_SIZES, type Resume, type Row, type Section } from '../../lib/schemas/resume'
 import { useResumeStore } from '../../store/resumeStore'
+import { usePreviewFollow } from '../focus/usePreviewFollow'
 
 /**
  * Template ATS-friendly: uma coluna, HTML semântico, texto real, sem tabelas, ícones nem
@@ -62,18 +63,18 @@ function RichText({ text }: { text: string }) {
  * Linhas "tópico + texto": com tópico viram marcador com o tópico em negrito;
  * sem tópico viram texto livre (parágrafos e, se começarem com - ou •, marcadores).
  */
-function RowsView({ rows }: { rows: Row[] }) {
+function RowsView({ rows, focusKey }: { rows: Row[]; focusKey: string }) {
   const out: ReactNode[] = []
-  let topicRows: Row[] = []
+  let topicRows: { row: Row; index: number }[] = []
   const flush = () => {
     if (topicRows.length === 0) return
     const items = topicRows
     out.push(
       <ul key={`t${out.length}`}>
-        {items.map((r, i) => {
+        {items.map(({ row: r, index }, i) => {
           const topic = r.topic.trim().replace(/:\s*$/, '')
           return (
-            <li key={i}>
+            <li key={i} data-focus-key={`${focusKey}#${index}`}>
               <strong>{topic}</strong>
               {r.text.trim() ? ': ' : ''}
               <Inline text={r.text.trim()} />
@@ -91,10 +92,10 @@ function RowsView({ rows }: { rows: Row[] }) {
     out.push(<RichText key={`r${out.length}`} text={freeTexts.join('\n')} />)
     freeTexts = []
   }
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     if (row.topic.trim()) {
       flushFree()
-      topicRows.push(row)
+      topicRows.push({ row, index })
     } else if (row.text.trim()) {
       flush()
       freeTexts.push(row.text)
@@ -140,15 +141,15 @@ function SectionBody({ section }: { section: Section }) {
     case 'skills':
     case 'languages':
     case 'custom':
-      return <RowsView rows={section.data.rows} />
+      return <RowsView rows={section.data.rows} focusKey={section.id} />
     case 'experience':
       return (
         <>
           {section.data.items.map((item, i) => (
-            <div key={i} className="cv-entry">
+            <div key={i} className="cv-entry" data-focus-key={`${section.id}:${i}`}>
               <Title main={joinParts([item.role, item.company], ', ')} period={item.period} />
               {item.location.trim() && <p className="cv-meta">{item.location}</p>}
-              <RowsView rows={item.rows} />
+              <RowsView rows={item.rows} focusKey={`${section.id}:${i}`} />
             </div>
           ))}
         </>
@@ -157,9 +158,9 @@ function SectionBody({ section }: { section: Section }) {
       return (
         <>
           {section.data.items.map((item, i) => (
-            <div key={i} className="cv-entry">
+            <div key={i} className="cv-entry" data-focus-key={`${section.id}:${i}`}>
               <Title main={joinParts([item.degree, item.institution], ', ')} period={item.period} />
-              <RowsView rows={item.rows} />
+              <RowsView rows={item.rows} focusKey={`${section.id}:${i}`} />
             </div>
           ))}
         </>
@@ -215,7 +216,7 @@ function ResumeContent({ resume }: { resume: Resume }) {
 
   return (
     <div className="cv" style={{ fontSize: `${resume.settings.fontSize}pt` }}>
-        <header>
+        <header data-focus-key="header">
           <h1 className="cv-name">{header.fullName.trim() || t('preview.placeholderName')}</h1>
           {header.headline.trim() && <p className="cv-headline">{header.headline}</p>}
           {(line1.length > 0 || header.location.trim()) && (
@@ -236,7 +237,7 @@ function ResumeContent({ resume }: { resume: Resume }) {
         {resume.sections
           .filter((s) => !isEmpty(s))
           .map((section) => (
-            <section key={section.id}>
+            <section key={section.id} data-focus-key={section.id}>
               <h2 className="cv-h2">{section.title}</h2>
               <SectionBody section={section} />
             </section>
@@ -289,6 +290,8 @@ export function ResumePreview({ resume }: { resume: Resume }) {
   const setFontSize = useResumeStore((s) => s.setFontSize)
   const measureRef = useRef<HTMLDivElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const railRef = useRef<HTMLDivElement>(null)
   const [starts, setStarts] = useState<number[]>([0])
   const [scale, setScale] = useState(1)
 
@@ -316,11 +319,16 @@ export function ResumePreview({ resume }: { resume: Resume }) {
     return () => ro.disconnect()
   }, [])
 
+  usePreviewFollow(scrollRef, railRef)
+
   const pages = starts.length
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
+    <div className="relative h-full">
+      {/* No computador a coluna fica fixa sob a barra superior: o título e o tamanho da fonte ficam parados em cima e só as folhas rolam, numa janela
+          própria (por baixo deles). Assim o currículo nunca cobre a barra nem o título, e pode ser movido para acompanhar a edição. */}
+      <div className="lg:sticky lg:top-[var(--header-h,0px)] lg:flex lg:h-[calc(100vh-var(--header-h,0px)-1rem)] lg:flex-col print:hidden">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 print:hidden">
         <h2 className="text-sm font-semibold text-gray-900">
           {t('preview.title')} <span className="font-normal text-gray-500">· {t('preview.pages', { count: pages })}</span>
         </h2>
@@ -340,12 +348,13 @@ export function ResumePreview({ resume }: { resume: Resume }) {
         </label>
       </div>
 
-      {/* Medição (fora da tela, sem afetar o layout). */}
-      <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: '174mm', visibility: 'hidden' }} ref={measureRef}>
-        <ResumeContent resume={resume} />
-      </div>
-
       {/* Prévia na tela: uma folha A4 por página, mostrando só a parte do currículo que cai nela. */}
+      <div className="relative lg:min-h-0 lg:flex-1">
+      {/* Régua fina na lateral: aparece só enquanto o currículo desliza e mostra a posição dele. */}
+      <div ref={railRef} aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[5px] rounded bg-blue-400/15 opacity-0 transition-opacity duration-300 lg:block">
+        <i className="absolute inset-x-0 rounded bg-gradient-to-b from-[#35b6ff] to-[#a77bff] shadow-[0_0_10px_rgba(116,192,255,0.7)]" />
+      </div>
+      <div ref={scrollRef} data-preview-scroll className="lg:h-full lg:overflow-y-auto lg:pb-[45vh] lg:pr-1">
       <div ref={boxRef} className="space-y-4 print:hidden">
         {starts.map((start, i) => (
           <div key={i}>
@@ -356,7 +365,7 @@ export function ResumePreview({ resume }: { resume: Resume }) {
                 style={{ width: SHEET_W, height: SHEET_H, transform: `scale(${scale})`, transformOrigin: '0 0' }}
               >
                 {/* A janela termina onde a próxima página começa: assim o pedaço do bloco que vai para a próxima não aparece aqui. */}
-                <div style={{ height: i < pages - 1 ? Math.min(CONTENT_H, starts[i + 1] - start) : CONTENT_H, overflow: 'hidden' }}>
+                <div data-sheet-window style={{ height: i < pages - 1 ? Math.min(CONTENT_H, starts[i + 1] - start) : CONTENT_H, overflow: 'hidden' }}>
                   <div style={{ transform: `translateY(${-start}px)` }}>
                     <ResumeContent resume={resume} />
                   </div>
@@ -366,6 +375,15 @@ export function ResumePreview({ resume }: { resume: Resume }) {
             <p className="mt-1 text-center text-xs text-gray-500">{t('preview.pageOf', { current: i + 1, total: pages })}</p>
           </div>
         ))}
+      </div>
+
+      </div>
+      </div>
+      </div>
+
+      {/* Medição (fora da tela, sem afetar o layout). */}
+      <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: '174mm', visibility: 'hidden' }} ref={measureRef}>
+        <ResumeContent resume={resume} />
       </div>
 
       {/* Impressão: o documento corrido; o navegador faz a paginação real do PDF. */}

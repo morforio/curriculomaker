@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { Section } from '../../lib/schemas/resume'
 import { useResumeStore } from '../../store/resumeStore'
 import { useLocked } from '../credits/useLocked'
+import { FocusScope } from '../focus/focusScope'
 import { SectionForm } from './SectionForms'
 
 const iconBtn =
@@ -24,6 +25,7 @@ export function SectionCard({ section, index, total }: { section: Section; index
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      data-focus-key={section.id}
       className={`glass rounded-lg border ${isDragging ? 'z-10 border-blue-500 shadow-lg' : 'border-gray-200'}`}
     >
       <div className="flex items-center gap-1 border-b border-gray-100 p-2">
@@ -60,7 +62,9 @@ export function SectionCard({ section, index, total }: { section: Section; index
       </div>
       {open && (
         <div className="p-3">
-          <SectionForm section={section} onChange={(data) => updateSection(section.id, { data })} />
+          <FocusScope.Provider value={section.id}>
+            <SectionForm section={section} onChange={(data) => updateSection(section.id, { data })} />
+          </FocusScope.Provider>
         </div>
       )}
     </div>
