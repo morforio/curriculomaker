@@ -76,13 +76,13 @@ function App() {
         <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
           {/* Uma só linha no computador: logo, Traduzir, abas e, à direita, Salvo, ações, Planos e avatar.
               Cada grupo tem 37 px de altura (a das abas) e encosta embaixo, então todos ficam centralizados na mesma linha. Em telas menores quebra em duas. */}
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-5 pt-4 xl:gap-x-10">
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-5 pt-[26px] xl:gap-x-10">
             {/* O emblema é mais alto que a linha (37 px): fica com a base logo acima da linha colorida e sobe pelo espaço de cima; o nome fica centralizado na linha. */}
             <h1 className="order-1 flex items-end gap-2.5 text-gray-900" aria-label={t('app.name')}>
               <img src="/emblem.png" alt="" aria-hidden="true" className="emblem mb-[3px]" />
               <span aria-hidden="true" className="flex h-[37px] items-center">
                 <span className="block leading-none">
-                  <span className="block text-[17px] tracking-wide">
+                  <span className="block text-lg tracking-wide">
                     <span className="font-light">Curri</span>
                     <span className="font-semibold">Maker</span>
                   </span>

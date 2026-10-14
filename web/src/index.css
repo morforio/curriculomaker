@@ -205,7 +205,7 @@ body {
   .emblem {
     flex: none;
     display: block;
-    height: 48px;
+    height: 60px;
     width: auto;
     animation: glint 6s ease-in-out infinite;
   }
