@@ -75,7 +75,7 @@ export function LanguageTabs({ before }: { before?: ReactNode }) {
                 // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
                 style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
                 className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm xl:flex xl:items-center xl:py-0 ${
-                  active ? 'relative z-10 bg-[#0b1636] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
+                  active ? 'relative z-10 bg-[var(--tab-bg)] pb-2.5 font-semibold text-gray-900' : 'border-transparent pb-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
                 }`}
               >
                 {LANG_NAMES[l]}

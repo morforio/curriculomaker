@@ -15,7 +15,7 @@ export function LockedBanner() {
       <p>
         <Trans
           i18nKey="lock.banner3"
-          components={{ plan: <a href={PRO_PLAN_URL} className="font-semibold text-blue-300 underline hover:text-blue-200" /> }}
+          components={{ plan: <a href={PRO_PLAN_URL} className="font-semibold text-blue-300 underline hover:opacity-80" /> }}
         />
       </p>
     </div>

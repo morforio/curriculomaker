@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useThemeStore } from '../theme/themeStore'
 import { useMotionEnabled } from './motionStore'
 
 /**
@@ -7,7 +8,10 @@ import { useMotionEnabled } from './motionStore'
  * acompanha o mouse com atraso. Também publica a posição do mouse em --mx e --my (de -1 a 1, suavizada) na raiz da página,
  * que move de leve os blocos flutuantes (.float-block e .float-sheet no CSS). Desligado, desenha um quadro parado.
  */
-const ACC = '116,192,255'
+// Cores por tema (RGB): escuro = azul-gelo; claro = azul mais fechado, para aparecer no fundo branco.
+let ACC = '116,192,255'
+let LINK_RGB = '190,210,255'
+let DOT_RGB = '176,196,240'
 
 // Valores aprovados na maquete "B3, ainda mais sutil".
 const LINK = 140 // distância máxima entre partículas ligadas, em px
@@ -37,6 +41,7 @@ function makeDots(count: number): Dot[] {
 export function BackgroundFx() {
   const ref = useRef<HTMLCanvasElement>(null)
   const enabled = useMotionEnabled()
+  const theme = useThemeStore((st) => st.theme) // refaz o quadro parado quando o tema muda
 
   useEffect(() => {
     const canvas = ref.current
@@ -85,6 +90,10 @@ export function BackgroundFx() {
         root.style.setProperty('--mx', mx.toFixed(3))
         root.style.setProperty('--my', my.toFixed(3))
       }
+      const light = root.dataset.theme === 'light'
+      ACC = light ? '37,99,235' : '116,192,255'
+      LINK_RGB = light ? '37,99,235' : '190,210,255'
+      DOT_RGB = light ? '60,90,160' : '176,196,240'
       ctx!.clearRect(0, 0, w, h)
       wash(w * 0.5, h * 0.4, Math.max(w, h) * 0.7, 0.07)
 
@@ -135,7 +144,7 @@ export function BackgroundFx() {
           .sort((u, v) => u.d - v.d)
           .slice(0, CURSOR_LINKS)
           .forEach((q) => {
-            ctx!.strokeStyle = `rgba(190,210,255,${(CURSOR_ALPHA * (1 - q.d / CURSOR_RANGE) * presence).toFixed(3)})`
+            ctx!.strokeStyle = `rgba(${LINK_RGB},${(CURSOR_ALPHA * (1 - q.d / CURSOR_RANGE) * presence).toFixed(3)})`
             ctx!.lineWidth = 0.7
             ctx!.beginPath()
             ctx!.moveTo(q.x, q.y)
@@ -145,7 +154,7 @@ export function BackgroundFx() {
       }
       for (const q of pts) {
         const glow = q.d < CURSOR_RANGE ? (1 - q.d / CURSOR_RANGE) * presence : 0
-        ctx!.fillStyle = `rgba(176,196,240,${Math.min(1, q.a * 0.5 + glow * 0.16).toFixed(2)})`
+        ctx!.fillStyle = `rgba(${DOT_RGB},${Math.min(1, q.a * 0.5 + glow * 0.16).toFixed(2)})`
         const sz = q.s + glow * 0.7
         ctx!.fillRect(q.x - sz / 2, q.y - sz / 2, sz, sz)
       }
@@ -195,7 +204,7 @@ export function BackgroundFx() {
       root.style.setProperty('--mx', '0')
       root.style.setProperty('--my', '0')
     }
-  }, [enabled])
+  }, [enabled, theme])
 
   return createPortal(<canvas ref={ref} className="fx-bg" aria-hidden="true" />, document.body)
 }

@@ -260,6 +260,10 @@ const resources = {
         titleOn: 'Desligar as animações de fundo',
         titleOff: 'Ligar as animações de fundo',
       },
+      theme: {
+        toLight: 'Ativar o modo claro',
+        toDark: 'Ativar o modo escuro',
+      },
       notice: {
         fallback: 'O primeiro modelo de IA está com muita demanda agora, então esta resposta foi feita por um segundo modelo.',
         noCredits: 'Seus créditos acabaram. Exportar o PDF está bloqueado.',
@@ -552,6 +556,10 @@ const resources = {
         label: 'Background animations',
         titleOn: 'Turn background animations off',
         titleOff: 'Turn background animations on',
+      },
+      theme: {
+        toLight: 'Switch to light mode',
+        toDark: 'Switch to dark mode',
       },
       notice: {
         fallback: 'The first AI model is under heavy demand right now, so this answer was produced by a second model.',

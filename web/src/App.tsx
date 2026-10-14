@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDownload, IconTrash, IconUpload } from './components/Icons'
 import { AccountBar } from './features/auth/AccountBar'
+import { ThemeToggle } from './features/theme/ThemeToggle'
 import { LockedBanner } from './features/credits/LockedBanner'
 import { useCreditsStore } from './features/credits/creditsStore'
 import { useLocked } from './features/credits/useLocked'
@@ -73,7 +74,7 @@ function App() {
   return (
     <div className="min-h-screen">
       <div className="print:hidden">
-        <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
+        <header className="sticky top-0 z-20 bg-[var(--header-bg)] backdrop-blur-md">
           {/* Uma só linha no computador: logo, Traduzir, abas e, à direita, Salvo, ações, Planos e avatar. A logo é o item mais alto e define a altura
               da linha; todo o resto (nome, Traduzir, abas, botões, Planos e avatar) fica com o centro no centro da logo. Em telas menores quebra em duas. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 pb-[3px] pt-1.5 xl:gap-x-10">
@@ -92,6 +93,7 @@ function App() {
             </div>
             <div className="order-2 ml-auto flex flex-wrap items-center justify-end gap-3 xl:order-3 xl:flex-nowrap">
               <AccountBar>
+                <ThemeToggle />
                 <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
                   <IconUpload />
                   {t('import.button')}
