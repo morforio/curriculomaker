@@ -74,26 +74,23 @@ function App() {
     <div className="min-h-screen">
       <div className="print:hidden">
         <header className="sticky top-0 z-20 bg-[#07102a]/70 backdrop-blur-md">
-          {/* Uma só linha no computador: logo, Traduzir, abas e, à direita, Salvo, ações, Planos e avatar.
-              Cada grupo tem 37 px de altura (a das abas) e encosta embaixo, então todos ficam centralizados na mesma linha. Em telas menores quebra em duas. */}
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-5 pt-[26px] xl:gap-x-10">
-            {/* O emblema é mais alto que a linha (37 px): fica com a base logo acima da linha colorida e sobe pelo espaço de cima; o nome fica centralizado na linha. */}
-            <h1 className="order-1 flex items-end gap-2.5 text-gray-900" aria-label={t('app.name')}>
-              <img src="/emblem.png" alt="" aria-hidden="true" className="emblem mb-[3px]" />
-              <span aria-hidden="true" className="flex h-[37px] items-center">
-                <span className="block leading-none">
-                  <span className="block text-lg tracking-wide">
-                    <span className="font-light">Curri</span>
-                    <span className="font-semibold">Maker</span>
-                  </span>
-                  <span className="mt-0.5 block text-[8px] uppercase tracking-[0.22em] text-gray-500">Career intelligence</span>
+          {/* Uma só linha no computador: logo, Traduzir, abas e, à direita, Salvo, ações, Planos e avatar. A logo é o item mais alto e define a altura
+              da linha; todo o resto (nome, Traduzir, abas, botões, Planos e avatar) fica com o centro no centro da logo. Em telas menores quebra em duas. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 pb-[3px] pt-1.5 xl:gap-x-10">
+            <h1 className="order-1 flex items-center gap-2.5 text-gray-900" aria-label={t('app.name')}>
+              <img src="/emblem.png" alt="" aria-hidden="true" className="emblem" />
+              <span aria-hidden="true" className="block leading-none">
+                <span className="block text-lg tracking-wide">
+                  <span className="font-light">Curri</span>
+                  <span className="font-semibold">Maker</span>
                 </span>
+                <span className="mt-0.5 block text-[8px] uppercase tracking-[0.22em] text-gray-500">Career intelligence</span>
               </span>
             </h1>
-            <div className="order-3 w-full xl:order-2 xl:w-auto">
+            <div className="order-3 w-full xl:order-2 xl:-mb-[3px] xl:w-auto xl:self-stretch">
               <LanguageTabs before={<PullTranslationButton />} />
             </div>
-            <div className="order-2 ml-auto flex flex-wrap items-center justify-end gap-3 xl:order-3 xl:h-[37px] xl:flex-nowrap">
+            <div className="order-2 ml-auto flex flex-wrap items-center justify-end gap-3 xl:order-3 xl:flex-nowrap">
               <AccountBar>
                 <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
                   <IconUpload />
