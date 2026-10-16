@@ -14,7 +14,8 @@ import { planTranslation } from './resumeTranslation'
  * Substitui o conteúdo da aba atual (por isso pergunta antes). Complementa a pergunta que aparece só na primeira vez.
  */
 export function PullTranslationButton() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const tp = i18n.getFixedT('pt') // o botão fica na barra superior: sempre em português
   const { lang, saved } = useResumeStore()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -52,7 +53,7 @@ export function PullTranslationButton() {
       <button
         type="button"
         disabled={!enabled || locked}
-        title={locked ? t('lock.tooltip') : enabled ? t('tabs.pull.hint', names) : t('tabs.pull.empty', names)}
+        title={locked ? tp('lock.tooltip') : enabled ? tp('tabs.pull.hint', names) : tp('tabs.pull.empty', names)}
         onClick={() => {
           setErrorCode(null)
           setOpen(true)
@@ -60,7 +61,7 @@ export function PullTranslationButton() {
         className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white/5 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <IconLanguages />
-        {t('tabs.pull.button')}
+        {tp('tabs.pull.button')}
       </button>
 
       {open && (
