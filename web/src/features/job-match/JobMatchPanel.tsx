@@ -12,9 +12,9 @@ import { ApiError, requestAnalysis, type AnalysisResult } from './api'
 type Result = AnalysisResult & { originalSummary: string; lang: Lang }
 type Applied = { sectionId: string; previous: Row[] | null }
 
-function Diff({ tokens }: { tokens: DiffToken[] }) {
+function Diff({ tokens, className = 'whitespace-pre-wrap text-sm leading-relaxed text-gray-800' }: { tokens: DiffToken[]; className?: string }) {
   return (
-    <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+    <p className={className}>
       {tokens.map((tk, i) => (
         <span
           key={i}
@@ -256,12 +256,16 @@ export function JobMatchPanel() {
               <div>
                 <p className="mb-1 text-xs font-medium text-gray-600">{t('analysis.changes')}</p>
                 <ul className="space-y-1.5 text-xs text-gray-700">
-                  {analysis.summary.changes.map((c, i) => (
-                    <li key={i} className="rounded bg-gray-50 p-2">
-                      <span className="text-red-700 line-through">{c.from}</span> → <span className="text-green-800">{c.to}</span>
-                      <span className="block text-gray-500">{c.reason}</span>
-                    </li>
-                  ))}
+                  {analysis.summary.changes.map((c, i) => {
+                    // Só as palavras que mudam ganham cor: o que aparece nos dois lados fica sem marcação.
+                    const d = wordDiff(c.from, c.to)
+                    return (
+                      <li key={i} className="rounded bg-gray-50 p-2">
+                        <Diff tokens={d.original} className="inline whitespace-pre-wrap" /> → <Diff tokens={d.suggested} className="inline whitespace-pre-wrap" />
+                        <span className="block text-gray-500">{c.reason}</span>
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             )}
