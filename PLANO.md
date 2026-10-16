@@ -208,7 +208,7 @@ Páginas `/termos` e `/privacidade` (`web/src/legal/`), **abertas sem login** e 
 
 ### 5.3 Adequação à vaga
 Tela com caixa de texto da vaga → botão "Analisar" → resultado em duas abas. O idioma da introdução sugerida é **sempre o da aba de idioma ativa** (seção 5.4); não há escolha de idioma nesta tela e a IA não precisa descobrir o idioma. Se a vaga estiver em outro idioma que o da aba, não há aviso: o texto sai no idioma da aba.
-- **Introdução sugerida**: um texto em tópicos curtos (cada tópico vira uma linha do bloco ao aplicar). Mostra o original × sugerido com **diff destacado** (para evidenciar que a mudança é pontual) e botões *Aplicar* / *Desfazer*. Em cima do texto vai a **nota de fidelidade**: selo verde "Conferida" quando passa, ou aviso âmbar de possível informação falsa quando não passa. Aplicar cria uma **variante** (`parent_id` = base), sem sobrescrever o base (variantes por vaga ainda não existem: hoje aplicar substitui a introdução da aba). O resultado só aparece na aba em que foi gerado.
+- **Introdução sugerida**: um texto em tópicos curtos (cada tópico vira uma linha do bloco ao aplicar). Mostra o original × sugerido com **diff destacado** (para evidenciar que a mudança é pontual) (`lib/diff.ts`): a comparação é palavra a palavra e ignora maiúsculas, acentos, pontuação e os marcadores de negrito (`**`); uma palavra que só mudou de lugar não é marcada. Vermelho é só o que não existe mais no texto novo e verde é só o que não existia no original e botões *Aplicar* / *Desfazer*. Em cima do texto vai a **nota de fidelidade**: selo verde "Conferida" quando passa, ou aviso âmbar de possível informação falsa quando não passa. Aplicar cria uma **variante** (`parent_id` = base), sem sobrescrever o base (variantes por vaga ainda não existem: hoje aplicar substitui a introdução da aba). O resultado só aparece na aba em que foi gerado.
 - **Adequação à vaga** aparece como porcentagem (0 a 100%), neutra, **acima da tabela de habilidades** ("Adequação à vaga: N%"); não gera aviso nem decide se a resposta é boa (seção 6.6).
 - **Habilidades**: tabela (seção 6.2). Botão "Adicionar ao meu currículo" em cada habilidade faltante, para o caso de o usuário a possuir e não ter informado.
 
@@ -483,7 +483,7 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 6. Traduzir os e-mails do Supabase (confirmação e nova senha) para o português; hoje saem em inglês.
 7. Limpeza de padrões antigos: o código e o `.env.example` ainda citam a NVIDIA como padrão do `llm.ts` (só valem se as variáveis faltarem), e as telas de bloqueio, créditos, exportação e "esqueci minha senha" ainda têm texto em inglês que ninguém vê (a interface de cobrança é só em português).
 8. Reembolso é manual (painel do Asaas); definir um fluxo e um prazo de resposta de atendimento.
-9. CI: roda lint, testes e build. Falta rodar os testes de SQL (PGlite) no CI. No Windows, o teste que compara `public/_headers` com `worker/security.ts` falha por causa do fim de linha (CRLF); no CI passa.
+9. CI: roda lint, testes e build. Os testes de SQL (`web/tests/sql.test.ts`: as migrações rodam num PostgreSQL em memória, o PGlite, com um Supabase de mentira) fazem parte dos testes e conferem o isolamento por usuário (RLS), os créditos, o plano pro e o que cada papel pode chamar. No Windows, o teste que compara `public/_headers` com `worker/security.ts` falha por causa do fim de linha (CRLF); no CI passa.
 10. Fase 7 (app com Capacitor): **só com ordem explícita do dono do projeto**.
 
 ## 12. Fluxo de trabalho no Git
