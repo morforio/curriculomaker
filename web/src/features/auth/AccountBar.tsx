@@ -11,7 +11,9 @@ import { useAuthStore } from './authStore'
  * botão Sair). Sem login configurado, só os `children` aparecem.
  */
 export function AccountBar({ children }: { children?: ReactNode }) {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
+  // A barra superior é sempre em português.
+  const tp = i18n.getFixedT('pt')
   const status = useAuthStore((s) => s.status)
   const email = useAuthStore((s) => s.email)
   const signOut = useAuthStore((s) => s.signOut)
@@ -54,7 +56,7 @@ export function AccountBar({ children }: { children?: ReactNode }) {
 
   if (status !== 'signedIn') return <>{children}</>
 
-  const label = sync === 'saving' ? t('sync.saving') : sync === 'saved' ? t('sync.saved') : sync === 'saveError' ? t('sync.saveError') : ''
+  const label = sync === 'saving' ? tp('sync.saving') : sync === 'saved' ? tp('sync.saved') : sync === 'saveError' ? tp('sync.saveError') : ''
   return (
     <>
       {label && (
@@ -68,13 +70,13 @@ export function AccountBar({ children }: { children?: ReactNode }) {
           href="/planos"
           className="btn-gold block whitespace-nowrap px-3 py-1.5 text-center text-xs focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
         >
-          {t('plans.menu', { lng: 'pt' })}
+          {tp('plans.menu')}
         </a>
       )}
       <div ref={box} className="relative">
         <button
           type="button"
-          aria-label={t('auth.account')}
+          aria-label={tp('auth.account')}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
@@ -85,8 +87,8 @@ export function AccountBar({ children }: { children?: ReactNode }) {
         {account && (
           <span
             role="status"
-            title={t('credits.count', { count: account.credits })}
-            aria-label={t('credits.count', { count: account.credits })}
+            title={tp('credits.count', { count: account.credits })}
+            aria-label={tp('credits.count', { count: account.credits })}
             className={`pointer-events-none absolute -top-2.5 left-1/2 min-w-5 -translate-x-1/2 rounded-full px-1.5 text-center text-[11px] font-bold leading-4 text-[#fff] ring-2 ring-[var(--pill-ring)] ${account.locked ? 'bg-red-600' : account.paid ? 'bg-blue-600' : 'bg-amber-600'}`}
           >
             {account.credits}
@@ -94,17 +96,17 @@ export function AccountBar({ children }: { children?: ReactNode }) {
         )}
         {open && (
           <div role="menu" className="absolute right-0 top-10 z-30 w-64 glass-strong rounded-lg border border-gray-200 p-2 shadow-lg">
-            <p className="px-2 pt-1 text-xs text-gray-500">{t('auth.signedInAs')}</p>
+            <p className="px-2 pt-1 text-xs text-gray-500">{tp('auth.signedInAs')}</p>
             <p className="truncate px-2 pb-2 text-sm font-medium text-gray-900" title={email ?? ''}>
               {email}
             </p>
             {account && (
               <div className="mb-2 border-t border-gray-200 px-2 py-2 text-xs text-gray-500">
-                <p className={`text-sm font-medium ${account.locked ? 'text-red-700' : 'text-gray-900'}`}>{account.paid ? t('credits.planPaid') : t('credits.planFree')}</p>
-                <p>{t('credits.count', { count: account.credits })}</p>
-                {account.credits > 0 && account.credits_expire_at && <p>{t('credits.validUntil', { date: formatDate(account.credits_expire_at, i18n.language) })}</p>}
-                {account.paid && account.paid_until && <p>{t('credits.paidUntil', { date: formatDate(account.paid_until, i18n.language) })}</p>}
-                {account.locked && <p className="mt-1 text-red-700">{t('credits.locked')}</p>}
+                <p className={`text-sm font-medium ${account.locked ? 'text-red-700' : 'text-gray-900'}`}>{account.paid ? tp('credits.planPaid') : tp('credits.planFree')}</p>
+                <p>{tp('credits.count', { count: account.credits })}</p>
+                {account.credits > 0 && account.credits_expire_at && <p>{tp('credits.validUntil', { date: formatDate(account.credits_expire_at, 'pt-BR') })}</p>}
+                {account.paid && account.paid_until && <p>{tp('credits.paidUntil', { date: formatDate(account.paid_until, 'pt-BR') })}</p>}
+                {account.locked && <p className="mt-1 text-red-700">{tp('credits.locked')}</p>}
               </div>
             )}
             <button
@@ -116,7 +118,7 @@ export function AccountBar({ children }: { children?: ReactNode }) {
                 void signOut()
               }}
             >
-              {t('auth.signOut')}
+              {tp('auth.signOut')}
             </button>
           </div>
         )}

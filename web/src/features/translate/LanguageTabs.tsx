@@ -15,7 +15,8 @@ import { planTranslation } from './resumeTranslation'
  * (para ela ter uma só linha): é o LanguageCaption, no corpo da página, logo abaixo das abas e antes do primeiro bloco.
  */
 export function LanguageTabs({ before }: { before?: ReactNode }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const tp = i18n.getFixedT('pt') // as abas ficam na barra superior: sempre em português
   const { lang, resume, saved, switchLang } = useResumeStore()
   const [target, setTarget] = useState<Lang | null>(null)
   const [busy, setBusy] = useState(false)
@@ -60,7 +61,7 @@ export function LanguageTabs({ before }: { before?: ReactNode }) {
     <>
       <div className="flex items-end gap-4 xl:h-full xl:items-center">
         {before && <div className="flex h-[37px] items-center xl:h-auto">{before}</div>}
-        <div id="lang-tabs" role="tablist" aria-label={t('tabs.label')} className="flex items-end gap-1 xl:h-full xl:items-stretch">
+        <div id="lang-tabs" role="tablist" aria-label={tp('tabs.label')} className="flex items-end gap-1 xl:h-full xl:items-stretch">
           {LANGS.map((l) => {
             const active = l === lang
             return (
@@ -71,7 +72,7 @@ export function LanguageTabs({ before }: { before?: ReactNode }) {
                 aria-selected={active}
                 onClick={() => select(l)}
                 disabled={locked && !active}
-                title={locked && !active ? t('lock.tooltip') : undefined}
+                title={locked && !active ? tp('lock.tooltip') : undefined}
                 // A aba ativa desce sobre a faixa colorida (margem negativa) e a esconde por baixo dela: parece uma aba de navegador.
                 style={active ? { borderColor: LANG_THEME[l].color, marginBottom: -STRIPE_HEIGHT } : undefined}
                 className={`rounded-t-lg border-x-2 border-t-[3px] px-4 pt-1.5 text-sm xl:flex xl:items-center xl:py-0 ${
@@ -128,7 +129,8 @@ export function LanguageStripe() {
  * A posição e a largura vêm das próprias abas (medidas no navegador), então a legenda acompanha o espaço que sobra: se faltar, corta com reticências.
  */
 export function LanguageCaption() {
-  const { t } = useTranslation()
+  const { i18n } = useTranslation()
+  const tp = i18n.getFixedT('pt') // legenda das abas: sempre em português, como a barra
   const lang = useResumeStore((s) => s.lang)
   const theme = LANG_THEME[lang]
   const [box, setBox] = useState<{ left: number; width: number } | null>(null)
@@ -160,7 +162,7 @@ export function LanguageCaption() {
       style={{ ...(box ? { marginLeft: box.left, width: box.width } : {}), borderColor: theme.capBorder, background: theme.capBg }}
       className="truncate rounded-b-lg border-x-2 border-b-2 px-3 pb-1 pt-1 text-center text-xs text-gray-700 backdrop-blur-sm"
     >
-      {t('tabs.caption')}
+      {tp('tabs.caption')}
     </p>
   )
 }
