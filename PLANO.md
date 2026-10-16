@@ -483,7 +483,7 @@ A fase 1 vem antes do Supabase porque valida o núcleo (blocos + export) sem dep
 6. Traduzir os e-mails do Supabase (confirmação e nova senha) para o português; hoje saem em inglês.
 7. Limpeza de padrões antigos: o código e o `.env.example` ainda citam a NVIDIA como padrão do `llm.ts` (só valem se as variáveis faltarem), e as telas de bloqueio, créditos, exportação e "esqueci minha senha" ainda têm texto em inglês que ninguém vê (a interface de cobrança é só em português).
 8. Reembolso é manual (painel do Asaas); definir um fluxo e um prazo de resposta de atendimento.
-9. CI: roda lint, testes e build. Falta rodar os testes de SQL (PGlite) no CI. No Windows, o teste que compara `public/_headers` com `worker/security.ts` falha por causa do fim de linha (CRLF); no CI passa.
+9. CI: roda lint, testes e build. Os testes de SQL (`web/tests/sql.test.ts`: as migrações rodam num PostgreSQL em memória, o PGlite, com um Supabase de mentira) fazem parte dos testes e conferem o isolamento por usuário (RLS), os créditos, o plano pro e o que cada papel pode chamar. No Windows, o teste que compara `public/_headers` com `worker/security.ts` falha por causa do fim de linha (CRLF); no CI passa.
 10. Fase 7 (app com Capacitor): **só com ordem explícita do dono do projeto**.
 
 ## 12. Fluxo de trabalho no Git
