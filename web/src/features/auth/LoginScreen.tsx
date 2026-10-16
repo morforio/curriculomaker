@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ThemeToggle } from '../theme/ThemeToggle'
 import { getTurnstileSiteKey } from '../../lib/supabase'
 import { useAuthStore } from './authStore'
 import { Turnstile, type TurnstileHandle } from './Turnstile'
@@ -47,6 +48,9 @@ export function LoginScreen() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="fixed right-4 top-4 z-30">
+        <ThemeToggle />
+      </div>
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm glass space-y-4 rounded-lg border border-gray-200 p-6">
         <img src="/logo.png" alt="" width={210} height={216} className="login-logo mx-auto -mt-2 mb-1 h-[216px] w-[210px] max-w-full" />
         <div>

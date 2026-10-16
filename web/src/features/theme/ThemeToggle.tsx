@@ -4,10 +4,11 @@ import { useThemeStore } from './themeStore'
 
 /** Chave de alternância entre o modo escuro (lua) e o claro (sol): o botão redondo desliza para o símbolo do modo ativo. */
 export function ThemeToggle() {
-  const { t } = useTranslation()
+  const { i18n } = useTranslation()
+  const tp = i18n.getFixedT('pt') // a chave fica na barra superior (e na tela de entrada): sempre em português
   const light = useThemeStore((s) => s.theme === 'light')
   const toggle = useThemeStore((s) => s.toggle)
-  const label = light ? t('theme.toDark') : t('theme.toLight')
+  const label = light ? tp('theme.toDark') : tp('theme.toLight')
   return (
     <button
       type="button"
