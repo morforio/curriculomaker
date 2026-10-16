@@ -31,7 +31,7 @@ SUMMARY (the "Introdução")
 ${SUMMARY_FORMAT_RULES}
 - The base is <current_summary>. Keep its facts, order and **bold** markers. If it is running text, convert it into the bullets; if it already is a list, keep it and tighten it. It may become shorter, never longer.
 - Swap or reorder wording so that terms the job description uses appear, but ONLY where the resume really supports them (for example, use the job's term for something the candidate already did).
-- Record in "changes" only edits of substance (a term swapped or added), at most 5: "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>; "reason" = one short sentence in the language of <output_language>. Converting text into bullets or cutting filler is NOT recorded; if there is nothing to record, use "changes": [].
+- Record in "changes" only edits of substance (a term swapped or added), at most 5: "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>; "reason" = one short sentence in the language of <output_language>. A change must swap, add or remove at least one different word: capitalization, punctuation or word order alone is NOT a change. Converting text into bullets or cutting filler is NOT recorded; if there is nothing to record, use "changes": [].
 - If <current_summary> is empty: write the bullets using only facts from <resume>, tuned to the job's wording, and use "changes": [].
 
 TRANSLATION RULE
@@ -100,7 +100,7 @@ TASK
 ${SUMMARY_FORMAT_RULES}
 - Base it on <current_summary>: keep its facts, order and **bold** markers (if it is running text, convert it into the bullets). It may become shorter, never longer. Use the terms the job description uses, but ONLY where the resume really supports them.
 - If <current_summary> is empty: write the bullets using only facts from <resume>, tuned to the job's wording.
-- "changes": one entry per edit of substance (a term swapped or added; not the conversion into bullets), at most 5, with "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>, and "reason" = one short sentence in the language of <target_language>. If there is nothing to record, use "changes": [].
+- "changes": one entry per edit of substance (a term swapped or added; not the conversion into bullets, and never a mere change of capitalization, punctuation or word order), at most 5, with "from" = exact fragment of <current_summary>, "to" = its replacement, both in the language of <current_summary>, and "reason" = one short sentence in the language of <target_language>. If there is nothing to record, use "changes": [].
 
 TRANSLATION RULE
 - Do NOT translate technical terms, acronyms, names of tools, technologies, frameworks, programming languages, certifications, or widely used English job titles. Keep proper names (companies, schools, products), numbers, dates and links unchanged.`

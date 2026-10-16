@@ -26,3 +26,12 @@ export function normalize(s: string): string {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
 }
+
+/**
+ * A alteração registrada muda alguma palavra de fato? "python, sql" → "Python, SQL" (ou só a ordem trocada) não é alteração:
+ * as palavras, sem maiúsculas, acentos e pontuação, são as mesmas.
+ */
+export function isRealChange(change: { from: string; to: string }): boolean {
+  const words = (s: string) => normalize(s).split(' ').filter(Boolean).sort().join(' ')
+  return words(change.from) !== words(change.to)
+}

@@ -9,7 +9,7 @@ import { createVerifier, type JevEnv, type Verifier } from './jev.ts'
 import { createProvider, DEFAULT_MODEL, LLMError, type LLMEnv, type LLMProvider } from './llm.ts'
 import { buildUserPrompt, SYSTEM_PROMPT } from './prompt.ts'
 import { bodyTooLarge } from './security.ts'
-import { extractJson, normalize, toBullets } from './text.ts'
+import { extractJson, isRealChange, normalize, toBullets } from './text.ts'
 import { refineSummaries } from './verify.ts'
 
 export { extractJson }
@@ -75,7 +75,8 @@ export function postProcess(raw: Analysis, req: AnalyzeRequest): { analysis: Ana
       skills.push(s.status === 'missing' ? { ...s, evidence: undefined } : s)
     }
   }
-  const summary = { ...raw.summary, suggested: toBullets(raw.summary.suggested ?? '') }
+  // Alteração que só troca maiúscula, pontuação ou a ordem das mesmas palavras não é alteração (o modelo às vezes a registra mesmo assim).
+  const summary = { ...raw.summary, suggested: toBullets(raw.summary.suggested ?? ''), changes: raw.summary.changes.filter(isRealChange) }
   return { analysis: { ...raw, summary, skills }, downgraded }
 }
 
