@@ -24,7 +24,9 @@ const btnAction =
   'inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 transition duration-200 hover:-translate-y-0.5 hover:border-blue-300/70 hover:bg-blue-500/20 hover:shadow-[0_6px_20px_rgba(100,170,255,0.3)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-blue-500/10 disabled:hover:shadow-none'
 
 function App() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  // A barra superior é sempre em português; o corpo (editor, prévia, análise) segue o idioma da aba.
+  const tp = i18n.getFixedT('pt')
   const { lang, resume, reset } = useResumeStore()
   const [importing, setImporting] = useState(false)
   const locked = useLocked()
@@ -105,29 +107,29 @@ function App() {
             <div className="order-2 ml-auto flex flex-wrap items-center justify-end gap-3 xl:order-3 xl:flex-nowrap">
               <AccountBar>
                 <ThemeToggle />
-                <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? t('lock.tooltip') : undefined}>
+                <button type="button" className={btnAction} onClick={startImport} disabled={locked} title={locked ? tp('lock.tooltip') : undefined}>
                   <IconUpload />
-                  {t('import.button')}
+                  {tp('import.button')}
                 </button>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:bg-red-50 hover:text-red-700"
                   onClick={() => {
-                    if (window.confirm(t('toolbar.confirmReset'))) reset()
+                    if (window.confirm(tp('toolbar.confirmReset'))) reset()
                   }}
                 >
                   <IconTrash />
-                  {t('toolbar.reset')}
+                  {tp('toolbar.reset')}
                 </button>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1.5 rounded-md btn-prism px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={() => void exportPdf()}
                   disabled={locked}
-                  title={locked ? t('lock.tooltip') : account && !account.paid ? t('toolbar.exportCost') : undefined}
+                  title={locked ? tp('lock.tooltip') : account && !account.paid ? tp('toolbar.exportCost') : undefined}
                 >
                   <IconDownload />
-                  {t('toolbar.exportPdf')}
+                  {tp('toolbar.exportPdf')}
                 </button>
               </AccountBar>
             </div>

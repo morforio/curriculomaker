@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ThemeToggle } from '../theme/ThemeToggle'
 import { useAuthStore } from './authStore'
 
 const MIN_PASSWORD = 6
@@ -31,6 +32,9 @@ export function ResetPasswordScreen() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="fixed right-4 top-4 z-30">
+        <ThemeToggle />
+      </div>
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm glass space-y-4 rounded-lg border border-gray-200 p-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('auth.newPasswordTitle')}</h1>
