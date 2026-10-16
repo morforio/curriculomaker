@@ -33,6 +33,7 @@ export function llmSimulado(casos: Caso[]): LLMProvider {
       if (system !== SYSTEM_PROMPT) return JSON.stringify({ text: texto, changes: [] })
       const tem = caso.esperaTem.map((t) => linhaCom(caso, t)).filter((x) => x !== undefined)
       return JSON.stringify({
+        inputKind: caso.esperaTipo ?? 'posting',
         job: { title: caso.titulo, company: null, seniority: null },
         summary: { suggested: texto, changes: [] },
         skills: [

@@ -60,6 +60,11 @@ export function auditar(caso: Caso, r: Resposta): Achado[] {
 
   if (!sugerido) add('falha', 'sem-texto', 'A IA não devolveu introdução sugerida.')
 
+  // Identificou se o campo tem uma vaga ou um pedido do usuário?
+  const tipoEsperado = caso.esperaTipo ?? 'posting'
+  const tipoLido = analysis.inputKind ?? 'posting'
+  if (tipoLido !== tipoEsperado) add('falha', 'tipo-errado', `A IA leu o texto como ${tipoLido === 'request' ? 'um pedido do usuário' : 'uma descrição de vaga'}; era ${tipoEsperado === 'request' ? 'um pedido do usuário' : 'uma descrição de vaga'}.`)
+
   // Números novos: qualquer número no texto que não exista no currículo ou na introdução original
   const conhecidos = numerosDe(origem)
   const novos = [...numerosDe(sugerido)].filter((n) => !conhecidos.has(n))

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Analysis, AnalyzeRequest, Lang, Verification, VersionQuality } from '../src/lib/schemas/analysis.ts'
+import type { Analysis, AnalyzeRequest, InputKind, Lang, Verification, VersionQuality } from '../src/lib/schemas/analysis.ts'
 import type { JevAnswer, JevQuestion, Verifier } from './jev.ts'
 import type { LLMProvider } from './llm.ts'
 import { buildRedoPrompt, REDO_SYSTEM_PROMPT, type Issue } from './prompt.ts'
@@ -66,6 +66,21 @@ const ADEQUACY_QUESTIONS: Record<string, JevQuestion> = {
     ],
   },
 }
+
+/** Mesma nota, para quando o usuário escreveu um pedido (o que quer destacar) em vez de colar uma vaga. */
+const ADEQUACY_QUESTIONS_REQUEST: Record<string, JevQuestion> = {
+  adequacy: {
+    type: 'score',
+    instructions:
+      'How well does `rewritten_summary` serve the goal stated in `candidate_request`, considering what `resume` actually contains? Judge only whether it foregrounds the facts of `resume` that matter for that goal and uses the vocabulary of the target area where `resume` supports it. Do not penalize parts of the target area that `resume` does not cover.',
+    criteria: [
+      'Ignores the goal: nothing in the text relates to what the candidate asked for.',
+      "Generic: it touches the goal's area but foregrounds nothing in particular and uses none of the area's vocabulary.",
+      'Partial: it foregrounds some relevant facts or terms but misses clear opportunities that `resume` supports.',
+      "Strong: it leads with the facts of `resume` that best serve the goal and uses the target area's vocabulary where `resume` supports it.",
+    ],
+  },
+}
 const ADEQUACY_TOP_LEVEL = 3
 
 const noulOf = (a: JevAnswer | undefined) => (a?.type === 'noul' ? a.noul : 0)
@@ -85,6 +100,7 @@ type Context = {
   skills: Analysis['skills']
   verifier: Verifier
   provider: LLMProvider
+  inputKind: InputKind
   /** Currículo + introdução original, já normalizados: base das checagens de código. */
   referenceNorm: string
 }
@@ -115,9 +131,10 @@ async function assess(text: string, changes: Change[], ctx: Context): Promise<At
   // Só mede informação falsa e se a vaga foi bem abordada; quanto o texto mudou em relação ao original não conta.
   const { resumeText, jobText } = ctx.req
   const fidelityState = { resume: resumeText, rewritten_summary: text }
-  const adequacyState = { job_description: jobText, resume: resumeText, rewritten_summary: text }
+  const request = ctx.inputKind === 'request'
+  const adequacyState = request ? { candidate_request: jobText, resume: resumeText, rewritten_summary: text } : { job_description: jobText, resume: resumeText, rewritten_summary: text }
 
-  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, FIDELITY_QUESTIONS), ctx.verifier.ask(adequacyState, ADEQUACY_QUESTIONS)])
+  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, FIDELITY_QUESTIONS), ctx.verifier.ask(adequacyState, request ? ADEQUACY_QUESTIONS_REQUEST : ADEQUACY_QUESTIONS)])
 
   const issues: Issue[] = []
   if (noulOf(fid.no_invention) <= QUALITY_THRESHOLD) issues.push({ kind: 'invention' })
@@ -135,6 +152,7 @@ async function redo(state: VersionState, ctx: Context): Promise<{ text: string; 
     summaryText: ctx.req.summaryText,
     resumeText: ctx.req.resumeText,
     jobText: ctx.req.jobText,
+    inputKind: ctx.inputKind,
     previous: last.text,
     issues: last.issues,
   })
@@ -181,6 +199,7 @@ export async function refineSummaries({ analysis, req, provider, verifier }: Ref
     skills: analysis.skills,
     verifier,
     provider,
+    inputKind: analysis.inputKind ?? 'posting',
     referenceNorm: normalize(`${req.resumeText}\n${req.summaryText}`),
   }
   const state: VersionState = { lang: req.language, attempts: [], redos: 0 }
