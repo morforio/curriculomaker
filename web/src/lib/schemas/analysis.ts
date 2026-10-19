@@ -70,6 +70,8 @@ export type VersionQuality = {
   adequacy: number | null
   /** Quantas vezes o LLM refez esta versão (0 a 3). */
   redos: number
+  /** Quantos tópicos foram retirados do texto porque o currículo não os sustentava (ou 0/ausente). */
+  removed?: number
 }
 
 export type Verification = {
@@ -77,6 +79,8 @@ export type Verification = {
   state: 'checked' | 'skipped' | 'failed'
   /** Notas da introdução sugerida; ausente quando não houve conferência. */
   version?: VersionQuality
+  /** Quantas habilidades o Jev rebaixou na tabela ("possui" que o currículo não sustenta). */
+  skillsAdjusted?: number
 }
 
 export type ApiErrorCode =

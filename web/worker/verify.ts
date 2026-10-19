@@ -8,20 +8,26 @@ import { buildRedoPrompt, REDO_SYSTEM_PROMPT, type Issue } from './prompt.ts'
 import { extractJson, isRealChange, normalize, toBullets } from './text.ts'
 
 /**
- * Conferência da introdução sugerida (um só texto, no idioma da aba ativa). O LLM escreve; o Jev dá duas notas (0 a 1):
- *  - fidelidade: sem informação falsa (nada que o currículo sustente, nada exagerado); mudar muito o texto não conta contra.
- *    Só ela decide se o texto é aprovado: se não passa, é refeito pelo LLM (no máximo MAX_REDOS vezes) e, se nenhuma tentativa
- *    passar, vale a de maior nota;
+ * Conferência da introdução sugerida (um só texto, no idioma da aba ativa). O LLM escreve; o Jev confere:
+ *  - cada TÓPICO, com uma nota de 0 a 3 sobre o quanto o currículo o sustenta (0 inventa, 1 enfeita com finalidade, resultado, qualidade ou
+ *    habilidade que o currículo não diz, 2 inferência leve e natural, 3 fiel). Tópico abaixo de BULLET_MIN_SCORE reprova;
+ *  - o texto inteiro, com as duas perguntas de fidelidade (nada inventado, nada exagerado), com limite QUALITY_THRESHOLD.
+ *    Quem reprova volta ao LLM dizendo QUAIS tópicos falharam e quais palavras deles não estão no currículo; o LLM refaz (no máximo
+ *    MAX_REDOS vezes). Se, depois disso, ainda sobrar tópico sem apoio, ele é RETIRADO do texto (nunca vai ao usuário); se nenhum
+ *    sobrar, vale a introdução original do usuário;
  *  - adequação: quanto o texto está ajustado à vaga, usando só o que o currículo sustenta. É só uma medida mostrada ao usuário:
  *    ela depende do quanto o currículo combina com a vaga, não de erro da IA, então nunca reprova nem refaz o texto.
  */
-export const QUALITY_THRESHOLD = 0.8
-// Em produção, 3 refações dobravam o tempo (75 a 93 s) sem subir a nota; 1 basta para o MVP.
-export const MAX_REDOS = 1
+export const QUALITY_THRESHOLD = 0.7
+/** Nota mínima (0 a 3) de cada tópico. Medido com 115 textos: 1,5 pega 65 de 66 textos ruins e derruba 4 de 49 bons. */
+export const BULLET_MIN_SCORE = 1.5
+// Com a refação dirigida (o LLM sabe quais tópicos falharam), 2 refações bastam; 3 sem direção dobravam o tempo sem subir a nota.
+export const MAX_REDOS = 2
 
 type Change = Analysis['summary']['changes'][number]
 // adequacy é null quando não foi medida (o texto já foi barrado nas checagens em código).
-type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number | null; issues: Issue[] }
+type BulletCheck = { text: string; score: number }
+type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number | null; issues: Issue[]; bullets: BulletCheck[] }
 type VersionState = { lang: Lang; attempts: Attempt[]; redos: number }
 
 const redoSchema = z.object({
@@ -100,16 +106,135 @@ const ADEQUACY_QUESTIONS_REQUEST: Record<string, JevQuestion> = {
 }
 const ADEQUACY_TOP_LEVEL = 3
 
+/** Uma pergunta de nota (0 a 3) sobre o tópico `bullet_<i>`; os tópicos vão no mesmo pedido, em campos separados. */
+function bulletQuestion(i: number, request: boolean): JevQuestion {
+  return {
+    type: 'score',
+    instructions: `Compare the field \`bullet_${i}\` with the field \`resume\`. How well does \`resume\` support everything \`bullet_${i}\` says about the candidate? Check tools and technologies, employers and places, numbers and durations, duties, results, purposes (such as "to improve ..." or "ensuring ..."), qualities and skills (such as "demonstrating ..." or "with strong ... skills") and any link between two facts.${request ? ' A degree, certification or course that the candidate states about themselves in `candidate_request` counts as stated in `resume`; nothing else in `candidate_request` counts.' : ''}`,
+    criteria: [
+      '0: Invents. It states a fact, tool, number, employer, duty or result that `resume` does not contain, or it contradicts `resume`.',
+      '1: Embellishes. Its facts are in `resume`, but it adds a purpose, result, quality, skill or link between facts that `resume` does not state and that does not follow directly from what `resume` says.',
+      '2: Light inference. Everything is in `resume`, except a quality or skill that follows directly and naturally from an activity `resume` describes (for example, organizing events supports organization skills).',
+      '3: Faithful. Everything it says is stated in `resume` or is a plain restatement of it.',
+    ],
+  }
+}
+
+const BULLETS_PER_CALL = 6
+
+/** Uma pergunta de nota (0 a 3) sobre a habilidade `skill_<i>` da tabela: o currículo mostra que a pessoa a tem, na mesma área e no mesmo nível? */
+function skillQuestion(i: number): JevQuestion {
+  return {
+    type: 'score',
+    instructions: `Compare the field \`skill_${i}\` with the field \`resume\`. Does \`resume\` show that the candidate really has this skill or experience, in the same field and at the level the text names? Experience in a different field (for example, leading a team in a shop is not leading software developers), a lower level (basic instead of fluent, intermediate instead of advanced), a related but different tool, or only one part of a combined requirement is NOT the same.`,
+    criteria: [
+      '0: No support. `resume` shows nothing of this skill or experience.',
+      '1: Related only. `resume` shows something related, but in a different field or tool, at a lower level, or covering only part of the requirement.',
+      '2: Supported. `resume` shows that the candidate has it.',
+      '3: Explicit. `resume` states it clearly, with the same name or level.',
+    ],
+  }
+}
+
+/** "possui" exige nota 2 ou mais; de 1 a menos de 2 vira "parcial"; abaixo de 1 vira "não possui". "parcial" exige nota 1 ou mais. */
+export const SKILL_HAS_MIN = 2
+export const SKILL_PARTIAL_MIN = 1
+
+/** O Jev confere as habilidades marcadas "possui" ou "parcial" e rebaixa as que o currículo não sustenta (sem chamar o LLM de novo). */
+async function verifySkills(skills: Analysis['skills'], verifier: Verifier, resumeText: string): Promise<{ skills: Analysis['skills']; adjusted: number }> {
+  const idx = skills.map((s, i) => (s.status !== 'missing' ? i : -1)).filter((i) => i >= 0)
+  const scores = new Map<number, number>()
+  const calls: Promise<void>[] = []
+  for (let from = 0; from < idx.length; from += BULLETS_PER_CALL) {
+    const chunk = idx.slice(from, from + BULLETS_PER_CALL)
+    const state: Record<string, string> = { resume: resumeText }
+    const questions: Record<string, JevQuestion> = {}
+    chunk.forEach((si, k) => {
+      state[`skill_${k + 1}`] = skills[si].name
+      questions[`skill_${k + 1}`] = skillQuestion(k + 1)
+    })
+    calls.push(
+      verifier.ask(state, questions).then((answers) => {
+        chunk.forEach((si, k) => scores.set(si, clamp(scoreOf(answers[`skill_${k + 1}`]), 0, ADEQUACY_TOP_LEVEL)))
+      }),
+    )
+  }
+  await Promise.all(calls)
+  let adjusted = 0
+  const out = skills.map((sk, i) => {
+    const score = scores.get(i)
+    if (score === undefined) return sk
+    const next: Analysis['skills'][number]['status'] = score >= SKILL_HAS_MIN ? sk.status : score >= SKILL_PARTIAL_MIN ? 'partial' : 'missing'
+    if (next === sk.status) return sk
+    adjusted++
+    return next === 'missing' ? { ...sk, status: next, evidence: undefined } : { ...sk, status: next }
+  })
+  return { skills: out, adjusted }
+}
+
+/** Nota de cada tópico do texto (uma consulta ao Jev por até 6 tópicos). */
+async function scoreBullets(text: string, ctx: Context): Promise<BulletCheck[]> {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  const request = ctx.inputKind === 'request'
+  // Tópico que o usuário já tinha escrito na introdução é afirmação dele, não do LLM: não é conferido (e não gasta consulta ao Jev).
+  const strip = (l: string) => normalize(l.replace(/^[•*\s-]+/, ''))
+  const own = new Set(ctx.req.summaryText.split('\n').map(strip).filter(Boolean))
+  const isOwn = (line: string) => own.has(strip(line))
+  const scores = new Map<string, number>()
+  const toAsk = lines.filter((l) => !isOwn(l))
+  for (let from = 0; from < toAsk.length; from += BULLETS_PER_CALL) {
+    const chunk = toAsk.slice(from, from + BULLETS_PER_CALL)
+    const state: Record<string, string> = { resume: ctx.req.resumeText }
+    if (request) state.candidate_request = ctx.req.jobText
+    const questions: Record<string, JevQuestion> = {}
+    chunk.forEach((line, k) => {
+      state[`bullet_${k + 1}`] = line.replace(/^•\s*/, '')
+      questions[`bullet_${k + 1}`] = bulletQuestion(k + 1, request)
+    })
+    const answers = await ctx.verifier.ask(state, questions)
+    chunk.forEach((line, k) => scores.set(line, clamp(scoreOf(answers[`bullet_${k + 1}`]), 0, ADEQUACY_TOP_LEVEL)))
+  }
+  return lines.map((line) => ({ text: line, score: isOwn(line) ? ADEQUACY_TOP_LEVEL : (scores.get(line) ?? 0) }))
+}
+
+/** Palavras do tópico que não aparecem no currículo (comparando as 5 primeiras letras): dica de onde o tópico saiu do que está escrito. */
+function wordsNotInResume(bullet: string, resumeNorm: string): string[] {
+  const known = new Set(resumeNorm.split(' ').map((w) => w.slice(0, 5)))
+  const out: string[] = []
+  for (const raw of bullet.replace(/^•\s*/, '').split(/\s+/)) {
+    const word = raw.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+    const key = normalize(word)
+    if (key.length > 3 && !/^\d+$/.test(key) && !known.has(key.slice(0, 5)) && !out.includes(word)) out.push(word)
+  }
+  return out.slice(0, 8)
+}
+
+/** Texto da refação sobre os tópicos reprovados: o tópico, o que o Jev achou e as palavras que não estão no currículo. */
+function bulletsDetail(bullets: BulletCheck[], resumeNorm: string): string {
+  return bullets
+    .filter((b) => b.score < BULLET_MIN_SCORE)
+    .map((b) => {
+      const what = b.score < 0.75 ? 'states something the resume does not contain' : 'adds a purpose, result, quality, skill or link the resume does not state'
+      const words = wordsNotInResume(b.text, resumeNorm)
+      return `  • ${b.text.replace(/^•\s*/, '')} → ${what}${words.length ? `; words not found in the resume: ${words.join(', ')}` : ''}`
+    })
+    .join('\n')
+}
+
 const noulOf = (a: JevAnswer | undefined) => (a?.type === 'noul' ? a.noul : 0)
 const scoreOf = (a: JevAnswer | undefined) => (a?.type === 'score' ? a.score : 0)
-const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
+const clamp01 = (n: number) => clamp(n, 0, 1)
 
-const quality = (a: Attempt) => a.fidelity
-const passes = (a: Attempt) => a.issues.length === 0 && a.fidelity > QUALITY_THRESHOLD
+const passes = (a: Attempt) => a.issues.length === 0
+const failingBullets = (a: Attempt) => a.bullets.filter((b) => b.score < BULLET_MIN_SCORE).length
+/** Tentativa barrada por checagem de código (números, habilidades, anos, cargo): não chegou a ser conferida pelo Jev. */
+const hasLocalIssue = (a: Attempt) => a.issues.some((i) => i.kind === 'numbers' || i.kind === 'skills' || i.kind === 'relabel' || i.kind === 'title')
 
-/** A de maior nota; em empate, a mais antiga. */
+/** A com menos tópicos reprovados (sem problema de código) e, em empate, a de maior fidelidade; em novo empate, a mais antiga. */
 function bestOf(attempts: Attempt[]): Attempt {
-  return attempts.reduce((best, a) => (quality(a) > quality(best) ? a : best))
+  const rank = (a: Attempt) => (hasLocalIssue(a) ? 1000 : failingBullets(a))
+  return attempts.reduce((best, a) => (rank(a) < rank(best) || (rank(a) === rank(best) && a.fidelity > best.fidelity) ? a : best))
 }
 
 type Context = {
@@ -152,23 +277,37 @@ function localIssues(text: string, ctx: Context): Issue[] {
 
 async function assess(text: string, changes: Change[], ctx: Context): Promise<Attempt> {
   const local = localIssues(text, ctx)
-  if (local.length > 0) return { text, changes, fidelity: 0, adequacy: null, issues: local }
+  if (local.length > 0) return { text, changes, fidelity: 0, adequacy: null, issues: local, bullets: [] }
 
-  // Só mede informação falsa e se a vaga foi bem abordada; quanto o texto mudou em relação ao original não conta.
+  // Informação falsa, por tópico e no texto inteiro; quanto o texto mudou em relação ao original não conta.
   const { resumeText, jobText } = ctx.req
   const request = ctx.inputKind === 'request'
   const fidelityState = request ? { resume: resumeText, candidate_request: jobText, rewritten_summary: text } : { resume: resumeText, rewritten_summary: text }
   const fidelityQuestions = request ? FIDELITY_QUESTIONS_REQUEST : FIDELITY_QUESTIONS
-  const adequacyState = request ? { candidate_request: jobText, resume: resumeText, rewritten_summary: text } : { job_description: jobText, resume: resumeText, rewritten_summary: text }
 
-  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, fidelityQuestions), ctx.verifier.ask(adequacyState, request ? ADEQUACY_QUESTIONS_REQUEST : ADEQUACY_QUESTIONS)])
+  const [fid, bullets] = await Promise.all([ctx.verifier.ask(fidelityState, fidelityQuestions), scoreBullets(text, ctx)])
 
   const issues: Issue[] = []
   if (noulOf(fid.no_invention) <= QUALITY_THRESHOLD) issues.push({ kind: 'invention' })
   if (noulOf(fid.consistent_with_resume) <= QUALITY_THRESHOLD) issues.push({ kind: 'exaggeration' })
-  const fidelity = Math.min(...Object.keys(FIDELITY_QUESTIONS).map((id) => clamp01(noulOf(fid[id]))))
-  const adequacy = clamp01(scoreOf(ade.adequacy) / ADEQUACY_TOP_LEVEL)
-  return { text, changes, fidelity, adequacy, issues }
+  const bad = bullets.filter((b) => b.score < BULLET_MIN_SCORE)
+  if (bad.length > 0) issues.push({ kind: 'bullets', detail: bulletsDetail(bullets, normalize(resumeText)) })
+  const summaryFidelity = Math.min(...Object.keys(FIDELITY_QUESTIONS).map((id) => clamp01(noulOf(fid[id]))))
+  const minBullet = bullets.length > 0 ? Math.min(...bullets.map((b) => b.score)) / ADEQUACY_TOP_LEVEL : 1
+  return { text, changes, fidelity: Math.min(summaryFidelity, minBullet), adequacy: null, issues, bullets }
+}
+
+/** Quanto o texto final aborda o que a vaga (ou o pedido) pede. Só informa: se falhar, fica sem nota. */
+async function adequacyOf(text: string, ctx: Context): Promise<number | null> {
+  const { resumeText, jobText } = ctx.req
+  const request = ctx.inputKind === 'request'
+  const state = request ? { candidate_request: jobText, resume: resumeText, rewritten_summary: text } : { job_description: jobText, resume: resumeText, rewritten_summary: text }
+  try {
+    const ade = await ctx.verifier.ask(state, request ? ADEQUACY_QUESTIONS_REQUEST : ADEQUACY_QUESTIONS)
+    return clamp01(scoreOf(ade.adequacy) / ADEQUACY_TOP_LEVEL)
+  } catch {
+    return null
+  }
 }
 
 /** Pede ao LLM uma nova versão, dizendo o que reprovou na anterior. Devolve null se a resposta for inutilizável. */
@@ -247,13 +386,49 @@ export async function refineSummaries({ analysis, req, provider, verifier }: Ref
 
   if (state.attempts.length === 0) return { analysis, verification: { state: 'failed' } }
   const best = bestOf(state.attempts)
-  const changes = best !== state.attempts[0] ? reconcileChanges(analysis.summary.changes, [best], req.summaryText) : analysis.summary.changes
+
+  // Depois das refações, o que o Jev não aprovou nunca vai ao usuário: o tópico sem apoio é retirado; se não sobra nenhum
+  // (ou o texto foi barrado por checagem de código), vale a introdução original do usuário.
+  let finalText = best.text
+  let removed = 0
+  let fidelity = best.fidelity
+  let resolved = passes(best)
+  if (!failed && !resolved) {
+    const keep = best.bullets.filter((b) => b.score >= BULLET_MIN_SCORE)
+    const originalBullets = req.summaryText.trim() ? toBullets(req.summaryText) : ''
+    if (!hasLocalIssue(best) && best.bullets.length > 0 && keep.length > 0) {
+      finalText = keep.map((b) => b.text).join('\n')
+      removed = best.bullets.length - keep.length
+      fidelity = Math.min(...keep.map((b) => b.score)) / ADEQUACY_TOP_LEVEL
+      resolved = true
+    } else if (originalBullets) {
+      finalText = originalBullets
+      removed = Math.max(best.bullets.length, 1)
+      fidelity = 1
+      resolved = true
+    }
+  }
+  const changes = finalText !== best.text || best !== state.attempts[0] ? reconcileChanges(analysis.summary.changes, [{ ...best, text: finalText }], req.summaryText) : analysis.summary.changes
+  const adequacy = failed ? null : await adequacyOf(finalText, ctx)
+
+  // Tabela de habilidades: o que o currículo não sustenta é rebaixado (se o Jev falhar aqui, a tabela fica como veio).
+  let skills = analysis.skills
+  let skillsAdjusted = 0
+  if (!failed) {
+    try {
+      const checked = await verifySkills(analysis.skills, verifier, req.resumeText)
+      skills = checked.skills
+      skillsAdjusted = checked.adjusted
+    } catch (e) {
+      console.error('Falha ao conferir as habilidades com o Jev:', e instanceof Error ? e.message : e)
+    }
+  }
 
   const version: VersionQuality | undefined = failed
     ? undefined
-    : { status: passes(best) ? 'verified' : 'best_effort', fidelity: best.fidelity, adequacy: best.adequacy, redos: state.redos }
+    : { status: resolved ? 'verified' : 'best_effort', fidelity: clamp01(fidelity), adequacy, redos: state.redos, ...(removed > 0 ? { removed } : {}) }
   return {
-    analysis: { ...analysis, summary: { ...analysis.summary, suggested: best.text, changes } },
-    verification: { state: failed ? 'failed' : 'checked', version },
+    analysis: { ...analysis, skills, summary: { ...analysis.summary, suggested: finalText, changes } },
+    verification: { state: failed ? 'failed' : 'checked', version, ...(skillsAdjusted > 0 ? { skillsAdjusted } : {}) },
   }
 }
