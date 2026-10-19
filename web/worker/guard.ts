@@ -9,6 +9,7 @@ import { normalize } from './text.ts'
 const FUNC = new Set(['para', 'com', 'sem', 'uma', 'que', 'por', 'dos', 'das', 'sobre', 'entre', 'with', 'from', 'that', 'this', 'your', 'the', 'and'])
 const stem = (w: string) => w.slice(0, 5)
 const CORTE = /\s+(?:e|com|que|usando|para|and|with|to|for|from|using)\s+/i
+const DURACAO = /^(anos?|years?|meses|mes|months?)$/
 const NUM = /(\d+)\s*[+%]?\s*([^,.;:•\n]*)/g
 
 type Segmento = { n: string; w: string[] }
@@ -38,22 +39,19 @@ export function numberContextIssues(text: string, source: string, request: strin
     if (j.w.length === 0) continue
     const same = src.filter((s) => s.n === j.n && s.w.length > 0 && s.w[0] === j.w[0])
     if (same.length === 0) continue // número novo ou outra unidade: outras checagens cuidam
-    let ok = false
+    // Prefixo ou extensão inofensiva = mesma frase. Divergência no meio da frase só reprova quando o número é uma duração ("7+ anos em X");
+    // nos demais ("3 milhões de pedidos mensais" x "por mês") é paráfrase. Extensão com palavra do pedido ("projetos de software") sempre reprova.
+    let igual = false
+    let divergiu = false
+    let estendeuComPedido = false
     for (const s of same) {
       const k = j.w.findIndex((t, i) => i >= s.w.length || t !== s.w[i])
-      if (k === -1) {
-        ok = true
-        break
-      }
-      if (k >= s.w.length) {
-        const ext = j.w.slice(s.w.length)
-        const trouxeDoPedido = ext.some((t) => t.length > 3 && !FUNC.has(t) && reqStems.has(stem(t)) && !srcStems.has(stem(t)))
-        if (!trouxeDoPedido) {
-          ok = true
-          break
-        }
-      }
+      if (k === -1) igual = true
+      else if (k < s.w.length) divergiu = true
+      else if (j.w.slice(s.w.length).some((t) => t.length > 3 && !FUNC.has(t) && reqStems.has(stem(t)) && !srcStems.has(stem(t)))) estendeuComPedido = true
+      else igual = true
     }
+    const ok = igual || (divergiu && !estendeuComPedido && !DURACAO.test(j.w[0]))
     if (!ok) bad.push(`${j.n} ${j.w.slice(0, 6).join(' ')}`)
   }
   return bad

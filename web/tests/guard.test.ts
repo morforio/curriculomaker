@@ -54,6 +54,11 @@ test('número: unidade diferente, número novo e formatação diferente não sã
   assert.deepEqual(numberContextIssues('• Used by 90 mil clientes', 'Used by 90 thousand customers', 'x'), [])
 })
 
+test('número: paráfrase do fim da frase não é reprovada ("3 milhões de pedidos mensais" x "por mês"), mas duração diferente continua', () => {
+  assert.deepEqual(numberContextIssues('• Consolida 3 milhões de pedidos mensais', 'Consolida 3 milhões de pedidos por mês', 'quero vagas de dados'), [])
+  assert.equal(numberContextIssues('• 5 anos de experiência em dados', '• 5 anos de experiência em logística', 'quero vagas de dados').length, 1)
+})
+
 test('cargo: "Engenheiro de Software" no lugar de "Engenheiro Eletricista" é reprovado, no primeiro tópico ou em outro', () => {
   assert.ok(roleTitleIssue('• Engenheiro de Software com 7+ anos de experiência em automação', SUMMARY, SOURCE, PEDIDO))
   assert.ok(roleTitleIssue(`${SUMMARY.split('\n')[0]}\n• Engenheiro de Software pós‑graduação, especializado em automação`, SUMMARY, SOURCE, PEDIDO))
