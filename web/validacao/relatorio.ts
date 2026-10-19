@@ -35,7 +35,7 @@ const media = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.
 export const horaBrasilia = (d: Date) => `${d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (GMT-3)`
 
 const NOME_VEREDITO: Record<Veredito, string> = { ok: 'OK', alerta: 'ATENÇÃO', falha: 'FALHA' }
-const NOME_TIPO: Record<Caso['tipo'], string> = { bom: 'boa aderência', parcial: 'aderência parcial', ruim: 'aderência baixa', armadilha: 'armadilha' }
+const NOME_TIPO: Record<Caso['tipo'], string> = { bom: 'boa aderência', parcial: 'aderência parcial', ruim: 'aderência baixa', armadilha: 'armadilha', pedido: 'pedido do usuário' }
 
 const CSS = `
 @page { size: A4; margin: 14mm 12mm; }
@@ -183,7 +183,7 @@ export function relatorioCasos(ex: Execucao): string {
   const blocos = ex.resultados.map((r) => {
     const { caso } = r
     const head = `<h2>${esc(caso.id)} — ${esc(caso.titulo)} ${selo(r.veredito)}</h2>
-<p class="muted">${NOME_TIPO[caso.tipo]} · saída em ${caso.lang === 'pt' ? 'português' : 'inglês'} · ${seg(r.ms)} · ${r.chamadasLlm} chamada(s) ao LLM · ${r.chamadasJev} ao Jev</p>
+<p class="muted">${NOME_TIPO[caso.tipo]} · lido como ${r.resposta?.analysis.inputKind === 'request' ? 'pedido' : 'vaga'} · saída em ${caso.lang === 'pt' ? 'português' : 'inglês'} · ${seg(r.ms)} · ${r.chamadasLlm} chamada(s) ao LLM · ${r.chamadasJev} ao Jev</p>
 <p><b>O que este caso testa:</b> ${esc(caso.objetivo)}</p>`
     if (!r.resposta) return `<section class="caso">${head}<p class="f">Sem resposta da IA: ${esc(r.erro ?? `HTTP ${r.http}`)}</p></section>`
 
@@ -215,7 +215,7 @@ ${r.achados.length ? `<h3>Achados</h3>${rotuloAchados(r.achados)}` : '<p class="
 <table><tr><th>Habilidade</th><th>Peso</th><th>Status</th><th>Evidência (trecho do currículo)</th><th>Expectativa do teste</th></tr>${skills}</table>
 <p class="muted">Palavras-chave: ${esc(analysis.keywords.join(', ') || '—')}</p>
 <h3>Entradas enviadas à IA</h3>
-<div class="cols"><div><b>Vaga</b><div class="box">${esc(caso.jobText)}</div></div><div><b>Currículo</b><div class="box">${esc(caso.resumeText)}</div></div></div>
+<div class="cols"><div><b>${caso.esperaTipo === 'request' ? 'Pedido do usuário' : 'Vaga'}</b><div class="box">${esc(caso.jobText)}</div></div><div><b>Currículo</b><div class="box">${esc(caso.resumeText)}</div></div></div>
 </section>`
   })
   return page('Validação da IA — casos', `${cabecalho(ex, 'Validação da IA — casos em detalhe')}${blocos.join('')}`)

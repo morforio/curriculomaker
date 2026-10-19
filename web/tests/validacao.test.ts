@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { MIN_JOB_CHARS } from '../src/lib/schemas/analysis.ts'
 import { CASOS, type Caso } from '../validacao/casos.ts'
 import { auditar, contemTermo, idiomaDe, numerosDe, veredito, type Resposta } from '../validacao/checks.ts'
 import { executar } from '../validacao/executar.ts'
@@ -12,12 +13,12 @@ import { normalize } from '../worker/text.ts'
 
 const norm = (c: Caso) => normalize(`${c.resumeText}\n${c.summaryText}`)
 
-test('dataset: 15 casos com ids únicos, nos dois idiomas, e entradas aceitas pelo Worker', () => {
-  assert.equal(CASOS.length, 15)
-  assert.equal(new Set(CASOS.map((c) => c.id)).size, 15)
+test('dataset: 19 casos com ids únicos, nos dois idiomas, e entradas aceitas pelo Worker', () => {
+  assert.equal(CASOS.length, 19)
+  assert.equal(new Set(CASOS.map((c) => c.id)).size, 19)
   assert.ok(CASOS.some((c) => c.lang === 'pt') && CASOS.some((c) => c.lang === 'en'))
   for (const c of CASOS) {
-    assert.ok(c.jobText.length >= 80 && c.jobText.length <= 15000, `${c.id}: vaga fora do tamanho aceito`)
+    assert.ok(c.jobText.length >= MIN_JOB_CHARS && c.jobText.length <= 15000, `${c.id}: vaga fora do tamanho aceito`)
     assert.ok(c.resumeText.length >= 20 && c.resumeText.length <= 30000, `${c.id}: currículo fora do tamanho aceito`)
     assert.ok(c.summaryText.length <= 5000)
   }
@@ -59,7 +60,7 @@ test('idiomaDe e numerosDe', () => {
 /** Resposta mínima válida da análise, para exercitar as checagens. */
 function resposta(suggested: string, skills: Resposta['analysis']['skills'] = [], extra: Partial<Resposta['meta']> = {}): Resposta {
   return {
-    analysis: { job: {}, summary: { suggested, changes: [] }, skills, keywords: [] },
+    analysis: { inputKind: 'posting', job: {}, summary: { suggested, changes: [] }, skills, keywords: [] },
     meta: { model: 'm', downgraded: 0, fallback: false, verification: { state: 'checked', version: { status: 'verified', fidelity: 0.95, adequacy: 0.67, redos: 0 } }, ...extra },
   }
 }
@@ -115,16 +116,16 @@ test('auditar: texto maior que o original, alteração sem origem, Jev abaixo do
   for (const esperado of ['cresceu', 'alteracao-sem-origem', 'jev-abaixo', 'reserva']) assert.ok(cods.includes(esperado), esperado)
 })
 
-test('execução simulada: 15 casos, nenhum falha, e grava o JSON e os dois HTML do relatório', async () => {
+test('execução simulada: 19 casos, nenhum falha, e grava o JSON e os dois HTML do relatório', async () => {
   const saida = mkdtempSync(join(tmpdir(), 'validacao-teste-'))
   try {
     const r = await executar({ env: {}, simulado: true, saida, pdf: false })
-    assert.equal(r.resultados.length, 15)
+    assert.equal(r.resultados.length, 19)
     assert.equal(r.resultados.filter((x) => x.veredito === 'falha').length, 0)
     assert.ok(r.resultados.every((x) => x.resposta && x.chamadasLlm >= 1 && x.chamadasJev >= 2))
     const json = JSON.parse(readFileSync(join(saida, 'resultados.json'), 'utf-8'))
     assert.equal(json.simulado, true)
-    assert.equal(json.resultados.length, 15)
+    assert.equal(json.resultados.length, 19)
     const resumo = readFileSync(join(saida, '01-resumo.html'), 'utf-8')
     assert.match(resumo, /EXECUÇÃO SIMULADA/)
     assert.match(resumo, /\(GMT-3\)/)
@@ -143,4 +144,22 @@ test('execução simulada: o filtro --so roda só os casos pedidos', async () =>
   } finally {
     rmSync(saida, { recursive: true, force: true })
   }
+})
+
+test('auditar: ler um pedido como vaga (ou o contrário) é falha', () => {
+  const pedido = caso('c16')
+  const comoVaga = resposta('• Desenvolvedor full stack com 6 anos de experiência em dados e web')
+  assert.ok(codigos(pedido, comoVaga).includes('tipo-errado'))
+  comoVaga.analysis.inputKind = 'request'
+  assert.ok(!codigos(pedido, comoVaga).includes('tipo-errado'))
+  const vaga = caso('c01')
+  const lidoComoPedido = resposta('• Desenvolvedor back-end com 5 anos de experiência em APIs')
+  lidoComoPedido.analysis.inputKind = 'request'
+  assert.ok(codigos(vaga, lidoComoPedido).includes('tipo-errado'))
+})
+
+test('dataset: os pedidos são curtos e o pedido que manda inventar não inventa nada no currículo', () => {
+  const pedidos = CASOS.filter((c) => c.tipo === 'pedido' || c.esperaTipo === 'request')
+  assert.ok(pedidos.length >= 4)
+  for (const c of pedidos) assert.ok(c.jobText.length < 200 && c.esperaTipo === 'request', c.id)
 })

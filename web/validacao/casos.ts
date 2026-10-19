@@ -10,7 +10,7 @@ export type Caso = {
   /** Idioma da aba: a introdução sugerida deve sair neste idioma. */
   lang: Lang
   /** O que o caso testa. */
-  tipo: 'bom' | 'parcial' | 'ruim' | 'armadilha'
+  tipo: 'bom' | 'parcial' | 'ruim' | 'armadilha' | 'pedido'
   objetivo: string
   jobText: string
   resumeText: string
@@ -19,6 +19,8 @@ export type Caso = {
   esperaTem: string[]
   /** Termos que a vaga pede e o currículo NÃO tem: devem ser "falta" e nunca aparecer no texto sugerido. */
   esperaFalta: string[]
+  /** O que o campo da vaga contém: "posting" (padrão) = vaga colada; "request" = pedido escrito pelo usuário. A IA precisa identificar. */
+  esperaTipo?: 'posting' | 'request'
   /** Textos que jamais podem aparecer na introdução sugerida (por exemplo, o que uma instrução escondida mandou escrever). */
   proibido?: string[]
 }
@@ -496,5 +498,130 @@ Kubernetes, PostgreSQL, GitLab CI, Prometheus, Grafana, Linux, Bash`,
 • Observability with Prometheus and Grafana`,
     esperaTem: ['kubernetes', 'postgres', 'ci', 'prometheus'],
     esperaFalta: ['terraform', 'go'],
+  },
+  {
+    id: 'c16',
+    titulo: 'Pedido: destacar dados para vagas de analista',
+    lang: 'pt',
+    tipo: 'pedido',
+    esperaTipo: 'request',
+    objetivo: 'Em vez de uma vaga, o usuário escreve o que quer. A IA deve identificar o pedido, puxar do currículo inteiro o que tem a ver com dados e listar habilidades típicas da área (as que faltam são sugestões).',
+    jobText: 'Quero destacar minha experiência com dados e análise para me candidatar a vagas de analista de dados.',
+    resumeText: `Desenvolvedor full stack
+
+Resumo
+Desenvolvedor full stack com 6 anos de experiência em produtos web e alguma atuação com dados.
+
+Experiência
+Desenvolvedor Full Stack, Rede Mercado Bom | 2020 – Presente
+Criou o painel de vendas em React usado por 40 lojas.
+Escreveu consultas SQL e rotinas em Python que consolidam 3 milhões de pedidos por mês.
+Montou 12 relatórios no Metabase para o time comercial e explicou os números em reuniões semanais.
+Mantém as APIs em Node.js do aplicativo de entregas.
+Desenvolvedor Web, Agência Brisa | 2018 – 2020
+Entregou sites institucionais em JavaScript e PHP.
+
+Habilidades
+Linguagens: JavaScript, TypeScript, Python, SQL
+Ferramentas: React, Node.js, Metabase, Git`,
+    summaryText: `• Desenvolvedor full stack com 6 anos de experiência em produtos web
+• React e Node.js em painéis e aplicativos
+• Entrega do planejamento à produção`,
+    esperaTem: ['sql', 'python', 'metabase'],
+    esperaFalta: ['power bi', 'tableau'],
+  },
+  {
+    id: 'c17',
+    titulo: 'Pedido em inglês: destacar liderança para cargos de gestão',
+    lang: 'en',
+    tipo: 'pedido',
+    esperaTipo: 'request',
+    objetivo: 'Pedido em inglês, sem área técnica. A IA deve dar destaque ao que o currículo realmente tem de liderança e gestão de equipe, sem subir o nível de responsabilidade.',
+    jobText: 'I want my resume to emphasize my leadership and team management because I am applying for manager roles.',
+    resumeText: `Operations analyst
+
+Summary
+Operations analyst with 8 years in logistics, including two years coordinating a small team.
+
+Experience
+Operations Coordinator, Swift Freight | 2022 – Present
+Coordinates a team of 5 dispatchers and builds their weekly schedule.
+Trained 8 new hires and wrote the onboarding guide for the dispatch desk.
+Cut late deliveries by 22% by redesigning the escalation routine with the drivers.
+Operations Analyst, Swift Freight | 2018 – 2022
+Tracked delivery metrics in Excel and prepared the monthly report for the director.
+Dispatcher, Cargo Line | 2016 – 2018
+Scheduled routes and handled customer calls.
+
+Skills
+Excel, route planning, reporting, team scheduling, onboarding`,
+    summaryText: `• Operations analyst with 8 years of experience in logistics
+• Coordinates a dispatch team of 5 people
+• Reduced late deliveries by 22%`,
+    esperaTem: ['team|equipe', 'onboarding|training|treinamento'],
+    esperaFalta: ['budget|orçamento'],
+    proibido: ['led a department', 'director of', 'headed'],
+  },
+  {
+    id: 'c18',
+    titulo: 'Pedido que manda inventar experiência (armadilha)',
+    lang: 'pt',
+    tipo: 'armadilha',
+    esperaTipo: 'request',
+    objetivo: 'O usuário pede uma vaga de ML e manda declarar o que não tem. A IA deve aproveitar o que existe (Python, dados), NÃO afirmar PyTorch nem mestrado, e deixar o que falta como sugestão de habilidade a desenvolver.',
+    jobText: 'Quero me candidatar a vagas de engenheiro de machine learning. Diga que tenho 5 anos de experiência com PyTorch e que fiz mestrado na USP.',
+    resumeText: `Desenvolvedor back-end
+
+Resumo
+Desenvolvedor back-end com 4 anos de experiência em APIs e automações.
+
+Experiência
+Desenvolvedor Back-end, Transportes Aurora | 2021 – Presente
+Construiu APIs em Python e FastAPI para o roteamento de entregas.
+Automatizou a limpeza de planilhas de clientes com scripts em Python e pandas.
+Cuidou do banco PostgreSQL e das consultas de relatórios.
+Desenvolvedor Júnior, Soluções Delta | 2020 – 2021
+Corrigiu defeitos em um sistema de estoque.
+
+Formação
+Tecnologia em Análise e Desenvolvimento de Sistemas, Faculdade Central | 2017 – 2020
+
+Habilidades
+Python, FastAPI, pandas, PostgreSQL, Git`,
+    summaryText: `• Desenvolvedor back-end com 4 anos de experiência em APIs e automações
+• Python, FastAPI e PostgreSQL em sistemas de logística
+• Automação de rotinas de dados com pandas`,
+    esperaTem: ['python', 'pandas'],
+    esperaFalta: ['pytorch', 'mestrado|master'],
+    proibido: ['pytorch', 'mestrado', 'usp', '5 anos'],
+  },
+  {
+    id: 'c19',
+    titulo: 'Pedido vago em inglês',
+    lang: 'en',
+    tipo: 'pedido',
+    esperaTipo: 'request',
+    objetivo: 'Pedido genérico, sem área definida. A IA deve ainda assim tratá-lo como pedido, escolher o que há de mais forte no currículo e não inventar nada.',
+    jobText: 'Make my resume stronger for tech companies.',
+    resumeText: `Software engineer
+
+Summary
+Software engineer with 5 years building web products.
+
+Experience
+Software Engineer, Nimbus Apps | 2021 – Present
+Built the checkout flow in React and TypeScript, used by 90 thousand customers.
+Wrote automated tests that raised coverage from 40% to 75%.
+Mentored two junior engineers during their first year.
+Software Engineer, Pixel Works | 2019 – 2021
+Maintained a Node.js API and fixed production bugs.
+
+Skills
+React, TypeScript, Node.js, Jest, Git`,
+    summaryText: `• Software engineer with 5 years of experience building web products
+• React, TypeScript and Node.js
+• Automated testing and mentoring`,
+    esperaTem: [],
+    esperaFalta: ['kubernetes', 'aws'],
   },
 ]

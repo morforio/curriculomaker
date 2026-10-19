@@ -6,7 +6,8 @@ export const LANGS = ['pt', 'en'] as const
 export type Lang = (typeof LANGS)[number]
 
 export const MAX_JOB_CHARS = 15000
-export const MIN_JOB_CHARS = 80
+/** Mínimo de caracteres do campo da vaga. Baixo de propósito: o campo também aceita um pedido curto do usuário ("quero destacar minha experiência em dados"). */
+export const MIN_JOB_CHARS = 20
 
 export const analyzeRequestSchema = z.object({
   jobText: z.string().min(MIN_JOB_CHARS).max(MAX_JOB_CHARS),
@@ -35,7 +36,15 @@ export const skillSchema = z.object({
 })
 export type Skill = z.infer<typeof skillSchema>
 
+/** O que o usuário escreveu no campo da vaga: "posting" = descrição de vaga; "request" = pedido dele sobre o que quer destacar. Desconhecido vale "posting". */
+export const INPUT_KINDS = ['posting', 'request'] as const
+export type InputKind = (typeof INPUT_KINDS)[number]
+
 export const analysisSchema = z.object({
+  inputKind: z
+    .string()
+    .nullish()
+    .transform((v): InputKind => (v?.trim().toLowerCase() === 'request' ? 'request' : 'posting')),
   job: z
     .object({ title: optText(120), company: optText(120), seniority: optText(60) })
     .nullish()

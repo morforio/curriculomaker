@@ -1,5 +1,5 @@
 /**
- * Validação da IA do CurriMaker: roda 15 pares currículo + vaga (fictícios) pelo mesmo caminho do site e gera 2 PDFs.
+ * Validação da IA do CurriMaker: roda 19 casos fictícios (currículo + vaga, ou currículo + pedido do usuário) pelo mesmo caminho do site e gera 2 PDFs.
  *
  *   npm run validar                      todos os casos, com as chaves do web/.env (LLM_API_KEY e, se houver, TYPESAFE_API_KEY)
  *   npm run validar -- --so=c01,c05      só alguns casos
@@ -7,7 +7,7 @@
  *   npm run validar -- --sem-pdf         só os .html e o .json
  *
  * Saída em web/validacao/saida/<data-hora>/ (ignorada pelo Git): 01-resumo.pdf, 02-casos.pdf, os .html e resultados.json.
- * Gasta chamadas reais ao LLM e ao Jev (uma rodada completa são cerca de 15 a 45 chamadas ao LLM e 30 a 60 ao Jev).
+ * Gasta chamadas reais ao LLM e ao Jev (uma rodada completa são cerca de 19 a 55 chamadas ao LLM e 40 a 75 ao Jev).
  */
 import { join } from 'node:path'
 import { executar } from './executar.ts'

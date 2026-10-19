@@ -148,6 +148,8 @@ export function JobMatchPanel() {
   }
 
   const analysis = result?.analysis
+  // O usuário pode escrever o que quer em vez de colar uma vaga: a tela troca os rótulos de "vaga" por "área"/"pedido".
+  const isRequest = analysis?.inputKind === 'request'
   const suggested = analysis?.summary.suggested
   const diff = result && suggested ? wordDiff(result.originalSummary, suggested) : null
   const skills = analysis
@@ -217,9 +219,11 @@ export function JobMatchPanel() {
         <div className="mt-5 space-y-6 border-t border-gray-200 pt-4">
           <h3 className="text-sm font-semibold text-gray-900">{t('analysis.result')}</h3>
 
+          {isRequest && <p className="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900">{t('analysis.interpretedRequest')}</p>}
+
           {(analysis.job.title || analysis.job.company || analysis.job.seniority) && (
             <p className="text-sm text-gray-700">
-              <strong>{t('analysis.job')}:</strong> {[analysis.job.title, analysis.job.company, analysis.job.seniority].filter(Boolean).join(' · ')}
+              <strong>{t(isRequest ? 'analysis.jobRequest' : 'analysis.job')}:</strong> {[analysis.job.title, analysis.job.company, analysis.job.seniority].filter(Boolean).join(' · ')}
             </p>
           )}
 
@@ -272,14 +276,14 @@ export function JobMatchPanel() {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-gray-900">{t('analysis.skillsTitle')}</h4>
+            <h4 className="text-sm font-semibold text-gray-900">{t(isRequest ? 'analysis.skillsTitleRequest' : 'analysis.skillsTitle')}</h4>
             {requiredSkills.length > 0 && (
               <p className="text-xs text-gray-600">{t('analysis.coverage', { have: covered, total: requiredSkills.length })}</p>
             )}
             {result.meta.downgraded > 0 && (
               <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.downgraded', { count: result.meta.downgraded })}</p>
             )}
-            {fit !== null && <p className="text-sm font-medium text-gray-700">{t('analysis.fit', { percent: fit })}</p>}
+            {fit !== null && <p className="text-sm font-medium text-gray-700">{t(isRequest ? 'analysis.fitRequest' : 'analysis.fit', { percent: fit })}</p>}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[34rem] border-collapse text-left text-xs">
                 <thead>
@@ -322,7 +326,7 @@ export function JobMatchPanel() {
 
           {analysis.keywords.length > 0 && (
             <div>
-              <h4 className="mb-1 text-sm font-semibold text-gray-900">{t('analysis.keywords')}</h4>
+              <h4 className="mb-1 text-sm font-semibold text-gray-900">{t(isRequest ? 'analysis.keywordsRequest' : 'analysis.keywords')}</h4>
               <ul className="flex flex-wrap gap-1.5">
                 {analysis.keywords.map((k) => (
                   <li key={k} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-300">
