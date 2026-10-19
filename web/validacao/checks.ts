@@ -1,4 +1,6 @@
 import type { Analysis } from '../src/lib/schemas/analysis.ts'
+import { isStatedCredential } from '../src/lib/statedFacts.ts'
+import { numberContextIssues, roleTitleIssue } from '../worker/guard.ts'
 import { normalize } from '../worker/text.ts'
 import type { Caso } from './casos.ts'
 
@@ -75,8 +77,15 @@ export function auditar(caso: Caso, r: Resposta): Achado[] {
     if (contemTermo(sugeridoNorm, termo) && !contemTermo(origemNorm, termo)) add('falha', 'falta-no-texto', `"${nome(termo)}" não está no currículo, mas aparece na introdução sugerida.`)
   }
   for (const s of analysis.skills.filter((x) => x.status === 'missing')) {
+    // Formação, certificação ou curso que o usuário declarou no pedido pode aparecer no texto.
+    if (tipoEsperado === 'request' && isStatedCredential(s.name, caso.jobText)) continue
     if (s.name.length >= 3 && contemTermo(sugeridoNorm, s.name) && !contemTermo(origemNorm, s.name)) add('falha', 'falta-no-texto', `A própria IA marcou "${s.name}" como ausente, mas usou no texto.`)
   }
+
+  // Número ou cargo "rebatizado" (7+ anos em outra coisa, "200+ projetos de software", Engenheiro Eletricista virando Engenheiro de Software)
+  for (const d of numberContextIssues(sugerido, origem, caso.jobText)) add('falha', 'numero-reetiquetado', `Um número do currículo mudou de assunto: "${d}".`)
+  const cargoTrocado = roleTitleIssue(sugerido, caso.summaryText, origem, caso.jobText)
+  if (cargoTrocado) add('falha', 'cargo-trocado', `O cargo foi trocado: ${cargoTrocado}.`)
 
   // Textos proibidos (instruções escondidas, exageros)
   for (const p of caso.proibido ?? []) {

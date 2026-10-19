@@ -624,4 +624,48 @@ React, TypeScript, Node.js, Jest, Git`,
     esperaTem: [],
     esperaFalta: ['kubernetes', 'aws'],
   },
+  {
+    id: 'c20',
+    titulo: 'Pedido de engenharia de software + pós declarada (caso real do Lucas, currículo fictício)',
+    lang: 'pt',
+    tipo: 'pedido',
+    esperaTipo: 'request',
+    objetivo: 'O caso que motivou o ajuste do prompt. A IA não pode virar "Engenheiro de Software", trocar o assunto dos "7+ anos" nem falar em "200+ projetos de software"; deve aproveitar n8n, LangGraph e PostgreSQL e aceitar a pós-graduação que o usuário declarou no pedido (e só ela).',
+    jobText: 'Faça alterações para tornar meu currículo mais adaptado para vagas de engenharia de software. Possuo pós-graduação em engenharia de software.',
+    resumeText: `Engenheiro Eletricista
+
+Resumo
+• Engenheiro Eletricista com 7+ anos de experiência em projetos fotovoltaicos on-grid e off-grid
+• Especialista em dimensionamento, simulação e comissionamento de sistemas solares, usando PVSyst, PV*Sol e AutoCAD
+• Experiência em mapeamento fotoaéreo com drones e integração de baterias e inversores híbridos
+• Liderou equipe de 7 profissionais em metodologias ágeis, entregando 200+ projetos com 100% de sucesso
+• Habilidade em análise de causa raiz, documentação técnica estruturada e comunicação técnico-negócio
+
+Experiência
+Engenheiro de Projetos Sênior, Sol Forte Energia | 2019 – Presente
+Liderou equipe de 7 profissionais em metodologias ágeis, entregando 200+ projetos fotovoltaicos on-grid e off-grid com 100% de sucesso.
+Dimensionou, simulou e comissionou sistemas solares com PVSyst, PV*Sol e AutoCAD.
+Fez mapeamento fotoaéreo com drones e integrou baterias e inversores híbridos.
+Conduziu análises de causa raiz e escreveu a documentação técnica estruturada dos projetos.
+Automatizou o acompanhamento de obras com n8n e Webhooks, gravando os dados em PostgreSQL.
+Criou um agente interno com LangGraph para consultar a documentação técnica dos projetos.
+Engenheiro Eletricista, Instalações Norte | 2017 – 2019
+Projetou instalações elétricas prediais e acompanhou a execução em obra.
+
+Formação
+Bacharelado em Engenharia Elétrica, Universidade Federal | 2012 – 2017
+
+Habilidades
+Energia solar: PVSyst, PV*Sol, AutoCAD
+Automação: n8n, Webhooks, PostgreSQL, LangGraph
+Gestão: metodologias ágeis, análise de causa raiz`,
+    summaryText: `• Engenheiro Eletricista com 7+ anos de experiência em projetos fotovoltaicos on-grid e off-grid
+• Especialista em dimensionamento, simulação e comissionamento de sistemas solares, usando PVSyst, PV*Sol e AutoCAD
+• Experiência em mapeamento fotoaéreo com drones e integração de baterias e inversores híbridos
+• Liderou equipe de 7 profissionais em metodologias ágeis, entregando 200+ projetos com 100% de sucesso
+• Habilidade em análise de causa raiz, documentação técnica estruturada e comunicação técnico-negócio`,
+    esperaTem: ['n8n', 'langgraph', 'postgresql'],
+    esperaFalta: ['microservic', 'api rest', 'docker', 'kubernetes', 'python', 'aws', 'react'],
+    proibido: ['projetos de software', 'desenvolvedor de software', 'engenheiro de software', 'arquitetura de software'],
+  },
 ]

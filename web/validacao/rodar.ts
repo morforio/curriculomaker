@@ -1,5 +1,5 @@
 /**
- * Validação da IA do CurriMaker: roda 19 casos fictícios (currículo + vaga, ou currículo + pedido do usuário) pelo mesmo caminho do site e gera 2 PDFs.
+ * Validação da IA do CurriMaker: roda 20 casos fictícios (currículo + vaga, ou currículo + pedido do usuário) pelo mesmo caminho do site e gera 2 PDFs.
  *
  *   npm run validar                      todos os casos, com as chaves do web/.env (LLM_API_KEY e, se houver, TYPESAFE_API_KEY)
  *   npm run validar -- --so=c01,c05      só alguns casos
