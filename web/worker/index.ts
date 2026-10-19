@@ -3,6 +3,7 @@ import { hashIp } from './analyze.ts'
 import { authenticate } from './auth.ts'
 import { handleCancel, handleCheckout, handleWebhook, type BillingEnv } from './billing.ts'
 import { publicConfig } from './config.ts'
+import { handleLab } from './lab.ts'
 import { withCredit } from './credits.ts'
 import type { Limiter } from './limiter.ts'
 import { withSecurityHeaders } from './security.ts'
@@ -74,6 +75,9 @@ async function route(request: Request, env: Env): Promise<Response> {
     const { status, body } = sellerResponse(env satisfies SellerEnv)
     return json(status, body)
   }
+
+  // TEMPORÁRIO (laboratório de prompts; token + expira em 48 h; sai no PR seguinte): worker/lab.ts.
+  if (url.pathname === '/api/lab') return handleLab(request, { env })
 
   if (url.pathname === '/api/analyze' || url.pathname === '/api/translate' || url.pathname === '/api/export') {
     // Com o login configurado, só quem está logado usa a IA; o limite passa a ser por usuário (não por IP).
