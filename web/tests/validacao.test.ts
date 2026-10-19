@@ -13,9 +13,9 @@ import { normalize } from '../worker/text.ts'
 
 const norm = (c: Caso) => normalize(`${c.resumeText}\n${c.summaryText}`)
 
-test('dataset: 19 casos com ids únicos, nos dois idiomas, e entradas aceitas pelo Worker', () => {
-  assert.equal(CASOS.length, 19)
-  assert.equal(new Set(CASOS.map((c) => c.id)).size, 19)
+test('dataset: 20 casos com ids únicos, nos dois idiomas, e entradas aceitas pelo Worker', () => {
+  assert.equal(CASOS.length, 20)
+  assert.equal(new Set(CASOS.map((c) => c.id)).size, 20)
   assert.ok(CASOS.some((c) => c.lang === 'pt') && CASOS.some((c) => c.lang === 'en'))
   for (const c of CASOS) {
     assert.ok(c.jobText.length >= MIN_JOB_CHARS && c.jobText.length <= 15000, `${c.id}: vaga fora do tamanho aceito`)
@@ -116,16 +116,16 @@ test('auditar: texto maior que o original, alteração sem origem, Jev abaixo do
   for (const esperado of ['cresceu', 'alteracao-sem-origem', 'jev-abaixo', 'reserva']) assert.ok(cods.includes(esperado), esperado)
 })
 
-test('execução simulada: 19 casos, nenhum falha, e grava o JSON e os dois HTML do relatório', async () => {
+test('execução simulada: 20 casos, nenhum falha, e grava o JSON e os dois HTML do relatório', async () => {
   const saida = mkdtempSync(join(tmpdir(), 'validacao-teste-'))
   try {
     const r = await executar({ env: {}, simulado: true, saida, pdf: false })
-    assert.equal(r.resultados.length, 19)
+    assert.equal(r.resultados.length, 20)
     assert.equal(r.resultados.filter((x) => x.veredito === 'falha').length, 0)
     assert.ok(r.resultados.every((x) => x.resposta && x.chamadasLlm >= 1 && x.chamadasJev >= 2))
     const json = JSON.parse(readFileSync(join(saida, 'resultados.json'), 'utf-8'))
     assert.equal(json.simulado, true)
-    assert.equal(json.resultados.length, 19)
+    assert.equal(json.resultados.length, 20)
     const resumo = readFileSync(join(saida, '01-resumo.html'), 'utf-8')
     assert.match(resumo, /EXECUÇÃO SIMULADA/)
     assert.match(resumo, /\(GMT-3\)/)
@@ -162,4 +162,16 @@ test('dataset: os pedidos são curtos e o pedido que manda inventar não inventa
   const pedidos = CASOS.filter((c) => c.tipo === 'pedido' || c.esperaTipo === 'request')
   assert.ok(pedidos.length >= 4)
   for (const c of pedidos) assert.ok(c.jobText.length < 200 && c.esperaTipo === 'request', c.id)
+})
+
+test('auditar: número do currículo que muda de assunto e cargo trocado são falha (caso c20)', () => {
+  const c = caso('c20')
+  const ruim = resposta('• Engenheiro de Software com 7+ anos de experiência em automação de processos\n• Liderou equipe de 7 profissionais, entregando 200+ projetos de software')
+  ruim.analysis.inputKind = 'request'
+  const cods = codigos(c, ruim)
+  for (const esperado of ['numero-reetiquetado', 'cargo-trocado', 'proibido']) assert.ok(cods.includes(esperado), esperado)
+  const boa = resposta('• Engenheiro Eletricista com 7+ anos de experiência em projetos fotovoltaicos on-grid e off-grid\n• Pós-graduação em Engenharia de Software\n• Automação com n8n, Webhooks e PostgreSQL')
+  boa.analysis.inputKind = 'request'
+  boa.analysis.skills = [{ name: 'Engenharia de Software', importance: 'required', status: 'missing', evidence: undefined }]
+  assert.equal(veredito(auditar(c, boa).filter((a) => a.gravidade === 'falha')), 'ok')
 })

@@ -2,6 +2,8 @@ import { z } from 'zod'
 import type { Analysis, AnalyzeRequest, InputKind, Lang, Verification, VersionQuality } from '../src/lib/schemas/analysis.ts'
 import type { JevAnswer, JevQuestion, Verifier } from './jev.ts'
 import type { LLMProvider } from './llm.ts'
+import { isStatedCredential } from '../src/lib/statedFacts.ts'
+import { numberContextIssues, roleTitleIssue } from './guard.ts'
 import { buildRedoPrompt, REDO_SYSTEM_PROMPT, type Issue } from './prompt.ts'
 import { extractJson, isRealChange, normalize, toBullets } from './text.ts'
 
@@ -49,6 +51,21 @@ const FIDELITY_QUESTIONS: Record<string, JevQuestion> = {
     criteria: {
       true: 'No claim in `rewritten_summary` is stronger than, or different from, what `resume` says.',
       false: 'At least one claim in `rewritten_summary` exaggerates or contradicts `resume` (for example "participated" turned into "led").',
+    },
+  },
+}
+
+/** Com pedido, uma formação, certificação ou curso que o usuário declara nele também vale como fato (mais nada do pedido vale). */
+const FIDELITY_QUESTIONS_REQUEST: Record<string, JevQuestion> = {
+  ...FIDELITY_QUESTIONS,
+  no_invention: {
+    type: 'noul',
+    instructions:
+      'Does every skill, tool, technology, number, employer, school, degree, certification and responsibility that `rewritten_summary` attributes to the candidate also appear in `resume`? A degree, certification or course that the candidate states about themselves in `candidate_request` also counts as appearing; nothing else in `candidate_request` counts as evidence.',
+    criteria: {
+      true: 'Everything `rewritten_summary` states about the candidate can be found in `resume`, or is a degree, certification or course stated in `candidate_request`.',
+      false:
+        '`rewritten_summary` states at least one skill, tool, technology, number, employer, school, degree, certification or responsibility that `resume` does not contain and that is not a degree, certification or course stated in `candidate_request`.',
     },
   },
 }
@@ -115,12 +132,21 @@ function localIssues(text: string, ctx: Context): Issue[] {
 
   const padded = ` ${textNorm} `
   const refPadded = ` ${ctx.referenceNorm} `
+  // Formação, certificação ou curso que o usuário declarou no pedido não é "habilidade que o currículo não tem".
+  const request = ctx.inputKind === 'request'
   const invented = ctx.skills
-    .filter((s) => s.status === 'missing')
+    .filter((s) => s.status === 'missing' && !(request && isStatedCredential(s.name, ctx.req.jobText)))
     .map((s) => ({ name: s.name, key: normalize(s.name) }))
     .filter(({ key }) => key.length >= 3 && padded.includes(` ${key} `) && !refPadded.includes(` ${key} `))
     .map(({ name }) => name)
   if (invented.length > 0) issues.push({ kind: 'skills', detail: `skills not in the resume: ${invented.join(', ')}` })
+
+  // O modelo não pode trocar o assunto de um número do currículo nem o cargo (o prompt sozinho não impediu).
+  const source = `${ctx.req.resumeText}\n${ctx.req.summaryText}`
+  const relabeled = numberContextIssues(text, source, ctx.req.jobText)
+  if (relabeled.length > 0) issues.push({ kind: 'relabel', detail: `numbers whose subject changed: ${relabeled.join('; ')}` })
+  const title = roleTitleIssue(text, ctx.req.summaryText, source, ctx.req.jobText)
+  if (title) issues.push({ kind: 'title', detail: title })
   return issues
 }
 
@@ -130,11 +156,12 @@ async function assess(text: string, changes: Change[], ctx: Context): Promise<At
 
   // Só mede informação falsa e se a vaga foi bem abordada; quanto o texto mudou em relação ao original não conta.
   const { resumeText, jobText } = ctx.req
-  const fidelityState = { resume: resumeText, rewritten_summary: text }
   const request = ctx.inputKind === 'request'
+  const fidelityState = request ? { resume: resumeText, candidate_request: jobText, rewritten_summary: text } : { resume: resumeText, rewritten_summary: text }
+  const fidelityQuestions = request ? FIDELITY_QUESTIONS_REQUEST : FIDELITY_QUESTIONS
   const adequacyState = request ? { candidate_request: jobText, resume: resumeText, rewritten_summary: text } : { job_description: jobText, resume: resumeText, rewritten_summary: text }
 
-  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, FIDELITY_QUESTIONS), ctx.verifier.ask(adequacyState, request ? ADEQUACY_QUESTIONS_REQUEST : ADEQUACY_QUESTIONS)])
+  const [fid, ade] = await Promise.all([ctx.verifier.ask(fidelityState, fidelityQuestions), ctx.verifier.ask(adequacyState, request ? ADEQUACY_QUESTIONS_REQUEST : ADEQUACY_QUESTIONS)])
 
   const issues: Issue[] = []
   if (noulOf(fid.no_invention) <= QUALITY_THRESHOLD) issues.push({ kind: 'invention' })

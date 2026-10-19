@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { wordDiff, type DiffToken } from '../../lib/diff'
 import { LANG_NAMES, type Lang } from '../../lib/i18n'
 import { resumeToText, summaryTextOf } from '../../lib/resumeText'
+import { statedByCandidate } from '../../lib/statedFacts'
 import { MAX_JOB_CHARS, MIN_JOB_CHARS, type Skill, type Verification } from '../../lib/schemas/analysis'
 import type { Row, Section } from '../../lib/schemas/resume'
 import { newSection, useResumeStore } from '../../store/resumeStore'
 import { useLocked } from '../credits/useLocked'
 import { ApiError, requestAnalysis, type AnalysisResult } from './api'
 
-type Result = AnalysisResult & { originalSummary: string; lang: Lang }
+type Result = AnalysisResult & { originalSummary: string; lang: Lang; request: string; resumeSource: string }
 type Applied = { sectionId: string; previous: Row[] | null }
 
 function Diff({ tokens, className = 'whitespace-pre-wrap text-sm leading-relaxed text-gray-800' }: { tokens: DiffToken[]; className?: string }) {
@@ -91,7 +92,7 @@ export function JobMatchPanel() {
     setErrorCode(null)
     try {
       const res = await requestAnalysis({ jobText: jobText.trim(), resumeText, summaryText: summary, language: lang })
-      setStored({ ...res, originalSummary: summary, lang })
+      setStored({ ...res, originalSummary: summary, lang, request: jobText.trim(), resumeSource: `${resumeText}\n${summary}` })
       setApplied(null)
       setAdded(new Set())
       setStatus('done')
@@ -151,6 +152,8 @@ export function JobMatchPanel() {
   // O usuário pode escrever o que quer em vez de colar uma vaga: a tela troca os rótulos de "vaga" por "área"/"pedido".
   const isRequest = analysis?.inputKind === 'request'
   const suggested = analysis?.summary.suggested
+  // Tópicos que usam o que o usuário escreveu no pedido (formação, certificação, curso) e que o currículo não traz.
+  const stated = result && isRequest && suggested ? statedByCandidate(suggested.split('\n').filter(Boolean), result.resumeSource, result.request) : []
   const diff = result && suggested ? wordDiff(result.originalSummary, suggested) : null
   const skills = analysis
     ? [...analysis.skills].sort(
@@ -253,6 +256,16 @@ export function JobMatchPanel() {
                   <p className="mb-0.5 text-xs font-medium text-gray-500">{t('analysis.suggested')}</p>
                   {diff && <Diff tokens={diff.suggested} />}
                 </div>
+                {stated.length > 0 && (
+                  <div className="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900">
+                    <p className="font-medium">{t('analysis.statedByYou')}</p>
+                    <ul className="mt-1 list-inside list-disc">
+                      {stated.map((line) => (
+                        <li key={line}>{line.replace(/^•\s*/, '').replace(/\*\*/g, '')}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
 
