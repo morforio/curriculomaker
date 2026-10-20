@@ -313,7 +313,7 @@ async function assess(text: string, changes: Change[], ctx: Context): Promise<At
   // original). A versão é recusada e o LLM refaz.
   if (lines.length > 0 && lines.every((l) => isOwnLine(l, ctx))) return { text, changes, fidelity: 0, adequacy: null, issues: [{ kind: 'unchanged' }], bullets: zero(lines) }
 
-  // Checagens de código, tópico por tópico: só o tópico com problema é barrado; os outros seguem para a conferência do Jev.
+  // Checagens de código, uma por tópico: só o tópico com problema é barrado; os outros seguem para a conferência do Jev.
   const local = localIssues(text, ctx)
   let barred = new Set<string>()
   if (local.length > 0) {
