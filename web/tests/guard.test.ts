@@ -153,8 +153,9 @@ test('conferência: habilidade ausente que NÃO é formação declarada continua
   const skills: Analysis['skills'] = [{ name: 'PyTorch', importance: 'required', status: 'missing', evidence: undefined }]
   const r = await refineSummaries({ analysis: analysis(text, skills), req: { ...req(), jobText: pedido }, provider, verifier })
   assert.equal(used(), MAX_REDOS) // tentou refazer até o limite
-  // O PyTorch não vai ao usuário: sem saída, vale a introdução original do usuário.
+  // O PyTorch não vai ao usuário: só o tópico com PyTorch é retirado; o outro tópico da versão gerada fica (nunca a introdução original).
   assert.ok(!/pytorch/i.test(r.analysis.summary.suggested ?? ''))
-  assert.equal(r.analysis.summary.suggested, SUMMARY)
-  assert.ok((r.verification.version?.removed ?? 0) > 0)
+  assert.equal(r.analysis.summary.suggested, '• Engenheiro Eletricista com 7+ anos de experiência em projetos fotovoltaicos')
+  assert.notEqual(r.analysis.summary.suggested, SUMMARY)
+  assert.equal(r.verification.version?.removed, 1)
 })

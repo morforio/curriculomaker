@@ -136,7 +136,7 @@ export function buildUserPrompt(req: AnalyzeRequest): string {
 
 /** Motivos pelos quais uma versão da introdução foi reprovada na conferência. */
 export type Issue = {
-  kind: 'invention' | 'exaggeration' | 'numbers' | 'skills' | 'relabel' | 'title' | 'bullets' | 'style'
+  kind: 'invention' | 'exaggeration' | 'numbers' | 'skills' | 'relabel' | 'title' | 'bullets' | 'style' | 'unchanged'
   detail?: string
 }
 
@@ -153,6 +153,8 @@ const ISSUE_TEXT: Record<Issue['kind'], string> = {
     'Some bullets of the previous attempt are not supported by the resume: they add a purpose, result, quality, skill, tool or link between facts that the resume does not state. They are listed below with the words that are not in the resume. Rewrite each one as a plain restatement of the resume line it comes from, using the resume\'s own words and nothing more, or drop it. Keep every bullet that is not listed exactly as it is.',
   style:
     'Some bullets of the previous attempt are written in the first person (the candidate speaking: "I led", "Treinei", "Construo"). Rewrite them without a subject: as a noun phrase ("Treinamento de 3 atendentes") or, in English, a subject-less past-tense action ("Led a team of 7"). Keep the same facts, add nothing, and keep every other bullet exactly as it is.',
+  unchanged:
+    'The previous attempt only repeats <current_summary> without rewriting it. Write a NEW version: separate bullets that follow the goal, using only facts from the resume. Do not copy <current_summary> as it is.',
   title:
     'The previous attempt gives the candidate a different job title than the resume states. Keep the role title of the first bullet of <current_summary> exactly as it is.',
 }

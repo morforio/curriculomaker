@@ -29,7 +29,9 @@ export function llmSimulado(casos: Caso[]): LLMProvider {
   return {
     async complete({ system, user }) {
       const caso = achaCaso(casos, user)
-      const texto = toBullets(caso.summaryText || caso.resumeText.split('\n')[0])
+      // Um tópico a mais (a primeira linha do currículo): a conferência recusa uma versão igual à introdução original.
+      const cabecalho = caso.resumeText.split('\n')[0].trim()
+      const texto = toBullets(`${caso.summaryText || cabecalho}\n${cabecalho}`)
       if (system !== SYSTEM_PROMPT) return JSON.stringify({ text: texto, changes: [] })
       const tem = caso.esperaTem.map((t) => linhaCom(caso, t)).filter((x) => x !== undefined)
       return JSON.stringify({
