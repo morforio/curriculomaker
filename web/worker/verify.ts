@@ -76,14 +76,14 @@ const FIDELITY_QUESTIONS_REQUEST: Record<string, JevQuestion> = {
   },
 }
 
-/** Estilo: nenhum tópico na primeira pessoa. Vai junto das perguntas de fidelidade (mesma consulta). Medido em 143 textos: limite 0,5 pega 22 de 22 e acusa 0 de 121. */
+/** Estilo: nenhum tópico na primeira pessoa. Vai junto das perguntas de fidelidade (mesma consulta). Nota de 0 a 1: abaixo ou igual ao limite = primeira pessoa. Medido em 143 textos: limite 0,7 pega 22 de 22 e acusa por engano 2 de 121 (só custa uma refação); com 0,5 passavam casos de nota intermediária. */
 const STYLE_QUESTION: JevQuestion = {
   type: 'noul',
   instructions:
     'Is every bullet of `rewritten_summary` free of first-person wording? A bullet is first person when it speaks as the candidate, with a first-person verb form or pronoun (for example "I led the team", "Treinei 3 atendentes", "Construo interfaces", "meu projeto"). A noun phrase ("Treinamento de 3 atendentes") or a subject-less action in the past tense ("Led a team of 7", "Criou o cardápio") is NOT first person.',
   criteria: { true: 'No bullet speaks in the first person.', false: 'At least one bullet speaks in the first person.' },
 }
-export const STYLE_MIN = 0.5
+export const STYLE_MIN = 0.7
 
 const ADEQUACY_QUESTIONS: Record<string, JevQuestion> = {
   adequacy: {
