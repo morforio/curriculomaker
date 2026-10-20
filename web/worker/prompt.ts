@@ -2,7 +2,8 @@ import type { AnalyzeRequest, InputKind, Lang } from '../src/lib/schemas/analysi
 
 /** Formato da introdução: tópicos curtos (highlights), não texto corrido. Vale para a análise e para a refação. */
 const SUMMARY_FORMAT_RULES = `- The summary is a list of professional highlights, NOT running text: one line per highlight, each line starting with "• ", lines separated by a line break (write it as \\n inside the JSON string).
-- 3 to 6 bullets, each one a single objective highlight of at most about 20 words: role and experience, main skills, results, what matters for the job. No filler, no first person ("I am", "Sou"), no vague adjectives ("dedicated", "proactive") and no sentence that repeats another bullet.`
+- 3 to 6 bullets, each one a single objective highlight of at most about 20 words: role and experience, main skills, results, what matters for the job. No filler, no vague adjectives ("dedicated", "proactive") and no sentence that repeats another bullet.
+- Never the first person, in ANY verb form: not "I am" or "Sou", and not "Treinei", "Construo" or "I led" either. A resume line written in the first person ("Treinei 3 atendentes") becomes a noun phrase ("Treinamento de 3 atendentes") or, in English, a subject-less past-tense action ("Led a team of 7").`
 
 /**
  * Regras testadas contra o modelo real (laboratório de prompts, outubro/2026): impedem de "rebatizar" fatos do currículo, aceitam o que o
@@ -98,7 +99,7 @@ export function buildUserPrompt(req: AnalyzeRequest): string {
 
 /** Motivos pelos quais uma versão da introdução foi reprovada na conferência. */
 export type Issue = {
-  kind: 'invention' | 'exaggeration' | 'numbers' | 'skills' | 'relabel' | 'title' | 'bullets'
+  kind: 'invention' | 'exaggeration' | 'numbers' | 'skills' | 'relabel' | 'title' | 'bullets' | 'style'
   detail?: string
 }
 
@@ -113,6 +114,8 @@ const ISSUE_TEXT: Record<Issue['kind'], string> = {
     'The previous attempt changes what a number or duration refers to (for example "7+ years of experience in X" where the resume says a different X, or a project count with a new qualifier). Keep every number with the same words the resume puts after it.',
   bullets:
     'Some bullets of the previous attempt are not supported by the resume: they add a purpose, result, quality, skill, tool or link between facts that the resume does not state. They are listed below with the words that are not in the resume. Rewrite each one as a plain restatement of the resume line it comes from, using the resume\'s own words and nothing more, or drop it. Keep every bullet that is not listed exactly as it is.',
+  style:
+    'Some bullets of the previous attempt are written in the first person (the candidate speaking: "I led", "Treinei", "Construo"). Rewrite them without a subject: as a noun phrase ("Treinamento de 3 atendentes") or, in English, a subject-less past-tense action ("Led a team of 7"). Keep the same facts, add nothing, and keep every other bullet exactly as it is.',
   title:
     'The previous attempt gives the candidate a different job title than the resume states. Keep the role title of the first bullet of <current_summary> exactly as it is.',
 }

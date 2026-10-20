@@ -76,6 +76,15 @@ const FIDELITY_QUESTIONS_REQUEST: Record<string, JevQuestion> = {
   },
 }
 
+/** Estilo: nenhum tópico na primeira pessoa. Vai junto das perguntas de fidelidade (mesma consulta). Medido em 143 textos: limite 0,5 pega 22 de 22 e acusa 0 de 121. */
+const STYLE_QUESTION: JevQuestion = {
+  type: 'noul',
+  instructions:
+    'Is every bullet of `rewritten_summary` free of first-person wording? A bullet is first person when it speaks as the candidate, with a first-person verb form or pronoun (for example "I led the team", "Treinei 3 atendentes", "Construo interfaces", "meu projeto"). A noun phrase ("Treinamento de 3 atendentes") or a subject-less action in the past tense ("Led a team of 7", "Criou o cardápio") is NOT first person.',
+  criteria: { true: 'No bullet speaks in the first person.', false: 'At least one bullet speaks in the first person.' },
+}
+export const STYLE_MIN = 0.5
+
 const ADEQUACY_QUESTIONS: Record<string, JevQuestion> = {
   adequacy: {
     type: 'score',
@@ -226,14 +235,18 @@ const scoreOf = (a: JevAnswer | undefined) => (a?.type === 'score' ? a.score : 0
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 const clamp01 = (n: number) => clamp(n, 0, 1)
 
-const passes = (a: Attempt) => a.issues.length === 0
+/** "style" (primeira pessoa) é só de forma: pede refação enquanto houver, mas nunca retira tópico nem vira aviso. */
+const hardIssues = (a: Attempt) => a.issues.filter((i) => i.kind !== 'style')
+const passes = (a: Attempt) => hardIssues(a).length === 0
+const clean = (a: Attempt) => a.issues.length === 0
+const hasStyleIssue = (a: Attempt) => a.issues.some((i) => i.kind === 'style')
 const failingBullets = (a: Attempt) => a.bullets.filter((b) => b.score < BULLET_MIN_SCORE).length
 /** Tentativa barrada por checagem de código (números, habilidades, anos, cargo): não chegou a ser conferida pelo Jev. */
 const hasLocalIssue = (a: Attempt) => a.issues.some((i) => i.kind === 'numbers' || i.kind === 'skills' || i.kind === 'relabel' || i.kind === 'title')
 
 /** A com menos tópicos reprovados (sem problema de código) e, em empate, a de maior fidelidade; em novo empate, a mais antiga. */
 function bestOf(attempts: Attempt[]): Attempt {
-  const rank = (a: Attempt) => (hasLocalIssue(a) ? 1000 : failingBullets(a))
+  const rank = (a: Attempt) => (hasLocalIssue(a) ? 1000 : failingBullets(a) * 10 + hardIssues(a).filter((i) => i.kind !== 'bullets').length * 5 + (hasStyleIssue(a) ? 1 : 0))
   return attempts.reduce((best, a) => (rank(a) < rank(best) || (rank(a) === rank(best) && a.fidelity > best.fidelity) ? a : best))
 }
 
@@ -285,11 +298,12 @@ async function assess(text: string, changes: Change[], ctx: Context): Promise<At
   const fidelityState = request ? { resume: resumeText, candidate_request: jobText, rewritten_summary: text } : { resume: resumeText, rewritten_summary: text }
   const fidelityQuestions = request ? FIDELITY_QUESTIONS_REQUEST : FIDELITY_QUESTIONS
 
-  const [fid, bullets] = await Promise.all([ctx.verifier.ask(fidelityState, fidelityQuestions), scoreBullets(text, ctx)])
+  const [fid, bullets] = await Promise.all([ctx.verifier.ask(fidelityState, { ...fidelityQuestions, impersonal: STYLE_QUESTION }), scoreBullets(text, ctx)])
 
   const issues: Issue[] = []
   if (noulOf(fid.no_invention) <= QUALITY_THRESHOLD) issues.push({ kind: 'invention' })
   if (noulOf(fid.consistent_with_resume) <= QUALITY_THRESHOLD) issues.push({ kind: 'exaggeration' })
+  if (fid.impersonal && noulOf(fid.impersonal) <= STYLE_MIN) issues.push({ kind: 'style' })
   const bad = bullets.filter((b) => b.score < BULLET_MIN_SCORE)
   if (bad.length > 0) issues.push({ kind: 'bullets', detail: bulletsDetail(bullets, normalize(resumeText)) })
   const summaryFidelity = Math.min(...Object.keys(FIDELITY_QUESTIONS).map((id) => clamp01(noulOf(fid[id]))))
@@ -373,7 +387,7 @@ export async function refineSummaries({ analysis, req, provider, verifier }: Ref
   let failed = false
   try {
     state.attempts.push(await assess(original, analysis.summary.changes, ctx))
-    for (let round = 1; round <= MAX_REDOS && !state.attempts.some(passes); round++) {
+    for (let round = 1; round <= MAX_REDOS && !state.attempts.some(clean); round++) {
       state.redos++
       const next = await redo(state, ctx)
       if (next) state.attempts.push(await assess(next.text, next.changes, ctx))

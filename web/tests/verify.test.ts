@@ -41,6 +41,7 @@ function fakeVerifier() {
         if (id === 'adequacy') out[id] = { type: 'score', score: /APIs REST/.test(text) ? 3 : 1 }
         else if (id.startsWith('bullet_')) out[id] = { type: 'score', score: /liderei/.test(text) ? 0 : /coordenei|design/.test(text) ? 1 : 3 }
         else if (id.startsWith('skill_')) out[id] = { type: 'score', score: /Kubernetes/.test(text) ? 0 : /Liderança/.test(text) ? 1 : 3 }
+        else if (id === 'impersonal') out[id] = { type: 'noul', noul: /Treinei|Construo/.test(String(s.rewritten_summary)) ? 0.1 : 0.95 }
         else if (id === 'consistent_with_resume') out[id] = { type: 'noul', noul: /liderei/.test(text) ? 0.1 : /coordenei/.test(text) ? 0.5 : 0.97 }
         else out[id] = { type: 'noul', noul: 0.95 }
       }
@@ -245,4 +246,37 @@ test('texto só com tópicos do próprio usuário não faz consulta por tópico'
   const { provider } = fakeProvider([])
   await refineSummaries({ analysis: analysisWith(`• ${req.summaryText}`), req, provider, verifier })
   assert.equal(calls.filter((c) => c.ids.some((id) => id.startsWith('bullet_'))).length, 0)
+})
+
+test('primeira pessoa: a pergunta de estilo vai na mesma consulta da fidelidade e pede refação com a instrução certa', async () => {
+  const { verifier, calls } = fakeVerifier()
+  const primeira = '• Treinei novos atendentes'
+  const { provider, prompts } = fakeProvider([{ text: '• Treinamento de novos atendentes' }])
+  const r = await refineSummaries({ analysis: analysisWith(primeira), req, provider, verifier })
+  const fid = calls.find((c) => c.ids.includes('no_invention'))
+  assert.ok(fid && fid.ids.includes('impersonal'), 'mesma consulta da fidelidade, sem consulta nova')
+  assert.equal(r.verification.version?.redos, 1)
+  assert.match(prompts[0], /written in the first person/)
+  assert.match(prompts[0], /keep every other bullet exactly as it is/)
+  assert.equal(r.analysis.summary.suggested, '• Treinamento de novos atendentes')
+  assert.equal(r.verification.version?.removed, undefined)
+})
+
+test('primeira pessoa que o LLM não corrige depois das refações: o texto segue, sem retirar tópico e sem aviso', async () => {
+  const { verifier } = fakeVerifier()
+  const primeira = '• Treinei novos atendentes'
+  const { provider } = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: primeira })))
+  const r = await refineSummaries({ analysis: analysisWith(primeira), req, provider, verifier })
+  assert.equal(r.verification.version?.redos, MAX_REDOS)
+  assert.equal(r.verification.version?.status, 'verified', 'forma não é falsidade: nada de aviso âmbar')
+  assert.equal(r.verification.version?.removed, undefined, 'nada é retirado por causa do estilo')
+  assert.equal(r.analysis.summary.suggested, primeira)
+})
+
+test('o regulamento de formato proíbe a primeira pessoa em qualquer forma verbal, nos dois prompts', async () => {
+  const { SYSTEM_PROMPT, REDO_SYSTEM_PROMPT } = await import('../worker/prompt.ts')
+  for (const prompt of [SYSTEM_PROMPT, REDO_SYSTEM_PROMPT]) {
+    assert.match(prompt, /Never the first person, in ANY verb form/)
+    assert.match(prompt, /Treinamento de 3 atendentes/)
+  }
 })
