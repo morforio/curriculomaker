@@ -13,8 +13,10 @@ import { extractJson, isRealChange, normalize, toBullets } from './text.ts'
  *    habilidade que o currículo não diz, 2 inferência leve e natural, 3 fiel). Tópico abaixo de BULLET_MIN_SCORE reprova;
  *  - o texto inteiro, com as duas perguntas de fidelidade (nada inventado, nada exagerado), com limite QUALITY_THRESHOLD.
  *    Quem reprova volta ao LLM dizendo QUAIS tópicos falharam e quais palavras deles não estão no currículo; o LLM refaz (no máximo
- *    MAX_REDOS vezes). Se, depois disso, ainda sobrar tópico sem apoio, ele é RETIRADO do texto (nunca vai ao usuário); se nenhum
- *    sobrar, vale a introdução original do usuário;
+ *    MAX_REDOS vezes, ou seja, no máximo MAX_REDOS + 1 versões geradas). Se, depois disso, ainda sobrar tópico sem apoio (reprovado pelo
+ *    Jev ou barrado por checagem de código), só ESSE tópico é RETIRADO do texto; os demais ficam. Se nenhum tópico novo se salvar, vale a
+ *    melhor das versões geradas, com aviso. A introdução original do usuário NUNCA é devolvida nem conferida pelo Jev (original contra
+ *    original sempre daria 100%): uma versão que só repete o original é recusada e refeita;
  *  - adequação: quanto o texto está ajustado à vaga, usando só o que o currículo sustenta. É só uma medida mostrada ao usuário:
  *    ela depende do quanto o currículo combina com a vaga, não de erro da IA, então nunca reprova nem refaz o texto.
  */
@@ -25,8 +27,8 @@ export const BULLET_MIN_SCORE = 1.5
 export const MAX_REDOS = 2
 
 type Change = Analysis['summary']['changes'][number]
-// adequacy é null quando não foi medida (o texto já foi barrado nas checagens em código).
-type BulletCheck = { text: string; score: number }
+// adequacy é null quando não foi medida (o texto já foi barrado nas checagens em código). own = tópico copiado da introdução do usuário.
+type BulletCheck = { text: string; score: number; own: boolean }
 type Attempt = { text: string; changes: Change[]; fidelity: number; adequacy: number | null; issues: Issue[]; bullets: BulletCheck[] }
 type VersionState = { lang: Lang; attempts: Attempt[]; redos: number }
 
@@ -181,14 +183,15 @@ async function verifySkills(skills: Analysis['skills'], verifier: Verifier, resu
   return { skills: out, adjusted }
 }
 
-/** Nota de cada tópico do texto (uma consulta ao Jev por até 6 tópicos). */
-async function scoreBullets(text: string, ctx: Context): Promise<BulletCheck[]> {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+const stripMarker = (l: string) => normalize(l.replace(/^[•*\s-]+/, ''))
+const textLines = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean)
+/** Tópico igual a uma linha da introdução que o usuário já tinha: é afirmação dele, não do LLM. */
+const isOwnLine = (line: string, ctx: Context) => ctx.own.has(stripMarker(line))
+
+/** Nota de cada tópico (uma consulta ao Jev por até 6 tópicos). Tópico do usuário não é conferido (e não gasta consulta ao Jev). */
+async function scoreBullets(lines: string[], ctx: Context): Promise<BulletCheck[]> {
   const request = ctx.inputKind === 'request'
-  // Tópico que o usuário já tinha escrito na introdução é afirmação dele, não do LLM: não é conferido (e não gasta consulta ao Jev).
-  const strip = (l: string) => normalize(l.replace(/^[•*\s-]+/, ''))
-  const own = new Set(ctx.req.summaryText.split('\n').map(strip).filter(Boolean))
-  const isOwn = (line: string) => own.has(strip(line))
+  const isOwn = (line: string) => isOwnLine(line, ctx)
   const scores = new Map<string, number>()
   const toAsk = lines.filter((l) => !isOwn(l))
   for (let from = 0; from < toAsk.length; from += BULLETS_PER_CALL) {
@@ -203,7 +206,7 @@ async function scoreBullets(text: string, ctx: Context): Promise<BulletCheck[]> 
     const answers = await ctx.verifier.ask(state, questions)
     chunk.forEach((line, k) => scores.set(line, clamp(scoreOf(answers[`bullet_${k + 1}`]), 0, ADEQUACY_TOP_LEVEL)))
   }
-  return lines.map((line) => ({ text: line, score: isOwn(line) ? ADEQUACY_TOP_LEVEL : (scores.get(line) ?? 0) }))
+  return lines.map((line) => ({ text: line, score: isOwn(line) ? ADEQUACY_TOP_LEVEL : (scores.get(line) ?? 0), own: isOwn(line) }))
 }
 
 /** Palavras do tópico que não aparecem no currículo (comparando as 5 primeiras letras): dica de onde o tópico saiu do que está escrito. */
@@ -240,14 +243,25 @@ const hardIssues = (a: Attempt) => a.issues.filter((i) => i.kind !== 'style')
 const passes = (a: Attempt) => hardIssues(a).length === 0
 const clean = (a: Attempt) => a.issues.length === 0
 const hasStyleIssue = (a: Attempt) => a.issues.some((i) => i.kind === 'style')
-const failingBullets = (a: Attempt) => a.bullets.filter((b) => b.score < BULLET_MIN_SCORE).length
-/** Tentativa barrada por checagem de código (números, habilidades, anos, cargo): não chegou a ser conferida pelo Jev. */
-const hasLocalIssue = (a: Attempt) => a.issues.some((i) => i.kind === 'numbers' || i.kind === 'skills' || i.kind === 'relabel' || i.kind === 'title')
+/** Versão que só repete a introdução original: nunca é a escolhida se houver outra gerada. */
+const isUnchanged = (a: Attempt) => a.issues.some((i) => i.kind === 'unchanged')
+/** Tópicos NOVOS (que o LLM escreveu, não copiados do usuário) que foram aprovados: o que a versão realmente acrescenta. */
+const newSurvivors = (a: Attempt) => a.bullets.filter((b) => !b.own && b.score >= BULLET_MIN_SCORE).length
 
-/** A com menos tópicos reprovados (sem problema de código) e, em empate, a de maior fidelidade; em novo empate, a mais antiga. */
+const keptBullets = (a: Attempt) => a.bullets.filter((b) => b.score >= BULLET_MIN_SCORE).length
+
+/**
+ * Escolhe entre as versões GERADAS (a introdução original nunca entra): primeiro as que têm algum tópico novo aprovado. Como a poda
+ * deixa o texto só com o que passou, vale a que MANTÉM MAIS tópicos aprovados (e não a que reprova menos, que favoreceria versões curtas);
+ * antes disso, a que não tem problema no texto inteiro (invenção, exagero). Em empate, a de menos problema de estilo, depois a de maior
+ * fidelidade e, por fim, a mais antiga. Se nenhuma tiver tópico novo aprovado, vale a melhor delas pelo mesmo critério.
+ */
 function bestOf(attempts: Attempt[]): Attempt {
-  const rank = (a: Attempt) => (hasLocalIssue(a) ? 1000 : failingBullets(a) * 10 + hardIssues(a).filter((i) => i.kind !== 'bullets').length * 5 + (hasStyleIssue(a) ? 1 : 0))
-  return attempts.reduce((best, a) => (rank(a) < rank(best) || (rank(a) === rank(best) && a.fidelity > best.fidelity) ? a : best))
+  const pool = attempts.some((a) => newSurvivors(a) > 0) ? attempts.filter((a) => newSurvivors(a) > 0) : attempts
+  // Problema no texto inteiro só pesa quando nenhum tópico reprovou: se algum reprovou, o problema vem dele e a poda o tira.
+  const wholeTextIssues = (a: Attempt) => (a.bullets.some((b) => b.score < BULLET_MIN_SCORE) ? 0 : a.issues.filter((i) => i.kind === 'invention' || i.kind === 'exaggeration').length)
+  const rank = (a: Attempt) => (isUnchanged(a) ? 1_000_000 : 0) + wholeTextIssues(a) * 1000 + (100 - keptBullets(a)) * 10 + (hasStyleIssue(a) ? 1 : 0)
+  return pool.reduce((best, a) => (rank(a) < rank(best) || (rank(a) === rank(best) && a.fidelity > best.fidelity) ? a : best))
 }
 
 type Context = {
@@ -258,6 +272,8 @@ type Context = {
   inputKind: InputKind
   /** Currículo + introdução original, já normalizados: base das checagens de código. */
   referenceNorm: string
+  /** Linhas da introdução original (sem marcador, normalizadas): tópico igual a uma delas não é do LLM. */
+  own: Set<string>
 }
 
 /** Checagens que não dependem do modelo: números e habilidades ausentes do currículo não podem aparecer no texto. */
@@ -289,25 +305,42 @@ function localIssues(text: string, ctx: Context): Issue[] {
 }
 
 async function assess(text: string, changes: Change[], ctx: Context): Promise<Attempt> {
-  const local = localIssues(text, ctx)
-  if (local.length > 0) return { text, changes, fidelity: 0, adequacy: null, issues: local, bullets: [] }
+  const lines = textLines(text)
+  // Tópico do usuário vale como aprovado (é afirmação dele, o Jev não o confere); o que o LLM escreveu e foi barrado vale 0.
+  const zero = (ls: string[]): BulletCheck[] => ls.map((l) => ({ text: l, score: isOwnLine(l, ctx) ? ADEQUACY_TOP_LEVEL : 0, own: isOwnLine(l, ctx) }))
 
-  // Informação falsa, por tópico e no texto inteiro; quanto o texto mudou em relação ao original não conta.
+  // A introdução original não é uma versão gerada: se nenhum tópico é novo, não há o que conferir (o Jev só daria 100%, original contra
+  // original). A versão é recusada e o LLM refaz.
+  if (lines.length > 0 && lines.every((l) => isOwnLine(l, ctx))) return { text, changes, fidelity: 0, adequacy: null, issues: [{ kind: 'unchanged' }], bullets: zero(lines) }
+
+  // Checagens de código, tópico por tópico: só o tópico com problema é barrado; os outros seguem para a conferência do Jev.
+  const local = localIssues(text, ctx)
+  let barred = new Set<string>()
+  if (local.length > 0) {
+    barred = new Set(lines.filter((l) => !isOwnLine(l, ctx) && localIssues(l, ctx).length > 0))
+    if (barred.size === 0) barred = new Set(lines.filter((l) => !isOwnLine(l, ctx))) // o problema só aparece no conjunto
+  }
+  const rest = lines.filter((l) => !barred.has(l))
+  if (rest.length === 0 || (local.length > 0 && rest.every((l) => isOwnLine(l, ctx)))) return { text, changes, fidelity: 0, adequacy: null, issues: local, bullets: zero(lines) }
+
+  // Informação falsa, por tópico e no texto inteiro (só do que não foi barrado); quanto o texto mudou em relação ao original não conta.
   const { resumeText, jobText } = ctx.req
   const request = ctx.inputKind === 'request'
-  const fidelityState = request ? { resume: resumeText, candidate_request: jobText, rewritten_summary: text } : { resume: resumeText, rewritten_summary: text }
+  const restText = rest.join('\n')
+  const fidelityState = request ? { resume: resumeText, candidate_request: jobText, rewritten_summary: restText } : { resume: resumeText, rewritten_summary: restText }
   const fidelityQuestions = request ? FIDELITY_QUESTIONS_REQUEST : FIDELITY_QUESTIONS
 
-  const [fid, bullets] = await Promise.all([ctx.verifier.ask(fidelityState, { ...fidelityQuestions, impersonal: STYLE_QUESTION }), scoreBullets(text, ctx)])
+  const [fid, scored] = await Promise.all([ctx.verifier.ask(fidelityState, { ...fidelityQuestions, impersonal: STYLE_QUESTION }), scoreBullets(rest, ctx)])
 
-  const issues: Issue[] = []
+  const issues: Issue[] = [...local]
   if (noulOf(fid.no_invention) <= QUALITY_THRESHOLD) issues.push({ kind: 'invention' })
   if (noulOf(fid.consistent_with_resume) <= QUALITY_THRESHOLD) issues.push({ kind: 'exaggeration' })
   if (fid.impersonal && noulOf(fid.impersonal) <= STYLE_MIN) issues.push({ kind: 'style' })
-  const bad = bullets.filter((b) => b.score < BULLET_MIN_SCORE)
-  if (bad.length > 0) issues.push({ kind: 'bullets', detail: bulletsDetail(bullets, normalize(resumeText)) })
+  if (scored.some((b) => b.score < BULLET_MIN_SCORE)) issues.push({ kind: 'bullets', detail: bulletsDetail(scored, normalize(resumeText)) })
   const summaryFidelity = Math.min(...Object.keys(FIDELITY_QUESTIONS).map((id) => clamp01(noulOf(fid[id]))))
-  const minBullet = bullets.length > 0 ? Math.min(...bullets.map((b) => b.score)) / ADEQUACY_TOP_LEVEL : 1
+  const minBullet = Math.min(...scored.map((b) => b.score)) / ADEQUACY_TOP_LEVEL
+  const byLine = new Map(scored.map((b) => [b.text, b]))
+  const bullets = lines.map((l) => byLine.get(l) ?? { text: l, score: 0, own: false })
   return { text, changes, fidelity: Math.min(summaryFidelity, minBullet), adequacy: null, issues, bullets }
 }
 
@@ -381,6 +414,7 @@ export async function refineSummaries({ analysis, req, provider, verifier }: Ref
     provider,
     inputKind: analysis.inputKind ?? 'posting',
     referenceNorm: normalize(`${req.resumeText}\n${req.summaryText}`),
+    own: new Set(textLines(req.summaryText).map(stripMarker)),
   }
   const state: VersionState = { lang: req.language, attempts: [], redos: 0 }
 
@@ -401,25 +435,20 @@ export async function refineSummaries({ analysis, req, provider, verifier }: Ref
   if (state.attempts.length === 0) return { analysis, verification: { state: 'failed' } }
   const best = bestOf(state.attempts)
 
-  // Depois das refações, o que o Jev não aprovou nunca vai ao usuário: o tópico sem apoio é retirado; se não sobra nenhum
-  // (ou o texto foi barrado por checagem de código), vale a introdução original do usuário.
+  // Depois das refações, o que não passou nunca vai ao usuário: só o tópico reprovado pelo Jev ou barrado no código é retirado e os
+  // outros ficam. Se nenhum tópico NOVO se salvou, o que sobra (tópicos do próprio usuário) sai com aviso (best_effort); se nada sobra,
+  // vale a melhor das versões geradas, também com aviso. Nunca se volta à introdução original.
   let finalText = best.text
   let removed = 0
   let fidelity = best.fidelity
   let resolved = passes(best)
   if (!failed && !resolved) {
     const keep = best.bullets.filter((b) => b.score >= BULLET_MIN_SCORE)
-    const originalBullets = req.summaryText.trim() ? toBullets(req.summaryText) : ''
-    if (!hasLocalIssue(best) && best.bullets.length > 0 && keep.length > 0) {
+    if (keep.length > 0) {
       finalText = keep.map((b) => b.text).join('\n')
       removed = best.bullets.length - keep.length
       fidelity = Math.min(...keep.map((b) => b.score)) / ADEQUACY_TOP_LEVEL
-      resolved = true
-    } else if (originalBullets) {
-      finalText = originalBullets
-      removed = Math.max(best.bullets.length, 1)
-      fidelity = 1
-      resolved = true
+      resolved = newSurvivors(best) > 0
     }
   }
   const changes = finalText !== best.text || best !== state.attempts[0] ? reconcileChanges(analysis.summary.changes, [{ ...best, text: finalText }], req.summaryText) : analysis.summary.changes

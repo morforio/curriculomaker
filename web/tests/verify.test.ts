@@ -7,7 +7,7 @@ import { BULLET_MIN_SCORE, MAX_REDOS, refineSummaries } from '../worker/verify.t
 
 /**
  * Testes da conferência da introdução (worker/verify.ts), com LLM e Jev simulados: validam a lógica do ciclo (nota por tópico, refação dirigida,
- * retirada do que não tem apoio, volta ao texto original, conferência das habilidades), não a qualidade do Jev real.
+ * retirada só do tópico sem apoio, a introdução original nunca usada, limite de refações, conferência das habilidades), não a qualidade do Jev real.
  */
 
 const GOOD = 'Desenvolvedor com experiência em APIs REST Node.js e React.'
@@ -86,7 +86,7 @@ test('passa de primeira: nenhuma refação, tópicos conferidos no Jev', async (
 
 test('adequação baixa NÃO reprova nem refaz: só a fidelidade decide, e a adequação é apenas informada', async () => {
   const { verifier } = fakeVerifier()
-  const fiel = 'Desenvolvedor com experiência em APIs Node.js e React.' // fiel, mas pouco ajustada à vaga (adequação 1 de 3)
+  const fiel = 'Desenvolvedor com experiência em Node.js e React.' // fiel, mas pouco ajustada à vaga (adequação 1 de 3)
   const { provider, remaining } = fakeProvider([{ text: GOOD }])
   const r = await refineSummaries({ analysis: analysisWith(fiel), req, provider, verifier })
   assert.equal(r.verification.version?.status, 'verified')
@@ -110,16 +110,34 @@ test('tópico reprovado volta ao LLM com o tópico e as palavras que não estão
   assert.match(prompts[0], /Keep every bullet that is not listed exactly as it is/)
 })
 
-test('número inventado e habilidade ausente são barrados no código, sem chamar o Jev; sem saída, volta o texto original do usuário', async () => {
+test('número inventado e habilidade ausente são barrados no código, sem chamar o Jev; sem saída, vale a melhor versão gerada com aviso, nunca a original', async () => {
   const { verifier, calls } = fakeVerifier()
   const bad = 'Desenvolvedor com 10 anos de experiência com Kubernetes.'
   const { provider } = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: bad })))
   const r = await refineSummaries({ analysis: analysisWith(bad), req, provider, verifier })
   assert.equal(calls.filter((c) => c.ids.includes('no_invention')).length, 0, 'texto barrado no código não chega à fidelidade do Jev')
   assert.equal(r.verification.version?.redos, MAX_REDOS)
-  assert.equal(r.analysis.summary.suggested, `• ${req.summaryText}`, 'nada inventado chega ao usuário: vale a introdução original')
-  assert.equal(r.verification.version?.status, 'verified')
-  assert.ok((r.verification.version?.removed ?? 0) > 0)
+  assert.equal(r.analysis.summary.suggested, bad, 'é uma das versões geradas')
+  assert.notEqual(r.analysis.summary.suggested, `• ${req.summaryText}`, 'a introdução original nunca é devolvida')
+  assert.equal(r.verification.version?.status, 'best_effort', 'sem tópico novo aprovado: aviso')
+})
+
+test('problema de código em UM tópico retira só esse tópico: os outros seguem para o Jev e ficam', async () => {
+  const { verifier, calls } = fakeVerifier()
+  const ruim = 'Gestão de equipe de 10 pessoas com Kubernetes.' // número e habilidade que o currículo não tem
+  const v1 = `• ${GOOD}
+• Desenvolvedor com experiência em React.
+• ${ruim}`
+  const { provider } = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: v1 })))
+  const r = await refineSummaries({ analysis: analysisWith(v1), req, provider, verifier })
+  const q = r.verification.version
+  assert.equal(q?.redos, MAX_REDOS)
+  assert.equal(q?.status, 'verified')
+  assert.equal(q?.removed, 1)
+  assert.equal(r.analysis.summary.suggested, `• ${GOOD}
+• Desenvolvedor com experiência em React.`)
+  const fid = calls.filter((c) => c.ids.includes('no_invention'))
+  assert.ok(fid.length > 0 && fid.every((c) => !String(c.state.rewritten_summary).includes('Kubernetes')), 'o tópico barrado não vai ao Jev')
 })
 
 test('depois das refações, o tópico sem apoio é RETIRADO e os bons ficam', async () => {
@@ -135,17 +153,72 @@ test('depois das refações, o tópico sem apoio é RETIRADO e os bons ficam', a
   assert.equal(remaining(), 0)
 })
 
-test('se todos os tópicos reprovam e há introdução original, vale a original; sem original, a melhor tentativa fica com aviso', async () => {
+test('se todos os tópicos reprovam, vale a melhor das versões geradas, com aviso; a introdução original nunca volta (com ou sem original)', async () => {
   const { verifier } = fakeVerifier()
   const ruim = '• Desenvolvedor liderei APIs Node.js e React.'
-  const a = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: ruim })))
-  const r1 = await refineSummaries({ analysis: analysisWith(ruim), req, provider: a.provider, verifier })
-  assert.equal(r1.analysis.summary.suggested, `• ${req.summaryText}`)
-  assert.equal(r1.verification.version?.status, 'verified')
-  const b = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: ruim })))
-  const r2 = await refineSummaries({ analysis: analysisWith(ruim), req: { ...req, summaryText: '' }, provider: b.provider, verifier })
-  assert.equal(r2.analysis.summary.suggested, ruim)
-  assert.equal(r2.verification.version?.status, 'best_effort')
+  for (const summaryText of [req.summaryText, '']) {
+    const a = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: ruim })))
+    const r = await refineSummaries({ analysis: analysisWith(ruim), req: { ...req, summaryText }, provider: a.provider, verifier })
+    assert.equal(r.analysis.summary.suggested, ruim)
+    assert.equal(r.verification.version?.status, 'best_effort')
+    assert.equal(r.verification.version?.removed, undefined)
+  }
+})
+
+test('entre as versões geradas vale a que tem tópico aprovado, mesmo quando a primeira era melhor "na média"', async () => {
+  const { verifier } = fakeVerifier()
+  const ruim = '• Desenvolvedor liderei APIs Node.js e React.'
+  const meio = `• ${GOOD}
+• Desenvolvedor liderei APIs Node.js e React.`
+  const { provider } = fakeProvider([{ text: ruim }, { text: meio }])
+  const r = await refineSummaries({ analysis: analysisWith(ruim), req, provider, verifier })
+  assert.equal(r.analysis.summary.suggested, `• ${GOOD}`, 'a poda tira só o tópico reprovado da versão escolhida')
+  assert.equal(r.verification.version?.removed, 1)
+})
+
+test('entre as versões vale a que MANTÉM mais tópicos aprovados depois da poda, não a que reprova menos (que favoreceria texto curto)', async () => {
+  const { verifier } = fakeVerifier()
+  const longa = `• ${GOOD}
+• Desenvolvedor com experiência em Node.js.
+• Desenvolvedor liderei APIs Node.js e React.` // 2 aprovados, 1 reprovado
+  const curta = '• Desenvolvedor com experiência em React.' // limpa, mas só 1 tópico
+  const { provider } = fakeProvider([{ text: curta }])
+  const r = await refineSummaries({ analysis: analysisWith(longa), req, provider, verifier })
+  assert.equal(r.analysis.summary.suggested, `• ${GOOD}
+• Desenvolvedor com experiência em Node.js.`)
+  assert.equal(r.verification.version?.removed, 1)
+  assert.equal(r.verification.version?.status, 'verified')
+})
+
+test('o texto original não é uma versão: se o LLM o devolve, o Jev não o confere, a versão é recusada e refeita', async () => {
+  const { verifier, calls } = fakeVerifier()
+  const { provider, prompts } = fakeProvider([{ text: GOOD }])
+  const r = await refineSummaries({ analysis: analysisWith(`• ${req.summaryText}`), req, provider, verifier })
+  assert.equal(r.verification.version?.redos, 1)
+  assert.match(prompts[0], /only repeats <current_summary> without rewriting it/)
+  assert.equal(r.analysis.summary.suggested, `• ${GOOD}`)
+  assert.ok(calls.every((c) => !String(c.state.rewritten_summary ?? '').includes(req.summaryText) && !Object.values(c.state).includes(req.summaryText)), 'o original nunca é enviado ao Jev como texto a conferir')
+})
+
+test('se todas as versões repetem o original, nenhuma é aprovada: aviso, sem consulta ao Jev', async () => {
+  const { verifier, calls } = fakeVerifier()
+  const igual = `• ${req.summaryText}`
+  const { provider } = fakeProvider(Array.from({ length: MAX_REDOS }, () => ({ text: igual })))
+  const r = await refineSummaries({ analysis: analysisWith(igual), req, provider, verifier })
+  assert.equal(r.verification.version?.status, 'best_effort')
+  assert.equal(calls.filter((c) => c.ids.includes('no_invention') || c.ids.some((id) => id.startsWith('bullet_'))).length, 0)
+})
+
+test('no máximo MAX_REDOS (2) refações = 3 versões geradas, mesmo com o LLM errando sempre', async () => {
+  const { verifier, calls } = fakeVerifier()
+  const ruim = '• Desenvolvedor liderei APIs Node.js e React.'
+  const { provider, remaining, prompts } = fakeProvider(Array.from({ length: MAX_REDOS + 3 }, () => ({ text: ruim })))
+  const r = await refineSummaries({ analysis: analysisWith(ruim), req, provider, verifier })
+  assert.equal(MAX_REDOS, 2)
+  assert.equal(r.verification.version?.redos, 2)
+  assert.equal(prompts.length, 2, 'o LLM é chamado 2 vezes na conferência (a 1ª geração veio antes)')
+  assert.equal(remaining(), 3, 'as respostas extras não foram pedidas')
+  assert.equal(calls.filter((c) => c.ids.includes('no_invention')).length, 3, '3 versões conferidas: a original do LLM e as 2 refações')
 })
 
 test('a nota mínima por tópico é 1,5: um tópico com nota 1 (enfeite) reprova e 2 ou mais passa', () => {
@@ -239,13 +312,6 @@ test('tópico que o usuário já tinha na introdução não é conferido pelo Je
   assert.deepEqual(topicos[0].ids, ['bullet_1'], 'só um tópico foi perguntado')
   assert.equal(topicos[0].state.bullet_1, GOOD)
   assert.equal(r.verification.version?.status, 'verified')
-})
-
-test('texto só com tópicos do próprio usuário não faz consulta por tópico', async () => {
-  const { verifier, calls } = fakeVerifier()
-  const { provider } = fakeProvider([])
-  await refineSummaries({ analysis: analysisWith(`• ${req.summaryText}`), req, provider, verifier })
-  assert.equal(calls.filter((c) => c.ids.some((id) => id.startsWith('bullet_'))).length, 0)
 })
 
 test('primeira pessoa: a pergunta de estilo vai na mesma consulta da fidelidade e pede refação com a instrução certa', async () => {
