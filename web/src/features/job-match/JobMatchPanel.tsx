@@ -45,10 +45,12 @@ function QualityBadge({ verification }: { verification: Verification | undefined
   }
   const scores = t('analysis.quality.scores', { fidelity: fmt(q.fidelity) })
   const redone = q.redos > 0 ? ` ${t('analysis.quality.redone', { count: q.redos })}` : ''
+  const removed = q.removed ? ` ${t('analysis.quality.removed', { count: q.removed })}` : ''
   return q.status === 'verified' ? (
     <p className="rounded border border-green-200 bg-green-50 p-2 text-xs text-green-900">
       ✔ {t('analysis.quality.verified')} {scores}
       {redone}
+      {removed}
     </p>
   ) : (
     <p role="alert" className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
@@ -292,6 +294,9 @@ export function JobMatchPanel() {
             <h4 className="text-sm font-semibold text-gray-900">{t(isRequest ? 'analysis.skillsTitleRequest' : 'analysis.skillsTitle')}</h4>
             {requiredSkills.length > 0 && (
               <p className="text-xs text-gray-600">{t('analysis.coverage', { have: covered, total: requiredSkills.length })}</p>
+            )}
+            {(result.meta.verification?.skillsAdjusted ?? 0) > 0 && (
+              <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.skillsAdjusted', { count: result.meta.verification?.skillsAdjusted })}</p>
             )}
             {result.meta.downgraded > 0 && (
               <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{t('analysis.downgraded', { count: result.meta.downgraded })}</p>

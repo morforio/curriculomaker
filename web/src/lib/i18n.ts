@@ -57,8 +57,10 @@ const resources = {
           bestEffort: 'Melhor versão encontrada, mas a conferência ainda vê risco de informação que o currículo não sustenta (abaixo de 0,80). Revise com atenção antes de aplicar.',
           scores: '(sem informação falsa: {{fidelity}}, de 0 a 1)',
           redone: 'Refeita {{count}} vez(es).',
+          removed: '{{count}} tópico(s) foram retirados porque o currículo não os sustenta.',
           failed: 'Não foi possível conferir esta sugestão desta vez. Leia com atenção antes de aplicar.',
         },
+        skillsAdjusted: '{{count}} habilidade(s) foram rebaixadas porque o currículo não mostra a experiência na mesma área ou no mesmo nível.',
         downgraded:
           '{{count}} habilidade(s) que a IA marcou como "possui" foram rebaixadas para "não possui" porque o trecho citado não foi encontrado no currículo.',
         err: {
@@ -408,8 +410,10 @@ const resources = {
           bestEffort: 'Best version found, but the check still sees a risk of information your resume does not support (below 0.80). Review it carefully before applying.',
           scores: '(no false information: {{fidelity}}, on a 0 to 1 scale)',
           redone: 'Rewritten {{count}} time(s).',
+          removed: '{{count}} bullet(s) were removed because your resume does not support them.',
           failed: 'This suggestion could not be checked this time. Read it carefully before applying.',
         },
+        skillsAdjusted: '{{count}} skill(s) were downgraded because your resume does not show the experience in the same field or at the same level.',
         downgraded:
           '{{count}} skill(s) the AI marked as "has" were downgraded to "missing" because the quoted excerpt was not found in your resume.',
         err: {

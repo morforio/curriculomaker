@@ -6,7 +6,7 @@ import { numberContextIssues, roleTitleIssue } from '../worker/guard.ts'
 import type { JevAnswer, JevQuestion, Verifier } from '../worker/jev.ts'
 import type { LLMProvider } from '../worker/llm.ts'
 import { REDO_SYSTEM_PROMPT, SYSTEM_PROMPT } from '../worker/prompt.ts'
-import { refineSummaries } from '../worker/verify.ts'
+import { MAX_REDOS, refineSummaries } from '../worker/verify.ts'
 
 /** Travas em código contra "rebatizar" fatos do currículo e regras do pedido (formação declarada), validadas com saídas reais do modelo. */
 
@@ -152,6 +152,9 @@ test('conferência: habilidade ausente que NÃO é formação declarada continua
   const { provider, used } = fixed([text])
   const skills: Analysis['skills'] = [{ name: 'PyTorch', importance: 'required', status: 'missing', evidence: undefined }]
   const r = await refineSummaries({ analysis: analysis(text, skills), req: { ...req(), jobText: pedido }, provider, verifier })
-  assert.equal(used(), 1) // tentou refazer
-  assert.equal(r.verification.version?.status, 'best_effort')
+  assert.equal(used(), MAX_REDOS) // tentou refazer até o limite
+  // O PyTorch não vai ao usuário: sem saída, vale a introdução original do usuário.
+  assert.ok(!/pytorch/i.test(r.analysis.summary.suggested ?? ''))
+  assert.equal(r.analysis.summary.suggested, SUMMARY)
+  assert.ok((r.verification.version?.removed ?? 0) > 0)
 })

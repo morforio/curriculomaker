@@ -33,7 +33,18 @@ test('postProcess: a introdução sugerida sai em tópicos mesmo que o modelo de
 test('os prompts pedem tópicos curtos e a conversão de texto corrido', () => {
   for (const prompt of [SYSTEM_PROMPT, REDO_SYSTEM_PROMPT]) {
     assert.match(prompt, /list of professional highlights, NOT running text/)
-    assert.match(prompt, /3 to 6 bullets/)
     assert.match(prompt, /running text, convert it into the bullets/)
   }
+  // A análise (R2.2) aceita menos de 3 tópicos quando o currículo tem pouco material; a refação mantém 3 a 6.
+  assert.match(SYSTEM_PROMPT, /Up to 6 bullets \(3 to 6 when the resume has enough material, fewer when it has little\)/)
+  assert.match(REDO_SYSTEM_PROMPT, /3 to 6 bullets/)
+})
+
+test('o prompt da análise (R2.2) traz as armadilhas, o JSON seguro e a conferência tópico a tópico', () => {
+  assert.match(SYSTEM_PROMPT, /PITFALLS \(apply to every summary\)/)
+  assert.match(SYSTEM_PROMPT, /JSON SAFETY/)
+  assert.match(SYSTEM_PROMPT, /AUDIT BY BULLET/)
+  assert.doesNotMatch(SYSTEM_PROMPT, /Eu trabalho com LLM/)
+  // A refação não recebe esses blocos (foi testada sem eles).
+  assert.doesNotMatch(REDO_SYSTEM_PROMPT, /AUDIT BY BULLET/)
 })
